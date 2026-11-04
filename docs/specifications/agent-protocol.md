@@ -1,6 +1,6 @@
 # Manager—Agent 通信规格 v1
 
-更新日期：2026-11-04。状态：M1 实现与对接的工作规格；尚未实现或经过网络、持久化及 Docker 故障验证。本篇承接 [Agent 构件](../architecture.md#5-构件视图与逐层展开)、[部署运行交互](../architecture.md#6-运行视图)和 R01、R04、R05、R07、R11—R14、Q02、Q04、Q05、Q07—Q10。沿用 P07—P10 的工作选择，不把新增字段、参数写成用户逐项确认的需求。
+更新日期：2026-11-04。状态：M1 实现与对接的工作规格；部分结构、连接与许可规则已由 [M0 原型](../implementation/m0-agent-channel.md)验证，完整任务通道、持久化及 Docker 故障尚未验证。本篇承接 [Agent 构件](../architecture.md#5-构件视图与逐层展开)、[部署运行交互](../architecture.md#6-运行视图)和 R01、R04、R05、R07、R11—R14、Q02、Q04、Q05、Q07—Q10。沿用 P07—P10 的工作选择，不把新增字段、参数写成用户逐项确认的需求。
 
 ## 1. 职责与规范入口
 
@@ -52,6 +52,8 @@ Config 的路径不得重复、越界或经符号链接逃逸；compose_files �
 
 JSON Schema 的字符长度不能代替 UTF-8 字节预算，format 和 contentEncoding 也不能替代运行时日期、解码及正文校验。[字符串长度规则](https://json-schema.org/draft/2020-12/json-schema-validation#section-6.3.1)、[内容编码规则](https://json-schema.org/understanding-json-schema/reference/non_json_data)
 
+数字在进入 Schema 前执行解析资源预算：单个 JSON 数字 token 不超过 128 字节，显式十进制指数绝对值不超过 128；本协议数字必须精确表示安全整数，再由所属字段限制具体范围。`1`、`1.0`、`1e0` 等价，不能用浮点舍入把小数或下溢值当作整数。外层消息与解码 FrozenPayload 采用相同检查；超预算返回固定错误，不暴露原始数据。这是 M0 根据实际极端输入修正的当前工作规格，尚无已发布客户端依赖旧解析行为。
+
 ## 4. 消息目录与调用约定
 
 下表 M 表示 Manager、A 表示 Agent。每种 body 的全部字段由 schema 中同名 type 分支定义；本表规定其使用条件。
@@ -91,6 +93,8 @@ JSON Schema 的字符长度不能代替 UTF-8 字节预算，format 和 contentE
 6. Manager 按结果判据形成操作终态，随后完成 finalize/finalized。最终状态与占用释放状态分别保存；Web 可显示执行完成且释放待确认，不能因此开放同目标冲突变更。
 
 prepare 等待 30 秒未得到 ready 不等于准备失败：同会话最多按 1、2、4、8、16、30 秒退避重投同输入；连接变化先核对。request_start 和许可仅在同一有效 10 秒窗口内使用，超时后转核对，不自动换 nonce 获得新许可。result 未收到 ack 时按相同退避重报；finalize 未收到 finalized 同样重报。普通只读查询 30 秒无应答返回 unavailable，不产生变更。
+
+同一 `(operation_id,session_id,start_nonce)` 已持久授权后，request_start 重发读取同一 permit_id/auth_rev，不重新授权或延长期限；新的应答 reply_to 指向本次收到的请求。Agent 保留该窗口内同 nonce 的全部已发请求 message_id，因此原请求的迟到许可只要仍满足窗口和连接约束，也可正确关联。已提交许可后的撤权或取消按既有取消流程处理，不能把同 nonce 重试改成一份相反的新授权结论。deny_start 仅能改变仍处于对应未开始请求阶段的任务；提交开始记录期间或开始后的迟到否认不得覆盖执行事实。
 
 每节点发送队列候选上限 32 个小消息、一次一个配置包；队列满保留持久投递意图并暂停，不丢弃结果、不无限存留秘密。结果事件必须可从账本重新读取；没有从磁盘成功保存 result 时不能假报完成。
 

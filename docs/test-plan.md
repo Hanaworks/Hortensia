@@ -1,6 +1,6 @@
 # Docker Manager 测试计划
 
-更新日期：2026-11-04。状态：测试方案与 M0／M1 验证规格，应用测试尚未执行。本文供实现者和测试执行者使用，持续承接 req42 所组织的[需求与成功标准](requirements.md)，以及 arc42 所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
+更新日期：2026-11-04。状态：测试方案与 M0／M1 验证规格；M0 的通信与许可门禁实验已有执行证据，完整产品测试尚未执行。本文供实现者和测试执行者使用，持续承接 req42 所组织的[需求与成功标准](requirements.md)，以及 arc42 所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
 
 ## 1. 验证目标与分层
 
@@ -125,7 +125,7 @@ M0 的输出应足以决定技术组合和协议是否可用：缺少迟到许�
 
 ## 8. v1 契约检查与新增故障用例
 
-当前可执行的检查只有静态契约与文档检查：在仓库根运行 `pwsh -File tools/check-contracts.ps1`（PowerShell 7.4+ 的 Test-Json）以及 `node tools/check-docs.mjs`（Node 18+）。前者验证消息正反例、每种 type 的覆盖、解码 FrozenPayload 与外层目标一致；后者核对现行 Markdown 的本地链接、锚点、表格列数和围栏。它们不连接 Manager／Agent／Docker，也不验证私钥、权限或进程结局。
+静态契约与文档检查：在仓库根运行 `pwsh -File tools/check-contracts.ps1`（PowerShell 7.4+ 的 Test-Json）以及 `node tools/check-docs.mjs`（Node 18+）。前者验证消息正反例、每种 type 的覆盖、解码 FrozenPayload 与外层目标一致；后者核对现行 Markdown 的本地链接、锚点、表格列数和围栏。它们不连接 Manager／Agent／Docker，也不验证私钥、权限或进程结局。Go 原型的执行证据另列于第 9 节。
 
 Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，样例为[合法形状](../contracts/examples/agent-v1.valid.json)和[结构反例](../contracts/examples/agent-v1.invalid.json)。合法报文集合是相互独立的结构样例；包含正常退出且归属 drifted 的样例，结构通过也必须在状态处理层拒绝 finalize。不能把所有正例顺次发送就称端到端通过。
 
@@ -140,3 +140,9 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 | V18 权限与前端 | 管理员无node.read查看pending节点；有deploy无operation.read提交；保存中继续编辑并再次点击保存 | 管理元信息可见而配置／观察不可见；只显示受理回执；第二次保存不并发提交，第一次超时先核对 |
 
 涉及构建配置、真实故障注入和 Docker 状态的 V01—V18 当前均未执行。O12 的人工恢复路径需要独立维护实验；没有完成前，unknown保持隔离是正确原型行为，不可据此声称可交付产品具备完整人工恢复能力。
+
+## 9. 已执行的 M0 子集
+
+实现和可复验命令见 [M0 实施记录](implementation/m0-agent-channel.md)。目前 `go test ./...` 覆盖共享 Schema 与解码输入、真实 TLS 握手、身份与 session 替换、非法／分片超限消息、独立探活计时，以及内存许可门禁的超时／重复／失效竞争。CLI 测试启动两个独立 OS 子进程，经回环 TLS 通信；探活期限采用可控时钟测试，不把短握手测试当作真实等待 45 秒的网络实验。
+
+这些证据覆盖 V03／V05／V07／V10 的部分前置边界，不将整组用例标为完成。没有接入 Docker、SQLite 或真实权限仓储，没有执行结果重报、崩溃恢复、全量扫描或双端释放。当前工具链关闭 CGO，race 检查不能运行，不能报告竞态检测通过。

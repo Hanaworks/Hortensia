@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager` 是暂名。当前处于开发前的设计与通信规格落实阶段：本目录有现行文档、原始讨论、历史归档、协议 Schema／示例及检查脚本，已建立本地 Git 仓库。没有应用代码、构建配置或运行服务，尚无可安装的产品。
+`docker-manager` 是暂名。当前进入 M0 技术原型阶段：本目录有现行文档、历史归档、协议 Schema／示例，以及 Go 通信原型和测试，已建立本地 Git 仓库。原型可验证本机 TLS 连接与独立许可门禁，尚无可安装的 Docker 管理产品。
 
 ## 主要能力与边界
 
@@ -31,6 +31,7 @@
 | 理解整体及模块 | [架构设计](docs/architecture.md) → [Manager](docs/components/manager.md)、[Agent](docs/components/agent.md)、[Web](docs/components/web.md) |
 | 查精确定义 | [数据设计](docs/data-design.md)、[接口规格](docs/api-design.md)：逻辑实体、操作、状态和失败边界 |
 | 对接首条流程 | [HTTP 规格](docs/specifications/http-api.md)、[Agent 协议](docs/specifications/agent-protocol.md)、[协议 Schema](contracts/agent-v1.schema.json)：消息和返回对象、字段约束、关联及错误 |
+| 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
 | 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
 | 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |
 | 准备安装和维护 | [部署与运行准备](docs/operations.md)：网络与权限、备份恢复、升级与故障，尚非可执行安装教程 |
@@ -40,7 +41,9 @@
 
 ## 继续开发
 
-下一步以 v1 工作规格开展[具体实验](docs/test-plan.md#7-m0m1-验证规格)，再实现节点接入 → Web 保存配置 → 原生部署 → 查看结果。先用 `pwsh -File tools/check-contracts.ps1` 检查本地协议正反例；该命令只验证静态结构，不连接节点。首个增量的实现交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。真正未知／中断执行仍保持隔离；人工解除的维护手段必须在实际环境验证后才能交付。当前没有产品启动命令、安装镜像或应用依赖清单。
+可在仓库根运行 `go test ./... -count=1` 复验当前原型，其中包含真正两个进程的回环 TLS 握手；`pwsh -File tools/check-contracts.ps1` 和 `node tools/check-docs.mjs` 继续检查静态契约与文档。Go 版本、手工运行命令和范围见 M0 实施记录。
+
+下一步落实持久账本、认领／轮换和受控任务交互，再验证原生 Compose，完成节点接入 → Web 保存配置 → 部署 → 查看结果。通道原型不执行 Docker、始终保持核对状态；独立许可测试尚未与网络或数据库接线。真正未知／中断执行继续保持隔离，人工解除仍须验证。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。
 
 新决定记录于 decisions，再同步需求、设计、接口和测试。已有历史材料中的助手建议不会因为再次引用而变成用户已确认决定。正式名称、许可证、发布方式及首版完整范围仍需确定。
 
