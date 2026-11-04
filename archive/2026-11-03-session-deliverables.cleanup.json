@@ -1,0 +1,69 @@
+{
+  "cleanup_date": "2026-11-03",
+  "timezone": "Asia/Shanghai",
+  "action": "Removed archived session outputs from original workspace locations after matching SHA-256",
+  "deleted_files": [
+    {
+      "path": "README.md",
+      "archived_path": "snapshot/README.md",
+      "sha256": "923cc20f311b2bde3875c9874df11377ce15e3930ed5e3f81e6264b4e2c7b17c"
+    },
+    {
+      "path": "docs/api-design-arc42.md",
+      "archived_path": "snapshot/docs/api-design-arc42.md",
+      "sha256": "d55988df0c30e067895e202f25733862ebfb5bbdc8e5989c72627a10c3313bd2"
+    },
+    {
+      "path": "docs/api-design.md",
+      "archived_path": "snapshot/docs/api-design.md",
+      "sha256": "17ca3af542ac8bd4781c0a6e5f595d4a21663e90aff9f2d5f8f48e26869b5546"
+    },
+    {
+      "path": "docs/architecture.md",
+      "archived_path": "snapshot/docs/architecture.md",
+      "sha256": "a057a478cccf5a8d60707cfd223805e299b26a1ac0c7c5d717c21e6a2248041e"
+    },
+    {
+      "path": "docs/data-design.md",
+      "archived_path": "snapshot/docs/data-design.md",
+      "sha256": "11ff12092819348a0dcc9297596aae52a9f54e746f534519ba4fa7ac24b90d9c"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "archived_path": "snapshot/docs/development-plan.md",
+      "sha256": "d3f0ea8aaeed7f4955ad25af6e58c7f015a49a7e034de8070e5d40730f22a7f0"
+    },
+    {
+      "path": "docs/documentation-implementation-plan.md",
+      "archived_path": "snapshot/docs/documentation-implementation-plan.md",
+      "sha256": "9727d8398cf5dfc69c88144c47ac50db201f59831c4c7e8265503c31ba4c32e1"
+    },
+    {
+      "path": "docs/functional-design.md",
+      "archived_path": "snapshot/docs/functional-design.md",
+      "sha256": "a8e6e5d3b20bf37763de9f64d5d986665cc76cafea75459fba39d5c4905fcba3"
+    },
+    {
+      "path": "docs/operations.md",
+      "archived_path": "snapshot/docs/operations.md",
+      "sha256": "b228e5414b6f6a2c9d45f34a1807140cca3bd8c13c984b85688bd0928de3e999"
+    },
+    {
+      "path": "docs/requirements.md",
+      "archived_path": "snapshot/docs/requirements.md",
+      "sha256": "b1e97eaac6bd5f625b4a974105b491678ea50dfd62062a1d9ab7e3ebca7960c3"
+    },
+    {
+      "path": "docs/test-plan.md",
+      "archived_path": "snapshot/docs/test-plan.md",
+      "sha256": "85a341a853eb290d9581236802261d311913046f49e495b19b44bbc96dd6c1ab"
+    }
+  ],
+  "preserved_inputs": [
+    "docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+    "docs/conversation-notes.md"
+  ],
+  "archive_zip": "2026-11-03-session-deliverables.zip",
+  "archive_zip_sha256": "964193f8e4bdfa31c7dcd8e7abf22c613080cb9a626fca7d828b6eef29c5d0c4",
+  "archive_snapshot_preserved": true
+}

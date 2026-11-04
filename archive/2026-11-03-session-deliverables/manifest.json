@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "archive_date": "2026-11-03",
+  "timezone": "Asia/Shanghai",
+  "scope": "本会话产出和必要项目输入，最新快照、首次方案、用户文本与最终答复、导语草稿和复盘整理",
+  "source_workspace": "D:/Project/docker-manager",
+  "session_id": "01a197a2-c6d9-7c92-804b-08e51357a2de",
+  "conversation_cutoff_utc": "2026-11-03T06:17:19.653Z",
+  "source_files_preserved": true,
+  "manifest_excludes_itself": true,
+  "excluded": [
+    "此前归档目录与ZIP",
+    "工具调用与输出",
+    "内部分析",
+    "系统和开发者消息",
+    "子代理消息",
+    "工作进度消息"
+  ],
+  "external_archive_dependencies": [
+    {
+      "source": "snapshot/README.md",
+      "reference": "archive/2026-11-01-documentation/README.md",
+      "availability": "旧归档未随本包复制"
+    },
+    {
+      "source": "snapshot/docs/documentation-implementation-plan.md",
+      "reference": "../archive/2026-11-01-documentation/README.md",
+      "availability": "旧归档未随本包复制"
+    }
+  ],
+  "snapshot": [
+    {
+      "source": "README.md",
+      "archive_path": "snapshot/README.md",
+      "sha256": "923cc20f311b2bde3875c9874df11377ce15e3930ed5e3f81e6264b4e2c7b17c"
+    },
+    {
+      "source": "docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+      "archive_path": "snapshot/docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+      "sha256": "2a93aa842f7562440dd0f1fe7d3e172355ed51020ca67fb885a4ea58c55be349"
+    },
+    {
+      "source": "docs/api-design-arc42.md",
+      "archive_path": "snapshot/docs/api-design-arc42.md",
+      "sha256": "d55988df0c30e067895e202f25733862ebfb5bbdc8e5989c72627a10c3313bd2"
+    },
+    {
+      "source": "docs/api-design.md",
+      "archive_path": "snapshot/docs/api-design.md",
+      "sha256": "17ca3af542ac8bd4781c0a6e5f595d4a21663e90aff9f2d5f8f48e26869b5546"
+    },
+    {
+      "source": "docs/architecture.md",
+      "archive_path": "snapshot/docs/architecture.md",
+      "sha256": "a057a478cccf5a8d60707cfd223805e299b26a1ac0c7c5d717c21e6a2248041e"
+    },
+    {
+      "source": "docs/conversation-notes.md",
+      "archive_path": "snapshot/docs/conversation-notes.md",
+      "sha256": "ecc149b5e69d789a6a3ebbdf4d4e432736cd7f913f430ca1564576a3f32f359c"
+    },
+    {
+      "source": "docs/data-design.md",
+      "archive_path": "snapshot/docs/data-design.md",
+      "sha256": "11ff12092819348a0dcc9297596aae52a9f54e746f534519ba4fa7ac24b90d9c"
+    },
+    {
+      "source": "docs/development-plan.md",
+      "archive_path": "snapshot/docs/development-plan.md",
+      "sha256": "d3f0ea8aaeed7f4955ad25af6e58c7f015a49a7e034de8070e5d40730f22a7f0"
+    },
+    {
+      "source": "docs/documentation-implementation-plan.md",
+      "archive_path": "snapshot/docs/documentation-implementation-plan.md",
+      "sha256": "9727d8398cf5dfc69c88144c47ac50db201f59831c4c7e8265503c31ba4c32e1"
+    },
+    {
+      "source": "docs/functional-design.md",
+      "archive_path": "snapshot/docs/functional-design.md",
+      "sha256": "a8e6e5d3b20bf37763de9f64d5d986665cc76cafea75459fba39d5c4905fcba3"
+    },
+    {
+      "source": "docs/operations.md",
+      "archive_path": "snapshot/docs/operations.md",
+      "sha256": "b228e5414b6f6a2c9d45f34a1807140cca3bd8c13c984b85688bd0928de3e999"
+    },
+    {
+      "source": "docs/requirements.md",
+      "archive_path": "snapshot/docs/requirements.md",
+      "sha256": "b1e97eaac6bd5f625b4a974105b491678ea50dfd62062a1d9ab7e3ebca7960c3"
+    },
+    {
+      "source": "docs/test-plan.md",
+      "archive_path": "snapshot/docs/test-plan.md",
+      "sha256": "85a341a853eb290d9581236802261d311913046f49e495b19b44bbc96dd6c1ab"
+    }
+  ],
+  "files": [
+    {
+      "path": "README.md",
+      "size_bytes": 3891,
+      "sha256": "fc623499d562b1d96f138f39f0301c108f6bb3ab4ec781a3abbba834bf643ce8",
+      "source": {
+        "type": "archive_readme_or_discussion_summary"
+      }
+    },
+    {
+      "path": "conversation/conversation.md",
+      "size_bytes": 66625,
+      "sha256": "7cfa72c2d3b1568a8a57f5ef58daf1b460914039e2adbc9859c8f6d2ad250483",
+      "source": {
+        "type": "conversation_export",
+        "session_id": "01a197a2-c6d9-7c92-804b-08e51357a2de",
+        "cutoff_utc": "2026-11-03T06:17:19.653Z",
+        "user_messages": 38,
+        "assistant_final_messages": 33
+      }
+    },
+    {
+      "path": "conversation/decisions-and-follow-up.md",
+      "size_bytes": 5309,
+      "sha256": "fb1c2a5efc4570a3ad15f9248203b5889c15d54017c23d77ba83e297b2ca964d",
+      "source": {
+        "type": "archive_readme_or_discussion_summary"
+      }
+    },
+    {
+      "path": "conversation/intro-draft.md",
+      "size_bytes": 7856,
+      "sha256": "70fc55027d3019a4f19909a23c22551a1dffa689828831612a15c600c0ecab85",
+      "source": {
+        "type": "conversation_excerpt",
+        "session_id": "01a197a2-c6d9-7c92-804b-08e51357a2de",
+        "timestamps": [
+          "2026-11-02T17:41:54.426Z",
+          "2026-11-02T17:55:32.483Z",
+          "2026-11-02T17:56:34.432Z"
+        ]
+      }
+    },
+    {
+      "path": "history/documentation-implementation-plan-v0.1.md",
+      "size_bytes": 25612,
+      "sha256": "ebaf92d2c64c6fe74bae9e9133eedda7b648c05244b48a051e2812426505e60c",
+      "source": {
+        "type": "reconstructed_initial_file_from_creation_patch",
+        "original_path": "docs/documentation-implementation-plan.md",
+        "session_id": "01a197a2-c6d9-7c92-804b-08e51357a2de",
+        "timestamp_utc": "2026-11-01T15:14:36.058Z",
+        "note": "首次写入稿，保留原笔误；不含随后同轮检查修正。"
+      }
+    },
+    {
+      "path": "snapshot/README.md",
+      "size_bytes": 3749,
+      "sha256": "923cc20f311b2bde3875c9874df11377ce15e3930ed5e3f81e6264b4e2c7b17c",
+      "source": {
+        "type": "session_project_output",
+        "path": "README.md",
+        "sha256": "923cc20f311b2bde3875c9874df11377ce15e3930ed5e3f81e6264b4e2c7b17c"
+      }
+    },
+    {
+      "path": "snapshot/docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+      "size_bytes": 75775,
+      "sha256": "2a93aa842f7562440dd0f1fe7d3e172355ed51020ca67fb885a4ea58c55be349",
+      "source": {
+        "type": "existing_project_input",
+        "path": "docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+        "sha256": "2a93aa842f7562440dd0f1fe7d3e172355ed51020ca67fb885a4ea58c55be349"
+      }
+    },
+    {
+      "path": "snapshot/docs/api-design-arc42.md",
+      "size_bytes": 51583,
+      "sha256": "d55988df0c30e067895e202f25733862ebfb5bbdc8e5989c72627a10c3313bd2",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/api-design-arc42.md",
+        "sha256": "d55988df0c30e067895e202f25733862ebfb5bbdc8e5989c72627a10c3313bd2"
+      }
+    },
+    {
+      "path": "snapshot/docs/api-design.md",
+      "size_bytes": 46961,
+      "sha256": "17ca3af542ac8bd4781c0a6e5f595d4a21663e90aff9f2d5f8f48e26869b5546",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/api-design.md",
+        "sha256": "17ca3af542ac8bd4781c0a6e5f595d4a21663e90aff9f2d5f8f48e26869b5546"
+      }
+    },
+    {
+      "path": "snapshot/docs/architecture.md",
+      "size_bytes": 44082,
+      "sha256": "a057a478cccf5a8d60707cfd223805e299b26a1ac0c7c5d717c21e6a2248041e",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/architecture.md",
+        "sha256": "a057a478cccf5a8d60707cfd223805e299b26a1ac0c7c5d717c21e6a2248041e"
+      }
+    },
+    {
+      "path": "snapshot/docs/conversation-notes.md",
+      "size_bytes": 6224,
+      "sha256": "ecc149b5e69d789a6a3ebbdf4d4e432736cd7f913f430ca1564576a3f32f359c",
+      "source": {
+        "type": "existing_project_input",
+        "path": "docs/conversation-notes.md",
+        "sha256": "ecc149b5e69d789a6a3ebbdf4d4e432736cd7f913f430ca1564576a3f32f359c"
+      }
+    },
+    {
+      "path": "snapshot/docs/data-design.md",
+      "size_bytes": 49761,
+      "sha256": "11ff12092819348a0dcc9297596aae52a9f54e746f534519ba4fa7ac24b90d9c",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/data-design.md",
+        "sha256": "11ff12092819348a0dcc9297596aae52a9f54e746f534519ba4fa7ac24b90d9c"
+      }
+    },
+    {
+      "path": "snapshot/docs/development-plan.md",
+      "size_bytes": 39485,
+      "sha256": "d3f0ea8aaeed7f4955ad25af6e58c7f015a49a7e034de8070e5d40730f22a7f0",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/development-plan.md",
+        "sha256": "d3f0ea8aaeed7f4955ad25af6e58c7f015a49a7e034de8070e5d40730f22a7f0"
+      }
+    },
+    {
+      "path": "snapshot/docs/documentation-implementation-plan.md",
+      "size_bytes": 39492,
+      "sha256": "9727d8398cf5dfc69c88144c47ac50db201f59831c4c7e8265503c31ba4c32e1",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/documentation-implementation-plan.md",
+        "sha256": "9727d8398cf5dfc69c88144c47ac50db201f59831c4c7e8265503c31ba4c32e1"
+      }
+    },
+    {
+      "path": "snapshot/docs/functional-design.md",
+      "size_bytes": 41760,
+      "sha256": "a8e6e5d3b20bf37763de9f64d5d986665cc76cafea75459fba39d5c4905fcba3",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/functional-design.md",
+        "sha256": "a8e6e5d3b20bf37763de9f64d5d986665cc76cafea75459fba39d5c4905fcba3"
+      }
+    },
+    {
+      "path": "snapshot/docs/operations.md",
+      "size_bytes": 37738,
+      "sha256": "b228e5414b6f6a2c9d45f34a1807140cca3bd8c13c984b85688bd0928de3e999",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/operations.md",
+        "sha256": "b228e5414b6f6a2c9d45f34a1807140cca3bd8c13c984b85688bd0928de3e999"
+      }
+    },
+    {
+      "path": "snapshot/docs/requirements.md",
+      "size_bytes": 44355,
+      "sha256": "b1e97eaac6bd5f625b4a974105b491678ea50dfd62062a1d9ab7e3ebca7960c3",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/requirements.md",
+        "sha256": "b1e97eaac6bd5f625b4a974105b491678ea50dfd62062a1d9ab7e3ebca7960c3"
+      }
+    },
+    {
+      "path": "snapshot/docs/test-plan.md",
+      "size_bytes": 43514,
+      "sha256": "85a341a853eb290d9581236802261d311913046f49e495b19b44bbc96dd6c1ab",
+      "source": {
+        "type": "session_project_output",
+        "path": "docs/test-plan.md",
+        "sha256": "85a341a853eb290d9581236802261d311913046f49e495b19b44bbc96dd6c1ab"
+      }
+    }
+  ]
+}

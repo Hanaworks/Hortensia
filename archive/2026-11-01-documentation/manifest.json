@@ -1,0 +1,175 @@
+{
+  "archive_date": "2026-11-01",
+  "timezone": "Asia/Shanghai",
+  "source_root": "D:/Project/docker-manager",
+  "snapshot_directory": "snapshot",
+  "original_files_preserved": 2,
+  "later_files_archived": 15,
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 7724,
+      "sha256": "92627AB83888D5AF9DB48A95EB9CCD9948B160D669C16C941B7997923EE411F1",
+      "keep_original": false
+    },
+    {
+      "path": "README.md",
+      "bytes": 2834,
+      "sha256": "11AFD7E5E1FDE4051CA1DA79BD30D2273DCD1BBD2A7C88ED58F46B9623FADA09",
+      "keep_original": false
+    },
+    {
+      "path": "docs/architecture.md",
+      "bytes": 58563,
+      "sha256": "40B4E20B3254F076973394FFF47200601EC70C58CFE0E4A729EA212834832F6C",
+      "keep_original": false
+    },
+    {
+      "path": "docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+      "bytes": 75775,
+      "sha256": "2A93AA842F7562440DD0F1FE7D3E172355ED51020CA67FB885A4EA58C55BE349",
+      "keep_original": true
+    },
+    {
+      "path": "docs/conversation-notes.md",
+      "bytes": 6224,
+      "sha256": "ECC149B5E69D789A6A3EBBDF4D4E432736CD7F913F430CA1564576A3F32F359C",
+      "keep_original": true
+    },
+    {
+      "path": "docs/data-design.md",
+      "bytes": 54743,
+      "sha256": "08FDBA94725B8E4D8C180E9C18AEE61E0F3EBD3AD89B4B0343408489168209CD",
+      "keep_original": false
+    },
+    {
+      "path": "docs/documentation-plan.md",
+      "bytes": 20503,
+      "sha256": "4C9279E0D17AAB726ED80B0A445C2C07541E2CAB7456982EE45010C2DFEFE5B8",
+      "keep_original": false
+    },
+    {
+      "path": "docs/functional-design.md",
+      "bytes": 56246,
+      "sha256": "9B5437E9C84CDAB2D121171B8BD6291F3B2369CE6C43D6BBDA3F2BB3356FDB6C",
+      "keep_original": false
+    },
+    {
+      "path": "docs/open-questions.md",
+      "bytes": 10065,
+      "sha256": "3D029D754EB3F20818A787C03B48278A6947758B8895B8185C67C52B6F37775C",
+      "keep_original": false
+    },
+    {
+      "path": "docs/requirements.md",
+      "bytes": 20457,
+      "sha256": "3AC5BA2E8422F40B1F3FB57D9562AC6664B0158837F9EEA4A94B2E151A537C22",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/architecture.md",
+      "bytes": 14038,
+      "sha256": "41751FB8C6AFCD326BDE27BCBE0104D97982B772867EDC8B55D2E94A367CE002",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/data-and-api.md",
+      "bytes": 16130,
+      "sha256": "2182DC682E9CD966449603676928E81BC3E39C748ECBD0EA9D9B3F5908482B2E",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/decisions.md",
+      "bytes": 5428,
+      "sha256": "33F76B58819B6216651ED80B913E76BE771BCC4664A91B59709247F4D2B30BC2",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/development-plan.md",
+      "bytes": 6023,
+      "sha256": "8E8E23AF1457A526278678545F9D6BE1EA551576DF163C1BE75847E69C8192C5",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/feature-scope.md",
+      "bytes": 9931,
+      "sha256": "F84320EAC8FB472770D4B2CC624BEBDDB2F6E7A4A06777DD59F2A4862A660741",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/functional-design.md",
+      "bytes": 16379,
+      "sha256": "638D5D2C6F1DE3732FDFB8CA2EE9C3DC887E8975C85B06D5B2CB17DA5BE19585",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/open-questions.md",
+      "bytes": 3825,
+      "sha256": "3E86166F126A0D2595B4A5A25788A23F4CDEE30F7B7F5BA839C5CA44F52D376B",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/preparation-plan.md",
+      "bytes": 14240,
+      "sha256": "BAAC9C1D8B1555C7AF2817A25737D6A5CCA5FD473E474CED49F1AF89F3D3956B",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/README.md",
+      "bytes": 569,
+      "sha256": "334EEDEA0874351A3ED445EF16A19734FD8E66C665AED7D13BAC2672373C1EDA",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/requirements.md",
+      "bytes": 4858,
+      "sha256": "492BB84AFF08153F29D63B74DB18D79BA0354C49CB436181CBD2549463E21130",
+      "keep_original": false
+    },
+    {
+      "path": "docs/archive/2026-10-30-unadopted-drafts/validation-and-delivery.md",
+      "bytes": 15620,
+      "sha256": "75244DDC708EED04CCD3F870B8C61D5A9B4DD15BAC9F9FD31B1BA0E64D6F794D",
+      "keep_original": false
+    }
+  ],
+  "additional_files_archived": 4,
+  "additional_files": [
+    {
+      "source_path": "README.md",
+      "archive_path": "additional/README.md",
+      "source_bytes": 3151,
+      "source_sha256": "4948039850B3A7829AB1CE79FBA049EDC2BB2FFD7E7A3F77589C26EB9BEBBDE3",
+      "archived_bytes": 2983,
+      "archived_sha256": "094628E6D4F74726D44C0C198D0C024DBF7778E438B570E20E95F0571AB1838E",
+      "changes": "Relative links rebased for archive; text otherwise preserved"
+    },
+    {
+      "source_path": "HANDOFF.md",
+      "archive_path": "additional/HANDOFF.md",
+      "source_bytes": 8261,
+      "source_sha256": "3422DC1A321760E4A97B01170BE5BEF09CFF01BDBC738B294106781DDFF70B8D",
+      "archived_bytes": 8153,
+      "archived_sha256": "9EF64F47B3E0C26A42DD45265A5757DE81193AF037F79486719184CB76978FBA",
+      "changes": "Relative links rebased for archive; text otherwise preserved"
+    },
+    {
+      "source_path": "docs/requirements.md",
+      "archive_path": "additional/docs/requirements.md",
+      "source_bytes": 20507,
+      "source_sha256": "7B8B6DF200A32A6FFD827561A1AD24C4A9B2FD73BE1F18FF2E315D5ECCF71A40",
+      "archived_bytes": 20517,
+      "archived_sha256": "F723AE7F8BE18D6991CA1504A895301F12CCFF0F7D06514247DF6D687EEE7E71",
+      "changes": "Relative links rebased for archive; text otherwise preserved"
+    },
+    {
+      "source_path": "docs/open-questions.md",
+      "archive_path": "additional/docs/open-questions.md",
+      "source_bytes": 10421,
+      "source_sha256": "D7653F675FECE7102D5E417FB36E6614724786E27CEE59E131D32E73918AB28E",
+      "archived_bytes": 10331,
+      "archived_sha256": "D5B8D745C3FC19CABA9F0501F438F791EF1805BF1177BB3D6F678393DD915796",
+      "changes": "Relative links rebased for archive; text otherwise preserved"
+    }
+  ]
+}
