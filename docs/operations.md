@@ -77,7 +77,7 @@ Manager 服务用户不需要 Docker 控制权限；Agent 仅使用明确配置�
 
 重启不得重复创建身份或替换缺失的密钥。已有数据库却缺钥、身份不符或 schema 过新时，服务进入明确失败／核对状态；新安装和恢复安装必须是不同入口。首次部署应能验证一个数据库副本确实可解密，再开放变更。
 
-运行配置至少包含访问地址、TLS 信任、数据库路径、密钥路径、日志策略、Agent 工作根目录、Docker 端点和 CLI 路径；实际配置字段与命令由交付工程生成并在此维护。默认监听范围、端口与反向代理方式须随首个产物验证，不能把本文目录建议拼成未经执行的安装命令。
+首轮运行配置字段在第 10 节明确；安装命令和服务文件须随首个产物验证，不能把目录及配置示例拼成未经执行的安装教程。
 
 ## 8. 数据库与密钥备份组
 
@@ -107,6 +107,33 @@ Agent 账本、身份和本地密钥有独立备份责任，但它们与 Manager
 | 磁盘满或 fsync／事务提交失败 | 拒绝新受理和新开始；正在执行的任务尽力保留结果并报告记录失败 | 恢复存储可写后核对实际执行；不能为了续跑先清账本或操作记录 |
 
 旧 Manager 备份可能恢复已经撤销的凭据。恢复模式下不因旧 token 仍可匹配就直接接受变更；管理员须核对当前节点身份、撤销列表和用户授权，受影响凭据先撤销／轮换。恢复环境只开放维护入口，完成核对前不接入原公开入口。旧密钥用于读取备份内容；恢复后新写入先生成并备份新的加密 key_id，避免把已回退的密钥使用计数当成可靠额度，HMAC 旧钥仍按引用保留。
+
+真正 unknown／interrupted 的维护边界详见[执行与恢复](specifications/execution-recovery.md#6-人工恢复的边界与维护要求)。当前规格允许保存证据并持续隔离，没有可直接解除该隔离的现成命令；重新认领、改 node_id 或清空账本均不能绕过旧占用。O12 的维护入口和端点终止屏障必须在可交付安装包前完成设计与实测。
+
+## 10. M0／M1 运行配置工作定义
+
+首轮采用 UTF-8 JSON 配置对象，未知键、重复键、错类型和相对文件路径使启动失败。下面是字段定义，不是已发布的配置文件或启动命令。缺省值只在键省略时使用，null 不代表缺省；秘密内容不直接写入配置，配置只引用私有文件。所有项在进程启动时读取，不支持运行时热更新。环境变量不覆盖这些项，避免服务环境改变实际执行配置。
+
+| 程序／字段 | 类型、默认或必填 | 验证与生效责任 |
+| --- | --- | --- |
+| Manager `listen` | string，默认 `127.0.0.1:8443` | host:port，端口1—65535；需要远程访问时由部署者明确改监听地址 |
+| Manager `external_origin` | 必填 string | 一个 HTTPS origin，含非默认端口，无路径/query/fragment；用于 Origin 精确比较，不根据任意 Forwarded 头推断 |
+| Manager `tls_cert_file`／`tls_key_file` | 必填绝对文件路径 | 本期原型由 Manager 直接终结 TLS；证书、私钥和名称必须匹配；密钥缺失不自动生成替代 |
+| Manager `database_file` | string，默认 `/var/lib/docker-manager/manager.db` | 本地可靠文件系统；打开已有库时必须匹配 manager_id、schema 及密钥 |
+| Manager `keys_dir` | string，默认 `/etc/docker-manager/keys` | 私有密钥目录；权限和备份按第7—8节 |
+| Manager `log_level` | `info|warn|error`，默认 info | 禁止凭日志级别开启配置／密码／原始执行输出打印 |
+| Agent `manager_origin` | 必填 string | HTTPS origin；认领和轮换附加既定路径，WebSocket使用同一主机端口及 `/agent/v1/connect`，不接受任意重定向转发凭据 |
+| Agent `ca_file` | 可省略绝对文件路径 | 省略使用系统 CA；提供则加入明确的附加信任，仍验证主机名；没有 insecure 开关 |
+| Agent `state_dir` | string，默认 `/var/lib/docker-manager-agent` | 内含 agent.db、workspaces 和操作目录；单实例锁覆盖该目录 |
+| Agent `identity_file`／`keys_dir` | string，默认 `/etc/docker-manager-agent/identity.json`／`/etc/docker-manager-agent/keys` | 现有身份和密钥不可因文件缺失而静默重新认领 |
+| Agent `docker_cli` | 必填绝对文件路径 | 只调用经 M0 检查的可执行文件，不接受 Web 请求改变路径 |
+| Agent `docker_socket` | string，默认 `unix:///var/run/docker.sock` | M1 仅同机 unix 端点；不接受 tcp、ssh 或由 Compose 改 context |
+| Agent `execution_timeout_seconds` | integer，默认1800，范围1—86400 | 仅约束单次执行；到期进入 interrupted/deadline 和核对，不能直接认为失败且无副作用 |
+| Agent `log_level` | `info|warn|error`，默认 info | 同样不能打印秘密和原始命令输出 |
+
+启动读取的 Agent 端点和执行相关配置形成 ExecutionProfile。持久 docker_endpoint_id 标识一个实际端点绑定；socket或CLI/执行策略发生变化时停接任务并递增 policy_revision，所有旧 ready 失效。无法证明还是原实际端点时必须隔离并走重新核对，不能只复用相同 socket 字符串。存在未核清操作时不得用配置变更跳过旧端点的维护责任。
+
+协议中的消息上限、许可10秒、探活15／45秒和输出1MiB属于 v1 固定工作参数，首轮不开放普通配置覆盖；M0 调整时同步 Schema、协议、HTTP和对应测试。执行取消的10秒宽限及服务停止应留出的持久化时间由服务集成验证；不能以 supervisor 强制杀进程替代结果核对。反向代理、热更新、远程 Docker 端点和多实例部署在对应能力实现前另行验证，本表不承诺这些组合已支持。
 
 隔离恢复演练至少覆盖：一个含环境秘密的多文件版本、一个尚未开始的操作、一个已 START_COMMITTED 而 Manager 未收到结果的操作、一个备份后新建且已完成并 ack 的操作、一个备份后已撤权用户，以及旧 HMAC key_id 的幂等重试。通过判据是可读取正确原文、发现并保存缺失历史、拒绝越权和重复开始、保留未知占用；完成记录写实际输入与输出，不以“数据库能打开”代替恢复成功。
 

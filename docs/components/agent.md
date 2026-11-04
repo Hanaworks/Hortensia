@@ -1,6 +1,6 @@
 # Agent 模块设计
 
-更新日期：2026-11-04。状态：内部设计与 M1 执行方案草案，尚未原型验证。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接 R02、R04—R10、R12、R13、R15 及 Q03、Q04、Q06—Q10。Agent 主动接入已确认，其内部组织和参数为设计建议。
+更新日期：2026-11-04。状态：M1 内部设计与 v1 执行工作规格，尚未原型验证。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接 R02、R04—R10、R12、R13、R15 及 Q03、Q04、Q06—Q10。Agent 主动接入已确认；具体报文由 [Agent 协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，不把工作规格当成运行结果。
 
 ## 1. 内部组成
 
@@ -57,7 +57,7 @@ Agent 所在文件系统与 Docker Engine 所在文件系统可能不同。Compo
 
 | 情形 | 处理和证据 |
 | --- | --- |
-| 尚未开始收到取消 | 持久记录 canceled，禁止启动；Manager 仍可查询 |
+| 尚未开始收到取消 | 已有准备记录时持久保存 not_started/canceled_before_start 结果，禁止启动；无记录返回 operation_not_found，待 Manager 扫描核对 |
 | 已开始收到取消 | 记录请求并按执行器可用方式尝试终止；不宣称已回滚，采集资源后决定结果或进入核对 |
 | Manager 失联 | 已开始操作保留本地记录，按执行策略完成或停止；不开始依赖新许可的后续阶段 |
 | 结果回报未确认 | 保留结果并重报同一 operation_id，不重新执行 |
@@ -98,15 +98,15 @@ M1 的 Linux 进程组、取消和服务退出建议见第 9.4 节，其他运�
 | --- | --- | --- |
 | 主文件 | 包内一个或多个 Compose 文件，按提交顺序重复传 `-f` | 列表为空、路径不存在、重复或越界拒绝 |
 | 包路径 | 相对 POSIX 路径，保留大小写；文件父目录由 Agent 创建 | 拒绝绝对路径、盘符、反斜杠、空片段、`.`／`..`、NUL、重复路径和符号链接；不接受可自行解包的 tar／zip |
-| 环境 | 明确的插值变量映射和有序 `--env-file`；包内 service `env_file` | 不继承服务进程环境；未通过原生版本对照的 env_file 扩展格式报 unsupported |
-| 附属文件 | 包内普通配置、file 形式的 configs／secrets、相对只读绑定文件 | 文件读取引用必须在包内；不由管理器读取任意绝对路径的秘密文件 |
+| 环境 | 明确的插值变量映射和有序 `--env-file`；包内 service `env_file` 字符串／字符串列表 | 不继承服务进程环境；v1 部署拒绝 env_file 映射扩展；读取路径含插值时明确报不支持，普通变量值仍原生插值 |
+| 附属文件 | 包内普通配置、file 形式的 configs／secrets、字面量 label_file、相对只读绑定文件 | 文件读取引用必须在包内；不读取任意绝对路径秘密；configs／secrets 其他来源形式本版不支持 |
 | 原生项目资源 | 由 Compose 声明的网络、卷、端口、profiles、镜像与服务 | 不注入额外资源；外部命名网络／卷需目标预先存在，绑定目录视为外部依赖 |
 | 应用数据挂载 | 显式绝对宿主机绑定路径；使用包内相对文件作为配置挂载 | 路径不随 Copy 搬运；相对可写数据目录、包内内容被应用写回的挂载在 M1 拒绝，避免破坏不可变版本 |
-| 外部引用与扩展 | 原文可保存以供编辑 | M1 部署拒绝 include、extends、远程 URL 引用、外部文件引用及尚未验证的生命周期 hook；明确报出位置，不改写为“兼容” |
+| 外部引用与扩展 | 原文可保存以供编辑；标准 YAML anchor／alias／mapping merge 可预检 | v1 部署拒绝 include、extends、远程引用、credential_spec、provider、develop、models、生命周期 hook、自定义 tag；完整范围见执行规格，不改写为“兼容” |
 | build 与镜像 | 原文保留 build；可执行的服务必须有明确 image，并使用 `--no-build` | 不上传上下文、不运行 build；缺镜像且无法按原生策略取得时失败，不自动补建 |
 | Docker 连接 | 服务配置指定的同机 Unix socket | Compose 内容、Web 输入不能改变 Docker host／context；远程端点在 M1 报未支持 |
 
-静态预检只检查包路径、文件引用和本期能力边界，不代替原生 Compose 合并／插值。它必须在首次调用 CLI 前检查所有输入文件，避免校验器先读取越界引用。未知文件引用形式无法判断时拒绝部署，不能“先让 CLI 试一下”。绑定挂载允许的宿主机路径是应用授权范围，不受包目录限制，也不代表管理器已备份其中数据。
+静态预检先展开单文件 YAML alias 和 mapping merge，按已知引用位置检查所有提交的 Compose 文件，再调用原生 config 合并和插值；渲染后检查挂载、外部资源及归属。为避免自行复制 Compose 插值引擎，v1 对文件读取路径和挂载来源含插值的部署明确报不支持，保留原文保存能力。[执行规格第 2 节](../specifications/execution-recovery.md#2-配置预检与原生执行)列出顺序、读文件位置和错误，作为本轮比上一版更明确的支持边界。绑定挂载允许的宿主机路径是应用授权范围，不受包目录限制，也不代表管理器已备份其中数据。
 
 每个版本在 `workspaces/{stack_id}/{version_id}/package/` 物化；先写临时目录、校验并耐久发布，再将账本标为 ready。目录与文件分别采用服务账号私有权限，按固定版本核对本地指纹；已有目录内容变化则拒绝复用。部署任务再冻结其工作目录、端点与环境。运行挂载可能引用旧版本目录，M1 不自动删除这些目录。
 
@@ -118,7 +118,7 @@ M1 的 Linux 进程组、取消和服务退出建议见第 9.4 节，其他运�
 
 准备阶段调用 `config --format json`，只在内存解析并检查支持范围、有效镜像、外部依赖及项目冲突，不保存或普通日志打印含秘密的渲染正文。必要的秘密诊断也通过受限输出处理。原生校验本身不代表部署成功。[config 命令](https://docs.docker.com/reference/cli/docker/compose/config/)
 
-获得开始许可后调用同一前缀加 `up --detach --no-build`；不隐式增加 `--remove-orphans`、`--force-recreate`、`--pull always` 或删除卷选项。镜像策略继续由配置和原生行为决定。M1 新项目遇节点既有同名项目时拒绝；受管理项目更新前核对已登记对象与漂移，不能把仅有相同 label 的外部项目自动接管。[up 命令](https://docs.docker.com/reference/cli/docker/compose/up/)
+获得开始许可后复核固定工作区、执行配置和目标基线，再调用同一前缀加 `up --detach --no-build`；不隐式增加 `--remove-orphans`、`--force-recreate`、`--pull always` 或删除卷选项。`pull_policy: build` 拒绝，其他镜像策略继续由配置和原生行为决定。M1 新项目遇节点既有同名项目时拒绝；受管理项目使用节点本地 project_bindings 及部署前后基线核对漂移和自身合法重建，具体见[归属规则](../specifications/execution-recovery.md#3-资源归属与合法替换)。不能把仅有相同 label 的外部项目自动接管。[up 命令](https://docs.docker.com/reference/cli/docker/compose/up/)
 
 退出后单独采集该项目资源，以操作实际输入记录版本。配置版本固定不等于镜像标签永不变化：需要可重现镜像时使用用户明确给出的 digest，系统记录实际 image ID，不静默改写标签。没有 healthcheck 的服务显示“未声明健康检查”，不能显示“业务健康已验证”。
 
@@ -126,7 +126,7 @@ M1 的 Linux 进程组、取消和服务退出建议见第 9.4 节，其他运�
 
 调度器为每个操作串行处理 prepare、authorize_start 和 cancel。request_start 生成一次性 nonce，记录本地单调时间；只接受当前连接、同 nonce、同输入且 10 秒内的许可。收到有效许可时，在同一执行互斥中再次检查取消标志并持久提交 `START_COMMITTED`，提交后、启动前再检查连接和期限；失效则不创建进程，持久报告实际未启动证据，无法持久确认时转核对。提交失败不能执行；提交成功但尚未启动就崩溃时也不能自动重做，必须进入核对。Manager 以授权事务提交区分先后，Agent 不承诺撤回已经开始的操作。
 
-Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，及时回收子进程。候选输出预算为每操作合计 1 MiB 原始输出；达到上限继续排空管道、标记截断而不阻塞进程。输出可能含秘密，按 `operation.output.read` 控制并加密持久化，不混入普通服务日志。Go 的 [os/exec](https://pkg.go.dev/os/exec)提供进程与管道能力，但不会自动实现这里的进程组和取消策略。
+Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，及时回收子进程。两个管道按采集器接收顺序合为一个流，不承诺重建它们在进程内的绝对先后；使用增量 UTF-8 解码器，以 U+FFFD 替换非法序列，防止跨读取块截断合法多字节字符。每操作持久采集上限为转换后 1 MiB UTF-8 字节，不截半个字符；output_b64 传输这些固定字节，HTTP 输出游标也基于同一流。达到上限仍继续排空原始管道并标记截断。输出可能含秘密，按 `operation.output.read` 控制并加密持久化，不混入普通服务日志。Go 的 [os/exec](https://pkg.go.dev/os/exec)提供进程与管道能力，但不会自动实现这里的进程组和取消策略。
 
 开始前取消由账本持久标记后确认无副作用；开始后的取消先记录请求，再对已知的本次进程组发 SIGTERM，候选等待 10 秒后仍存活则 SIGKILL，最后读取退出状态并观察资源。即使退出码为 0，也不能仅据此报告取消已回滚。无法确认进程退出或 Docker 影响时保持 reconciliation_required。M1 候选执行期限为 30 分钟，超时采用同一中断及核对路径；期限可由运维配置，在原型中用慢镜像和失联验证，不作为性能承诺。
 
@@ -137,3 +137,9 @@ Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，�
 建议在未来 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目录为工程建议，当前没有这些程序文件。
 
 M0 至少输出：同一输入的原生对照、路径拒绝清单、10 秒许可迟到及撤权竞争、START_COMMITTED 前后崩溃、命令超时和残留进程、结果丢包与账本丢失证据。首次得到成功部署不代表这些故障边界已经验证。
+
+## 10. 结果与释放接入
+
+结果的 outcome 区分 not_started、normal_exit、interrupted、unknown；ownership_status 区分 not_checked、consistent、drifted、unknown。正常退出只有在观察 complete 且归属 consistent 时才可自动终结；不能只用 exit_code 判定是否可释放。正常退出但观察失败、尚无明确漂移时，接收绑定原 operation_id 的只读补观察，保留原进程事实，以新 event_seq 发布新观察及重新核对的 ownership_status，不执行第二次 Compose。观察完整但归属 drifted／unknown 仍保持核对。
+
+ack 只确认 Manager 已保存事件。Agent 必须等收到绑定同一结果的 finalize，事务内保存 finalized 并释放 local_claims，随后回报；重复 finalize 读取既有释放回执。Manager 保留自己的占用直至 finalized。完整判定矩阵、两端提交顺序和未知时的人工维护限制见[执行与恢复规格第 5、6 节](../specifications/execution-recovery.md#5-恢复判定与占用释放)。未知执行仍保持隔离，当前没有可用的通用强制解锁工具。

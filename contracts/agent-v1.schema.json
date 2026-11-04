@@ -1,0 +1,2160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docker-manager.invalid/contracts/agent-v1.schema.json",
+  "title": "Docker Manager Agent protocol v1 working specification",
+  "description": "字段与结构规范。业务状态、方向、身份绑定、字节预算和持久性仍须按 agent-protocol.md 校验。",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "hello"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "type": "null"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "ledger_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "boot_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "agent_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "compose_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Capability"
+              },
+              "maxItems": 64,
+              "uniqueItems": true
+            },
+            "execution_profile": {
+              "$ref": "#/$defs/ExecutionProfile"
+            }
+          },
+          "required": [
+            "node_id",
+            "ledger_id",
+            "boot_id",
+            "agent_version",
+            "compose_version",
+            "capabilities",
+            "execution_profile"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "welcome"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "node_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "session_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "reconcile_required": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "node_id",
+            "session_id",
+            "reconcile_required"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "reconcile"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "enum": [
+                "pending",
+                "all"
+              ]
+            },
+            "scan_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "scope",
+            "scan_id",
+            "cursor",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "reconcile_reply"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "enum": [
+                "pending",
+                "all"
+              ]
+            },
+            "scan_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ledger_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "total": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "records": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/RecoveryRecord"
+              },
+              "maxItems": 200
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Error"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "scope",
+            "scan_id",
+            "ledger_id",
+            "total",
+            "records",
+            "next_cursor",
+            "complete",
+            "error"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "error": {
+                    "type": "null"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "scan_id": {
+                    "$ref": "#/$defs/Id"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "complete": {
+                          "const": true
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "next_cursor": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "next_cursor": {
+                          "$ref": "#/$defs/Cursor"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "else": {
+                "properties": {
+                  "records": {
+                    "maxItems": 0
+                  },
+                  "complete": {
+                    "const": false
+                  },
+                  "next_cursor": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "reconcile_complete"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "scan_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "ledger_id": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "scan_id",
+            "ledger_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "reconcile_completed"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "scan_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "ledger_id": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "scan_id",
+            "ledger_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "prepare"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "node_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "stack_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "version_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "payload_b64": {
+              "$ref": "#/$defs/Base64",
+              "minLength": 4,
+              "contentEncoding": "base64",
+              "contentMediaType": "application/json",
+              "contentSchema": {
+                "$ref": "#/$defs/FrozenPayload"
+              }
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "node_id",
+            "stack_id",
+            "version_id",
+            "payload_b64"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "ready"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "precheck_result": {
+              "$ref": "#/$defs/PrecheckResult"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "precheck_result"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "request_start"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "start_nonce": {
+              "$ref": "#/$defs/Id"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "start_nonce"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "authorize_start"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "start_nonce": {
+              "$ref": "#/$defs/Id"
+            },
+            "permit_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "auth_rev": {
+              "$ref": "#/$defs/Revision"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "start_nonce",
+            "permit_id",
+            "auth_rev"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "deny_start"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "start_nonce": {
+              "$ref": "#/$defs/Id"
+            },
+            "code": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          },
+          "required": [
+            "operation_id",
+            "start_nonce",
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "started"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "event_seq": {
+              "$ref": "#/$defs/EventSeq"
+            },
+            "phase": {
+              "const": "START_COMMITTED"
+            },
+            "permit_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "started_at": {
+              "$ref": "#/$defs/Timestamp"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "event_seq",
+            "phase",
+            "permit_id",
+            "started_at"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "result"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "$ref": "#/$defs/ExecutionResult"
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "ack"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "event_seq": {
+              "$ref": "#/$defs/EventSeq"
+            }
+          },
+          "required": [
+            "operation_id",
+            "event_seq"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "cancel"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "observe"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "query_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "operation_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "resource_kind": {
+              "const": "container"
+            },
+            "stack_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "query_id",
+            "operation_id",
+            "resource_kind",
+            "stack_id",
+            "cursor",
+            "limit"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "observation"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "query_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "operation_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "node_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "collected_at": {
+              "$ref": "#/$defs/Timestamp"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ResourceItem"
+              },
+              "maxItems": 200
+            },
+            "next_cursor": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Cursor"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Error"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "query_id",
+            "operation_id",
+            "node_id",
+            "collected_at",
+            "items",
+            "next_cursor",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "finalize"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "type": "null"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "result_event_seq": {
+              "$ref": "#/$defs/EventSeq"
+            },
+            "terminal_state": {
+              "$ref": "#/$defs/TerminalState"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "result_event_seq",
+            "terminal_state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "finalized"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "operation_id": {
+              "$ref": "#/$defs/Id"
+            },
+            "input_digest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "result_event_seq": {
+              "$ref": "#/$defs/EventSeq"
+            },
+            "terminal_state": {
+              "$ref": "#/$defs/TerminalState"
+            }
+          },
+          "required": [
+            "operation_id",
+            "input_digest",
+            "result_event_seq",
+            "terminal_state"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "protocol": {
+          "const": 1
+        },
+        "type": {
+          "const": "protocol_error"
+        },
+        "message_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "reply_to": {
+          "$ref": "#/$defs/Id"
+        },
+        "body": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "$ref": "#/$defs/Error"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "protocol",
+        "type",
+        "message_id",
+        "session_id",
+        "reply_to",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "description": "小写带连字符 UUIDv4；身份不由显示名推导。"
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,3})?Z$",
+      "description": "UTC RFC3339，最多毫秒精度；另检查日历有效性，不用于单调时钟期限判断。"
+    },
+    "Revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "EventSeq": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "description": "32字节HMAC的无填充Base64url；解码和再编码还须一致。"
+    },
+    "Base64": {
+      "type": "string",
+      "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+      "maxLength": 8388608
+    },
+    "Cursor": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "不透明游标，不能由客户端解析、构造或跨查询复用。"
+    },
+    "Path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*[\\\\:\\u0000])(?!.*(?:^|/)\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$",
+      "description": "包内相对POSIX路径；还须按UTF-8字节校验≤240，拒绝符号链接及重复路径。"
+    },
+    "ConfigFile": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/Path"
+        },
+        "content_b64": {
+          "$ref": "#/$defs/Base64",
+          "maxLength": 1398104
+        }
+      },
+      "required": [
+        "path",
+        "content_b64"
+      ],
+      "additionalProperties": false
+    },
+    "Config": {
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConfigFile"
+          },
+          "maxItems": 128,
+          "minItems": 1
+        },
+        "compose_files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Path"
+          },
+          "maxItems": 128,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "interpolation_env_files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Path"
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "interpolation_env": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 1024
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "files",
+        "compose_files",
+        "interpolation_env_files",
+        "interpolation_env",
+        "profiles"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionProfile": {
+      "type": "object",
+      "properties": {
+        "docker_endpoint_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "policy_revision": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "docker_endpoint_id",
+        "policy_revision"
+      ],
+      "additionalProperties": false
+    },
+    "Capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.]{0,95}$"
+    },
+    "Error": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "enum": [
+            "invalid_input",
+            "permission_denied",
+            "not_found",
+            "conflict",
+            "unsupported",
+            "unavailable",
+            "execution_failed",
+            "reconciliation_required"
+          ]
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "retry_action": {
+          "enum": [
+            "none",
+            "same_request",
+            "query_operation",
+            "refresh_and_review"
+          ]
+        }
+      },
+      "required": [
+        "category",
+        "code",
+        "message",
+        "retry_action"
+      ],
+      "additionalProperties": false
+    },
+    "OperationState": {
+      "enum": [
+        "accepted",
+        "preparing",
+        "ready",
+        "authorized",
+        "running",
+        "succeeded",
+        "failed",
+        "canceled",
+        "reconciliation_required"
+      ]
+    },
+    "TerminalState": {
+      "enum": [
+        "succeeded",
+        "failed",
+        "canceled"
+      ]
+    },
+    "Outcome": {
+      "enum": [
+        "not_started",
+        "normal_exit",
+        "interrupted",
+        "unknown"
+      ]
+    },
+    "ResourceItem": {
+      "type": "object",
+      "properties": {
+        "resource_kind": {
+          "const": "container"
+        },
+        "resource_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "project_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "service_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stack_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "created",
+            "restarting",
+            "running",
+            "removing",
+            "paused",
+            "exited",
+            "dead",
+            "unknown"
+          ]
+        },
+        "health": {
+          "enum": [
+            "none",
+            "starting",
+            "healthy",
+            "unhealthy",
+            "unknown"
+          ]
+        }
+      },
+      "required": [
+        "resource_kind",
+        "resource_id",
+        "name",
+        "project_name",
+        "service_name",
+        "stack_id",
+        "image_id",
+        "state",
+        "health"
+      ],
+      "additionalProperties": false
+    },
+    "Observation": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "error"
+          ]
+        },
+        "collected_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceItem"
+          }
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "collected_at",
+        "items",
+        "error"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "complete"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "error": {
+                "$ref": "#/$defs/Error"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "FrozenPayload": {
+      "type": "object",
+      "properties": {
+        "operation_type": {
+          "const": "stack.apply"
+        },
+        "node_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "stack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "maxLength": 128
+        },
+        "config": {
+          "$ref": "#/$defs/Config"
+        },
+        "required_capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "maxItems": 64,
+          "minItems": 2,
+          "uniqueItems": true,
+          "allOf": [
+            {
+              "contains": {
+                "const": "compose.apply.v1"
+              }
+            },
+            {
+              "contains": {
+                "const": "config.bundle.v1"
+              }
+            }
+          ]
+        },
+        "execution_profile": {
+          "$ref": "#/$defs/ExecutionProfile"
+        }
+      },
+      "required": [
+        "operation_type",
+        "node_id",
+        "stack_id",
+        "version_id",
+        "project_name",
+        "config",
+        "required_capabilities",
+        "execution_profile"
+      ],
+      "additionalProperties": false
+    },
+    "ExecutionResult": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "event_seq": {
+          "$ref": "#/$defs/EventSeq"
+        },
+        "phase": {
+          "const": "result"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "interrupt_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "canceled",
+                "deadline",
+                "agent_stopping",
+                "signal"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Observation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "not_started": {
+          "type": "boolean"
+        },
+        "output_b64": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base64",
+              "maxLength": 1398104
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "output_truncated": {
+          "type": "boolean"
+        },
+        "finished_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "ownership_status": {
+          "$ref": "#/$defs/OwnershipStatus"
+        }
+      },
+      "required": [
+        "operation_id",
+        "input_digest",
+        "event_seq",
+        "phase",
+        "outcome",
+        "interrupt_reason",
+        "exit_code",
+        "error",
+        "observation",
+        "not_started",
+        "output_b64",
+        "output_truncated",
+        "finished_at",
+        "ownership_status"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "not_started"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "not_started": {
+                "const": true
+              },
+              "exit_code": {
+                "type": "null"
+              },
+              "interrupt_reason": {
+                "type": "null"
+              },
+              "error": {
+                "$ref": "#/$defs/Error"
+              },
+              "observation": {
+                "type": "null"
+              },
+              "output_b64": {
+                "type": "null"
+              },
+              "output_truncated": {
+                "const": false
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "not_started": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "normal_exit"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "exit_code": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 255
+              },
+              "interrupt_reason": {
+                "type": "null"
+              },
+              "observation": {
+                "$ref": "#/$defs/Observation"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "interrupted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "interrupt_reason": {
+                "enum": [
+                  "canceled",
+                  "deadline",
+                  "agent_stopping",
+                  "signal"
+                ]
+              },
+              "error": {
+                "$ref": "#/$defs/Error"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "interrupt_reason": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "unknown"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "exit_code": {
+                "type": "null"
+              },
+              "error": {
+                "$ref": "#/$defs/Error"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "not_started"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ownership_status": {
+                "const": "not_checked"
+              }
+            }
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "outcome": {
+                  "const": "normal_exit"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "ownership_status": {
+                  "enum": [
+                    "consistent",
+                    "drifted",
+                    "unknown"
+                  ]
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "ownership_status": {
+                  "enum": [
+                    "drifted",
+                    "unknown"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "normal_exit"
+              },
+              "exit_code": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/Error"
+                  },
+                  {
+                    "properties": {
+                      "category": {
+                        "const": "execution_failed"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "RecoveryRecord": {
+      "type": "object",
+      "properties": {
+        "operation_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "input_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "stack_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "version_id": {
+          "$ref": "#/$defs/Id"
+        },
+        "project_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "phase": {
+          "enum": [
+            "preparing",
+            "ready",
+            "START_COMMITTED",
+            "result",
+            "reconciliation_required",
+            "finalized"
+          ]
+        },
+        "last_event_seq": {
+          "$ref": "#/$defs/Revision"
+        },
+        "result_event_seq": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EventSeq"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latest_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "claims_held": {
+          "type": "boolean"
+        },
+        "report_acked": {
+          "type": "boolean"
+        },
+        "final_state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TerminalState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "finalized_result_event_seq": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EventSeq"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "operation_id",
+        "input_digest",
+        "stack_id",
+        "version_id",
+        "project_name",
+        "phase",
+        "last_event_seq",
+        "result_event_seq",
+        "latest_result",
+        "claims_held",
+        "report_acked",
+        "final_state",
+        "finalized_result_event_seq"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "finalized"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "claims_held": {
+                "const": false
+              },
+              "final_state": {
+                "$ref": "#/$defs/TerminalState"
+              },
+              "finalized_result_event_seq": {
+                "$ref": "#/$defs/EventSeq"
+              },
+              "latest_result": {
+                "$ref": "#/$defs/ExecutionResult"
+              },
+              "result_event_seq": {
+                "$ref": "#/$defs/EventSeq"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "claims_held": {
+                "const": true
+              },
+              "final_state": {
+                "type": "null"
+              },
+              "finalized_result_event_seq": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "latest_result": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result_event_seq": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "result_event_seq": {
+                "$ref": "#/$defs/EventSeq"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "PrecheckResult": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "checked_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "compose_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "workspace_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "ok",
+        "checked_at",
+        "compose_version",
+        "workspace_ref"
+      ],
+      "additionalProperties": false
+    },
+    "OwnershipStatus": {
+      "enum": [
+        "not_checked",
+        "consistent",
+        "drifted",
+        "unknown"
+      ]
+    }
+  }
+}

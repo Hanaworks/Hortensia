@@ -1,0 +1,407 @@
+[
+  {
+    "protocol": 1,
+    "type": "hello",
+    "message_id": "00000000-0000-4000-8000-000000000100",
+    "session_id": null,
+    "reply_to": null,
+    "body": {
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "ledger_id": "00000000-0000-4000-8000-000000000005",
+      "boot_id": "00000000-0000-4000-8000-000000000006",
+      "agent_version": "0.1.0",
+      "compose_version": "2.0.0-example",
+      "capabilities": [
+        "compose.apply.v1",
+        "config.bundle.v1"
+      ],
+      "execution_profile": {
+        "docker_endpoint_id": "00000000-0000-4000-8000-000000000009",
+        "policy_revision": 1
+      }
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "welcome",
+    "message_id": "00000000-0000-4000-8000-000000000101",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reconcile_required": true
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "reconcile",
+    "message_id": "00000000-0000-4000-8000-000000000102",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "scope": "all",
+      "scan_id": null,
+      "cursor": null,
+      "limit": 200
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "reconcile_reply",
+    "message_id": "00000000-0000-4000-8000-000000000103",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "scope": "all",
+      "scan_id": "00000000-0000-4000-8000-000000000010",
+      "ledger_id": "00000000-0000-4000-8000-000000000005",
+      "total": 1,
+      "records": [
+        {
+          "operation_id": "00000000-0000-4000-8000-000000000004",
+          "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "stack_id": "00000000-0000-4000-8000-000000000002",
+          "version_id": "00000000-0000-4000-8000-000000000003",
+          "project_name": "sample",
+          "phase": "result",
+          "last_event_seq": 2,
+          "result_event_seq": 2,
+          "latest_result": {
+            "operation_id": "00000000-0000-4000-8000-000000000004",
+            "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "event_seq": 2,
+            "phase": "result",
+            "outcome": "normal_exit",
+            "interrupt_reason": null,
+            "exit_code": 0,
+            "error": null,
+            "observation": {
+              "status": "complete",
+              "collected_at": "2026-11-04T04:00:00.000Z",
+              "items": [
+                {
+                  "resource_kind": "container",
+                  "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "name": "sample-web-1",
+                  "project_name": "sample",
+                  "service_name": "web",
+                  "stack_id": "00000000-0000-4000-8000-000000000002",
+                  "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "state": "running",
+                  "health": "none"
+                }
+              ],
+              "error": null
+            },
+            "not_started": false,
+            "output_b64": null,
+            "output_truncated": false,
+            "finished_at": "2026-11-04T04:00:00.000Z",
+            "ownership_status": "consistent"
+          },
+          "claims_held": true,
+          "report_acked": false,
+          "final_state": null,
+          "finalized_result_event_seq": null
+        }
+      ],
+      "next_cursor": null,
+      "complete": true,
+      "error": null
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "reconcile_complete",
+    "message_id": "00000000-0000-4000-8000-000000000104",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "scan_id": "00000000-0000-4000-8000-000000000010",
+      "ledger_id": "00000000-0000-4000-8000-000000000005"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "reconcile_completed",
+    "message_id": "00000000-0000-4000-8000-000000000105",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "scan_id": "00000000-0000-4000-8000-000000000010",
+      "ledger_id": "00000000-0000-4000-8000-000000000005"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "prepare",
+    "message_id": "00000000-0000-4000-8000-000000000106",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "stack_id": "00000000-0000-4000-8000-000000000002",
+      "version_id": "00000000-0000-4000-8000-000000000003",
+      "payload_b64": "eyJvcGVyYXRpb25fdHlwZSI6InN0YWNrLmFwcGx5Iiwibm9kZV9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInN0YWNrX2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwidmVyc2lvbl9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsInByb2plY3RfbmFtZSI6InNhbXBsZSIsImNvbmZpZyI6eyJmaWxlcyI6W3sicGF0aCI6ImNvbXBvc2UueWFtbCIsImNvbnRlbnRfYjY0IjoiYzJWeWRtbGpaWE02Q2lBZ2QyVmlPZ29nSUNBZ2FXMWhaMlU2SUc1bmFXNTRPbk4wWVdKc1pRbz0ifV0sImNvbXBvc2VfZmlsZXMiOlsiY29tcG9zZS55YW1sIl0sImludGVycG9sYXRpb25fZW52X2ZpbGVzIjpbXSwiaW50ZXJwb2xhdGlvbl9lbnYiOnt9LCJwcm9maWxlcyI6W119LCJyZXF1aXJlZF9jYXBhYmlsaXRpZXMiOlsiY29tcG9zZS5hcHBseS52MSIsImNvbmZpZy5idW5kbGUudjEiXSwiZXhlY3V0aW9uX3Byb2ZpbGUiOnsiZG9ja2VyX2VuZHBvaW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA5IiwicG9saWN5X3JldmlzaW9uIjoxfX0="
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "ready",
+    "message_id": "00000000-0000-4000-8000-000000000107",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "precheck_result": {
+        "ok": true,
+        "checked_at": "2026-11-04T04:00:00.000Z",
+        "compose_version": "2.0.0-example",
+        "workspace_ref": "workspaces/00000000-0000-4000-8000-000000000002/00000000-0000-4000-8000-000000000003/package/"
+      }
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "request_start",
+    "message_id": "00000000-0000-4000-8000-000000000108",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "start_nonce": "00000000-0000-4000-8000-000000000011"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "authorize_start",
+    "message_id": "00000000-0000-4000-8000-000000000109",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "start_nonce": "00000000-0000-4000-8000-000000000011",
+      "permit_id": "00000000-0000-4000-8000-000000000012",
+      "auth_rev": 1
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "deny_start",
+    "message_id": "00000000-0000-4000-8000-000000000110",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "start_nonce": "00000000-0000-4000-8000-000000000011",
+      "code": "permission_denied"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "started",
+    "message_id": "00000000-0000-4000-8000-000000000111",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "event_seq": 1,
+      "phase": "START_COMMITTED",
+      "permit_id": "00000000-0000-4000-8000-000000000012",
+      "started_at": "2026-11-04T04:00:00.000Z"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "result",
+    "message_id": "00000000-0000-4000-8000-000000000112",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "event_seq": 2,
+      "phase": "result",
+      "outcome": "normal_exit",
+      "interrupt_reason": null,
+      "exit_code": 0,
+      "error": null,
+      "observation": {
+        "status": "complete",
+        "collected_at": "2026-11-04T04:00:00.000Z",
+        "items": [
+          {
+            "resource_kind": "container",
+            "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "sample-web-1",
+            "project_name": "sample",
+            "service_name": "web",
+            "stack_id": "00000000-0000-4000-8000-000000000002",
+            "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "state": "running",
+            "health": "none"
+          }
+        ],
+        "error": null
+      },
+      "not_started": false,
+      "output_b64": null,
+      "output_truncated": false,
+      "finished_at": "2026-11-04T04:00:00.000Z",
+      "ownership_status": "consistent"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "ack",
+    "message_id": "00000000-0000-4000-8000-000000000113",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "event_seq": 2
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "cancel",
+    "message_id": "00000000-0000-4000-8000-000000000114",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "observe",
+    "message_id": "00000000-0000-4000-8000-000000000115",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "query_id": "00000000-0000-4000-8000-000000000013",
+      "operation_id": null,
+      "resource_kind": "container",
+      "stack_id": "00000000-0000-4000-8000-000000000002",
+      "cursor": null,
+      "limit": 200
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "observation",
+    "message_id": "00000000-0000-4000-8000-000000000116",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "query_id": "00000000-0000-4000-8000-000000000013",
+      "operation_id": null,
+      "node_id": "00000000-0000-4000-8000-000000000001",
+      "collected_at": "2026-11-04T04:00:00.000Z",
+      "items": [
+        {
+          "resource_kind": "container",
+          "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "name": "sample-web-1",
+          "project_name": "sample",
+          "service_name": "web",
+          "stack_id": "00000000-0000-4000-8000-000000000002",
+          "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "state": "running",
+          "health": "none"
+        }
+      ],
+      "next_cursor": null,
+      "error": null
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "finalize",
+    "message_id": "00000000-0000-4000-8000-000000000117",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "result_event_seq": 2,
+      "terminal_state": "succeeded"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "finalized",
+    "message_id": "00000000-0000-4000-8000-000000000118",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "result_event_seq": 2,
+      "terminal_state": "succeeded"
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "protocol_error",
+    "message_id": "00000000-0000-4000-8000-000000000119",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": "00000000-0000-4000-8000-000000000090",
+    "body": {
+      "error": {
+        "category": "invalid_input",
+        "code": "state_conflict",
+        "message": "Message is not allowed in current state.",
+        "retry_action": "query_operation"
+      }
+    }
+  },
+  {
+    "protocol": 1,
+    "type": "result",
+    "message_id": "00000000-0000-4000-8000-000000000999",
+    "session_id": "00000000-0000-4000-8000-000000000008",
+    "reply_to": null,
+    "body": {
+      "operation_id": "00000000-0000-4000-8000-000000000004",
+      "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "event_seq": 2,
+      "phase": "result",
+      "outcome": "normal_exit",
+      "interrupt_reason": null,
+      "exit_code": 0,
+      "error": null,
+      "observation": {
+        "status": "complete",
+        "collected_at": "2026-11-04T04:00:00.000Z",
+        "items": [
+          {
+            "resource_kind": "container",
+            "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "name": "sample-web-1",
+            "project_name": "sample",
+            "service_name": "web",
+            "stack_id": "00000000-0000-4000-8000-000000000002",
+            "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "state": "running",
+            "health": "none"
+          }
+        ],
+        "error": null
+      },
+      "not_started": false,
+      "output_b64": null,
+      "output_truncated": false,
+      "finished_at": "2026-11-04T04:00:00.000Z",
+      "ownership_status": "drifted"
+    }
+  }
+]

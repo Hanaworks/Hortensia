@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager` 是暂名。当前处于开发前的需求与设计阶段：本目录有现行文档、原始讨论和历史归档，没有应用代码、构建配置、运行服务或 Git 仓库，尚无可安装的产品。
+`docker-manager` 是暂名。当前处于开发前的设计与通信规格落实阶段：本目录有现行文档、原始讨论、历史归档、协议 Schema／示例及检查脚本，已建立本地 Git 仓库。没有应用代码、构建配置或运行服务，尚无可安装的产品。
 
 ## 主要能力与边界
 
@@ -17,7 +17,7 @@
 
 ## 组成与技术状态
 
-逻辑上由 Web、Manager 和节点 Agent 组成，Agent 主动连接 Manager 已经确认。当前推荐 Go Manager／Agent、Vue 3／TypeScript Web、两端独立 SQLite、Agent 主动 TLS WebSocket；配置正文加密存库，Web 同源访问，首期以轮询查看操作结果。这些是已经展开的技术提案，尚待审阅、依赖版本锁定与原型验证，详见[方案取舍](docs/decisions.md#21-2026-11-04-的具体技术建议)。
+逻辑上由 Web、Manager 和节点 Agent 组成，Agent 主动连接 Manager 已经确认。Go Manager／Agent、Vue 3／TypeScript Web、两端独立 SQLite、Agent TLS WebSocket 已作为本轮技术工作选择继续落实；配置正文加密存库，Web 同源访问，首期轮询操作结果。v1 通信字段与关键行为已有工作规格，依赖版本及实际运行组合仍需原型验证，详见[方案取舍](docs/decisions.md#21-2026-11-04-的具体技术建议)。
 
 当前优先考虑 Unix-like 下具备可用 Docker CLI／Compose 时的一致操作行为；Linux、FreeBSD 等环境意向不代表已经完成平台兼容验证。实际 Agent 环境、Docker 端点和文件路径组合会在实现前验证。
 
@@ -30,15 +30,17 @@
 | 核对日常操作方式 | [功能与交互设计](docs/functional-design.md)：编辑部署、跨节点、权限和转换流程 |
 | 理解整体及模块 | [架构设计](docs/architecture.md) → [Manager](docs/components/manager.md)、[Agent](docs/components/agent.md)、[Web](docs/components/web.md) |
 | 查精确定义 | [数据设计](docs/data-design.md)、[接口规格](docs/api-design.md)：逻辑实体、操作、状态和失败边界 |
+| 对接首条流程 | [HTTP 规格](docs/specifications/http-api.md)、[Agent 协议](docs/specifications/agent-protocol.md)、[协议 Schema](contracts/agent-v1.schema.json)：消息和返回对象、字段约束、关联及错误 |
+| 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
 | 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |
 | 准备安装和维护 | [部署与运行准备](docs/operations.md)：网络与权限、备份恢复、升级与故障，尚非可执行安装教程 |
 | 查决定与剩余问题 | [决策与待办](docs/decisions.md)：用户确认、设计提案、阻塞范围及解决时点 |
 
-文档以 req42／arc42 为统一骨架，模块、数据、接口、测试和运行继续承接需求与设计。2026-11-04 已在初稿上深化 M1 首个完整流程：接口字段与认证、数据库事务、执行许可与恢复、文件及 CLI 边界、Web 状态、备份和故障验证均有具体建议。现行稿可用于技术审阅和原型准备，尚非已经实现或验证的完整产品规格；迁移策略和后续能力按阶段继续展开。文档检查与软件测试分别报告。
+文档以 req42／arc42 为统一骨架，模块、数据、接口、测试和运行继续承接需求与设计。2026-11-04 的继续落实覆盖首条流程的 HTTP 返回对象、20 类 Agent 消息、共享字段约束、执行结局和归属、双端释放及恢复核对；上一轮内容中的相关规则同步更新。现行稿用于按同一约定开展实现与原型，不代表产品或故障恢复已经验证；迁移策略和后续能力按阶段展开。文档／契约检查与软件测试分别报告。
 
 ## 继续开发
 
-下一步审阅推荐技术组合与 M1 范围，按[具体实验](docs/test-plan.md#7-m0m1-验证规格)开展 M0 验证，再实现节点接入 → Web 保存配置 → 原生部署 → 查看结果。首个增量包含授权、原生语义、断线核对和最小备份恢复，范围与工程交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。当前没有可运行命令、安装镜像或开发依赖清单。
+下一步以 v1 工作规格开展[具体实验](docs/test-plan.md#7-m0m1-验证规格)，再实现节点接入 → Web 保存配置 → 原生部署 → 查看结果。先用 `pwsh -File tools/check-contracts.ps1` 检查本地协议正反例；该命令只验证静态结构，不连接节点。首个增量的实现交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。真正未知／中断执行仍保持隔离；人工解除的维护手段必须在实际环境验证后才能交付。当前没有产品启动命令、安装镜像或应用依赖清单。
 
 新决定记录于 decisions，再同步需求、设计、接口和测试。已有历史材料中的助手建议不会因为再次引用而变成用户已确认决定。正式名称、许可证、发布方式及首版完整范围仍需确定。
 

@@ -1,6 +1,6 @@
 # Manager 模块设计
 
-更新日期：2026-11-04。状态：内部设计及 M1 工程提案，待审阅和协议验证。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中 Manager 的内部展开，承接 R01—R07、R11—R17 及 Q02—Q05、Q07—Q10。第 7 节把身份、事务、投递与恢复落实为单 Manager 方案；拟定代码位置尚未创建。
+更新日期：2026-11-04。状态：M1 内部设计及 v1 工作规格，尚未协议验证。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中 Manager 的内部展开，承接 R01—R07、R11—R17 及 Q02—Q05、Q07—Q10。第 7 节和[执行与恢复规格](../specifications/execution-recovery.md)说明单 Manager 的投递、证据和释放顺序；拟定代码位置尚未创建。
 
 ## 1. 内部组成与依赖
 
@@ -102,8 +102,10 @@ Manager 向 Web 提供配置保存／Copy、操作提交查询、迁移准备／
 | 新建 Stack／保存版本 | 查询当前权限和幂等记录；检查项目名／If-Match；插入版本、更新指针、保存提交结果和审计 | 大小、路径及编码的无副作用检查可先做；涉及当前权限和版本的检查在事务内重做 |
 | 接受 Apply | 查询授权和同键结果；验证固定版本与节点可用性；冻结输入，建立 accepted 操作、资源占用、outbox 和审计 | 内容加密的计算可提前准备，但事务失败不能留下可见版本或可投递任务 |
 | 批准开始 | 重查用户、Grant/auth_rev、节点身份、当前连接、取消、占用和摘要；保存 authorized、permit_id 与许可关联 | 提交后才发送许可；网络写入不持有数据库事务 |
-| 接受回报 | 按操作、source=agent 和 event_seq 去重，保存阶段／结果、增加 revision；确定终态才释放相应占用 | 提交后 ack，重复回报只返回已确认位置；Manager 自己的事件另用 source=manager |
+| 接受回报 | 按操作、source=agent 和 event_seq 去重，保存阶段／结果、增加 revision；可终结时写终态、release_status=pending 及 finalize 意图，暂不释放 Manager 占用 | 提交后 ack；匹配 finalized 另开事务释放占用并写 released；Manager 自己的事件另用 source=manager |
 | 撤权／取消 | 更新 Grant 或账号状态及 auth_rev，或设置 cancel_requested；阻止以后发放许可，保存审计 | 通知连接和 Agent；通知失败不撤销数据库中的限制 |
+
+normal_exit 的结果只有 observation.status=complete 且 ownership_status=consistent 才形成 succeeded／failed 并建立 finalize 意图；完整观察但归属漂移或未知时保持 reconciliation_required。not_started 使用其持久未启动证据；interrupted／unknown 不自动终结。Manager 在写终态前就执行这些条件，不把 Agent 后续拒绝 finalize 当作结果校验的替代。
 
 单 Manager 的 SQLite 写事务串行化许可和撤权；不得在事务外缓存一次授权后无条件写 authorized。资源占用使用持久唯一约束，M1 至少占用稳定 Stack 身份和节点内 Compose 项目名，节点外部 Docker 进程的动作仍只能通过预检及事后观察发现。数据库繁忙、崩溃或网络超时不得自动释放占用。
 
@@ -113,7 +115,7 @@ Manager 向 Web 提供配置保存／Copy、操作提交查询、迁移准备／
 
 会话注册以 node_id、凭据状态和 ledger_id 为入口，welcome 分配新 session_id；旧连接不再接受新消息。正常重连保留 Agent 账本，完成所需旧操作核对后才投递新变更；相同凭据却不同 ledger_id 进入隔离，不靠名称重新关联。轮换只改变认证秘密，不能替换执行历史。
 
-outbox worker 每次发送前重新读取节点当前会话和操作状态。prepare 可按相同 operation_id 和冻结输入重复发送，由 Agent 账本去重；许可只服务当前 start_nonce，不作为可在未来任意重放的 outbox 消息。Manager 若在许可提交后、发送前崩溃，重启后记录仍为 authorized，进入核对，不能重新生成另一个许可绕过未知。
+outbox worker 每次发送前重新读取节点当前会话和操作状态。持久状态为 pending／waiting／confirmed／suppressed；写通道成功仍为 waiting，收到匹配业务证据才 confirmed。prepare 按同一 operation_id 和冻结输入重发，cancel 与 finalize 各有独立固定意图；具体重试、代次与失效条件见[投递生命周期](../specifications/execution-recovery.md#4-manager-outbox-生命周期)。许可只服务当前 start_nonce，不作为可在未来任意重放的 outbox 消息。Manager 若在许可提交后、发送前崩溃，重启后记录仍为 authorized，进入核对，不能重新生成另一个许可绕过未知。
 
 发送成功仅表示写入当前通道；Agent ready／started／result 才是阶段证据。每节点独立发送队列且有界，建议最多 32 条待发送小消息、一次一个配置包；队列满暂停该节点投递并保留数据库引用，不无限驻留秘密正文，也不阻塞其他节点查询。一个 Agent 的慢连接不能让所有 HTTP 请求等待它完成。
 
@@ -121,9 +123,9 @@ outbox worker 每次发送前重新读取节点当前会话和操作状态。pre
 
 Manager 正常重启先恢复未终结操作、占用和 outbox；有未完成任务的节点先核对，其他核对完成节点可以继续工作。来自备份的首次恢复使用单独隔离模式，管理员也不能绕过隔离自动授权或触发部署；先确认身份、账本和实际资源，再显式开放。程序不能仅凭“数据库能打开”判断是不是安全的当前状态，恢复入口必须设置并持久保存这一模式。
 
-accepted／preparing／ready 且没有已提交许可的任务可在写事务中确认为 canceled；若已有许可则只设置 cancel_requested，等 Agent 持久证明未开始或回报执行事实。START_COMMITTED 后无法确认的任务保持 reconciliation_required；对外“重试”不能产生新的冲突操作。结束进程不代表资源回滚，结果展示需保留受影响对象。
+accepted／preparing／ready 且没有已提交许可的任务可持久决定取消；Agent 可能已准备时仍须取得未开始结果并完成释放握手。只有 scope=all 的完整可信对账证明 Agent 无记录且 Manager 从未授权，才可在管理端直接释放；pending 集合缺席不满足条件。已有许可只设置 cancel_requested，等 Agent 持久证明未开始或回报执行事实。START_COMMITTED 后无法确认的任务保持 reconciliation_required；对外“重试”不能产生新的冲突操作。结束进程不代表资源回滚，结果展示需保留受影响对象。
 
-结果事件矛盾、旧账本缺失、输入 fingerprint 不一致和节点对象替换都升级为核对，不让最后一条消息覆盖证据。M1 没有通用“强制解锁并重跑”按钮；具体恢复只能在保存事实和人工核对依据后解除相应占用。何种资源观察足以证明成功依操作类型定义，无法证明时保留未知，不制造通用成功结果。
+结果事件矛盾、旧账本缺失、输入 fingerprint 不一致和节点对象替换都升级为核对，不让最后一条消息覆盖证据。[恢复判定矩阵](../specifications/execution-recovery.md#5-恢复判定与占用释放)区分自动可终结、只补观察和必须隔离的情况。M1 原型没有通用“强制解锁并重跑”按钮；真正未知的人工恢复入口须在可交付安装包前完成设计与验证，当前保持隔离并保留证据。何种资源观察足以证明成功依操作类型定义，无法证明时保留未知，不制造通用成功结果。
 
 ### 7.5 验证重点
 

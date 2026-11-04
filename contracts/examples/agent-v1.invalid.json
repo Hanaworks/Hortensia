@@ -1,0 +1,331 @@
+[
+  {
+    "reason": "result缺少outcome",
+    "message": {
+      "protocol": 1,
+      "type": "result",
+      "message_id": "00000000-0000-4000-8000-000000000112",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "event_seq": 2,
+        "phase": "result",
+        "interrupt_reason": null,
+        "exit_code": 0,
+        "error": null,
+        "observation": {
+          "status": "complete",
+          "collected_at": "2026-11-04T04:00:00.000Z",
+          "items": [
+            {
+              "resource_kind": "container",
+              "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "name": "sample-web-1",
+              "project_name": "sample",
+              "service_name": "web",
+              "stack_id": "00000000-0000-4000-8000-000000000002",
+              "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "state": "running",
+              "health": "none"
+            }
+          ],
+          "error": null
+        },
+        "not_started": false,
+        "output_b64": null,
+        "output_truncated": false,
+        "finished_at": "2026-11-04T04:00:00.000Z"
+      }
+    }
+  },
+  {
+    "reason": "interrupted缺少中断原因及错误",
+    "message": {
+      "protocol": 1,
+      "type": "result",
+      "message_id": "00000000-0000-4000-8000-000000000112",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "event_seq": 2,
+        "phase": "result",
+        "outcome": "interrupted",
+        "interrupt_reason": null,
+        "exit_code": 0,
+        "error": null,
+        "observation": {
+          "status": "complete",
+          "collected_at": "2026-11-04T04:00:00.000Z",
+          "items": [
+            {
+              "resource_kind": "container",
+              "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "name": "sample-web-1",
+              "project_name": "sample",
+              "service_name": "web",
+              "stack_id": "00000000-0000-4000-8000-000000000002",
+              "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "state": "running",
+              "health": "none"
+            }
+          ],
+          "error": null
+        },
+        "not_started": false,
+        "output_b64": null,
+        "output_truncated": false,
+        "finished_at": "2026-11-04T04:00:00.000Z",
+        "ownership_status": "unknown"
+      }
+    }
+  },
+  {
+    "reason": "normal_exit与not_started=true矛盾",
+    "message": {
+      "protocol": 1,
+      "type": "result",
+      "message_id": "00000000-0000-4000-8000-000000000112",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "event_seq": 2,
+        "phase": "result",
+        "outcome": "normal_exit",
+        "interrupt_reason": null,
+        "exit_code": 0,
+        "error": null,
+        "observation": {
+          "status": "complete",
+          "collected_at": "2026-11-04T04:00:00.000Z",
+          "items": [
+            {
+              "resource_kind": "container",
+              "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "name": "sample-web-1",
+              "project_name": "sample",
+              "service_name": "web",
+              "stack_id": "00000000-0000-4000-8000-000000000002",
+              "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "state": "running",
+              "health": "none"
+            }
+          ],
+          "error": null
+        },
+        "not_started": true,
+        "output_b64": null,
+        "output_truncated": false,
+        "finished_at": "2026-11-04T04:00:00.000Z",
+        "ownership_status": "consistent"
+      }
+    }
+  },
+  {
+    "reason": "normal_exit必须含整数exit_code",
+    "message": {
+      "protocol": 1,
+      "type": "result",
+      "message_id": "00000000-0000-4000-8000-000000000112",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "event_seq": 2,
+        "phase": "result",
+        "outcome": "normal_exit",
+        "interrupt_reason": null,
+        "exit_code": null,
+        "error": null,
+        "observation": {
+          "status": "complete",
+          "collected_at": "2026-11-04T04:00:00.000Z",
+          "items": [
+            {
+              "resource_kind": "container",
+              "resource_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "name": "sample-web-1",
+              "project_name": "sample",
+              "service_name": "web",
+              "stack_id": "00000000-0000-4000-8000-000000000002",
+              "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "state": "running",
+              "health": "none"
+            }
+          ],
+          "error": null
+        },
+        "not_started": false,
+        "output_b64": null,
+        "output_truncated": false,
+        "finished_at": "2026-11-04T04:00:00.000Z",
+        "ownership_status": "consistent"
+      }
+    }
+  },
+  {
+    "reason": "拒绝未定义字段",
+    "message": {
+      "protocol": 1,
+      "type": "prepare",
+      "message_id": "00000000-0000-4000-8000-000000000106",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "node_id": "00000000-0000-4000-8000-000000000001",
+        "stack_id": "00000000-0000-4000-8000-000000000002",
+        "version_id": "00000000-0000-4000-8000-000000000003",
+        "payload_b64": "eyJvcGVyYXRpb25fdHlwZSI6InN0YWNrLmFwcGx5Iiwibm9kZV9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSIsInN0YWNrX2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAyIiwidmVyc2lvbl9pZCI6IjAwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMyIsInByb2plY3RfbmFtZSI6InNhbXBsZSIsImNvbmZpZyI6eyJmaWxlcyI6W3sicGF0aCI6ImNvbXBvc2UueWFtbCIsImNvbnRlbnRfYjY0IjoiYzJWeWRtbGpaWE02Q2lBZ2QyVmlPZ29nSUNBZ2FXMWhaMlU2SUc1bmFXNTRPbk4wWVdKc1pRbz0ifV0sImNvbXBvc2VfZmlsZXMiOlsiY29tcG9zZS55YW1sIl0sImludGVycG9sYXRpb25fZW52X2ZpbGVzIjpbXSwiaW50ZXJwb2xhdGlvbl9lbnYiOnt9LCJwcm9maWxlcyI6W119LCJyZXF1aXJlZF9jYXBhYmlsaXRpZXMiOlsiY29tcG9zZS5hcHBseS52MSIsImNvbmZpZy5idW5kbGUudjEiXSwiZXhlY3V0aW9uX3Byb2ZpbGUiOnsiZG9ja2VyX2VuZHBvaW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDA5IiwicG9saWN5X3JldmlzaW9uIjoxfX0=",
+        "shell": "rm -rf /"
+      }
+    }
+  },
+  {
+    "reason": "hello不能使用旧session_id",
+    "message": {
+      "protocol": 1,
+      "type": "hello",
+      "message_id": "00000000-0000-4000-8000-000000000100",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "node_id": "00000000-0000-4000-8000-000000000001",
+        "ledger_id": "00000000-0000-4000-8000-000000000005",
+        "boot_id": "00000000-0000-4000-8000-000000000006",
+        "agent_version": "0.1.0",
+        "compose_version": "2.0.0-example",
+        "capabilities": [
+          "compose.apply.v1",
+          "config.bundle.v1"
+        ],
+        "execution_profile": {
+          "docker_endpoint_id": "00000000-0000-4000-8000-000000000009",
+          "policy_revision": 1
+        }
+      }
+    }
+  },
+  {
+    "reason": "事件序号从1开始",
+    "message": {
+      "protocol": 1,
+      "type": "ack",
+      "message_id": "00000000-0000-4000-8000-000000000113",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": "00000000-0000-4000-8000-000000000090",
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "event_seq": 0
+      }
+    }
+  },
+  {
+    "reason": "恢复页超过200条",
+    "message": {
+      "protocol": 1,
+      "type": "reconcile",
+      "message_id": "00000000-0000-4000-8000-000000000102",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "scope": "all",
+        "scan_id": null,
+        "cursor": null,
+        "limit": 201
+      }
+    }
+  },
+  {
+    "reason": "容器ID不能用短ID",
+    "message": {
+      "protocol": 1,
+      "type": "result",
+      "message_id": "00000000-0000-4000-8000-000000000112",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "event_seq": 2,
+        "phase": "result",
+        "outcome": "normal_exit",
+        "interrupt_reason": null,
+        "exit_code": 0,
+        "error": null,
+        "observation": {
+          "status": "complete",
+          "collected_at": "2026-11-04T04:00:00.000Z",
+          "items": [
+            {
+              "resource_kind": "container",
+              "resource_id": "abc",
+              "name": "sample-web-1",
+              "project_name": "sample",
+              "service_name": "web",
+              "stack_id": "00000000-0000-4000-8000-000000000002",
+              "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "state": "running",
+              "health": "none"
+            }
+          ],
+          "error": null
+        },
+        "not_started": false,
+        "output_b64": null,
+        "output_truncated": false,
+        "finished_at": "2026-11-04T04:00:00.000Z",
+        "ownership_status": "consistent"
+      }
+    }
+  },
+  {
+    "reason": "开始许可必须关联请求消息",
+    "message": {
+      "protocol": 1,
+      "type": "authorize_start",
+      "message_id": "00000000-0000-4000-8000-000000000109",
+      "session_id": "00000000-0000-4000-8000-000000000008",
+      "reply_to": null,
+      "body": {
+        "operation_id": "00000000-0000-4000-8000-000000000004",
+        "input_digest": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "start_nonce": "00000000-0000-4000-8000-000000000011",
+        "permit_id": "00000000-0000-4000-8000-000000000012",
+        "auth_rev": 1
+      }
+    }
+  },
+  {
+    "reason": "hello不能关联旧请求",
+    "message": {
+      "protocol": 1,
+      "type": "hello",
+      "message_id": "00000000-0000-4000-8000-000000000100",
+      "session_id": null,
+      "reply_to": "00000000-0000-4000-8000-000000000999",
+      "body": {
+        "node_id": "00000000-0000-4000-8000-000000000001",
+        "ledger_id": "00000000-0000-4000-8000-000000000005",
+        "boot_id": "00000000-0000-4000-8000-000000000006",
+        "agent_version": "0.1.0",
+        "compose_version": "2.0.0-example",
+        "capabilities": [
+          "compose.apply.v1",
+          "config.bundle.v1"
+        ],
+        "execution_profile": {
+          "docker_endpoint_id": "00000000-0000-4000-8000-000000000009",
+          "policy_revision": 1
+        }
+      }
+    }
+  }
+]

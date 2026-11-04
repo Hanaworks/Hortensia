@@ -77,12 +77,14 @@ ConfigVersion 的不可变性不意味着用户永久可以读取秘密，也不
 
 | 可取得的执行事实 | 操作状态与用户结果 | 资源占用 |
 | --- | --- | --- |
-| 准备失败，或有效证明未创建进程 | 按原因 failed；明确取消且未开始为 canceled | 持久保存未开始证据后释放 |
-| 正常监督到命令退出 0，未被信号／超时中断，观察完整 | succeeded；仍逐项展示 unhealthy、未声明健康检查等状态，不称业务健康 | 保存结果后释放 |
-| 正常监督到非零退出，未被信号／超时中断，观察完整 | failed，保留部分副作用及命令错误 | 保存结果后释放；新修复须另有明确意图 |
+| 准备失败，或有效证明未创建进程 | 按原因 failed；明确取消且未开始为 canceled | 保存证据后进入 finalize 释放握手；可信无记录且从未授权的例外见执行篇 |
+| 正常监督到命令退出 0，未被信号／超时中断，观察完整且归属 consistent | succeeded；仍逐项展示 unhealthy、未声明健康检查等状态，不称业务健康 | 保存结果后 release_status=pending，持久收到 finalized 后才 released |
+| 正常监督到非零退出，未被信号／超时中断，观察完整且归属 consistent | failed，保留部分副作用及命令错误 | 同样完成双端释放握手；新修复须另有明确意图 |
 | 正常退出码已知，但观察不完整或失败 | reconciliation_required；命令退出事实仍可查看 | 保持；只重做观察，完整后按已保存退出码收敛，不能重执行 Apply |
 | START_COMMITTED 后崩溃、执行结果丢失、被取消／超时中断，或证据矛盾 | reconciliation_required | 保持；核对进程终止、可能在途的 Docker 动作和资源，不能凭一次当前快照推断无副作用 |
 | 已请求取消，但命令在受监督流程中正常完成 | 按正常退出码和观察规则归结，保留 cancel_requested | 与相应正常结果相同，不强行标 canceled |
+
+线上使用 `ExecutionResult.outcome` 区分 not_started／normal_exit／interrupted／unknown，`ownership_status` 区分 not_checked／consistent／drifted／unknown。完整观察但归属 drifted／unknown 时保持核对，不因 exit_code=0 成功。完整字段与组合约束见 [协议 Schema](../contracts/agent-v1.schema.json)，HTTP 只返回[允许的摘要字段](specifications/http-api.md#4-准确返回对象)。ack 确认结果已存储，不能代替 finalized 释放确认。
 
 未知结果的人工处理须保存执行终止与目标核对依据，无法建立依据时继续隔离。M1 不提供仅填写备注就自动解锁的通用按钮；真实维护工具必须满足这些证据约束后才能交付。
 
@@ -136,10 +138,10 @@ SQLite 官方记录的 WAL-reset 问题已在 3.51.3 及指定旧分支回补版
 | enrollments | `id, token_hash, node_id, ledger_id, expires_at, consumed_at, candidate_hash` | 认领材料一次性；响应丢失时仅同一节点、账本与候选凭据可查询已有认领结果 |
 | stacks | `id, node_id, project_name, current_version_id, revision, disabled_at` | `(node_id, project_name)` 唯一；M1 停用不释放同名身份；`current_version_id` 必须属于同一 Stack |
 | config_versions | `id, stack_id, parent_id, created_by, created_at, package_cipher, key_id, wrapped_dek` | `(stack_id,id)` 唯一供组合外键；原文发布后不变；密钥封装允许轮换重包 |
-| idempotency_records | `(user_id,idempotency_key)` 主键；`method,path,request_digest,digest_key_id,result_type,result_id,response_status` | 同一用户跨变更接口共用键空间；保存和创建也受保护；记录不保存含秘密的 HTTP 响应原文 |
-| operations | `id,user_id,idempotency_key,node_id,stack_id,version_id,input_digest,digest_key_id,payload_cipher,key_id,wrapped_dek,state,cancel_requested,revision,permit_id,session_id,start_nonce,auth_rev` | `(user_id,idempotency_key)` 唯一并引用幂等记录；索引 `(node_id,state)` 和 `(stack_id,created_at)`；输入固定，状态可变 |
+| idempotency_records | `(user_id,idempotency_key)` 主键；`method,path,request_digest,digest_key_id,result_type,result_id,response_status,safe_response_json,response_etag` | 同一用户跨变更接口共用键空间；同事务冻结不含秘密的原响应与 ETag，不读当前对象重造原回执；认领 token 永不进入 safe_response_json |
+| operations | `id,user_id,idempotency_key,node_id,stack_id,version_id,input_digest,digest_key_id,payload_cipher,key_id,wrapped_dek,state,cancel_requested,revision,permit_id,session_id,start_nonce,auth_rev,release_status,final_result_event_seq` | `(user_id,idempotency_key)` 唯一并引用幂等记录；release_status 为 held／pending／released；最终结果版本和释放意图一起提交 |
 | resource_claims | `(node_id,resource_kind,resource_id)` 主键，`operation_id` 外键 | 同资源只能被一个未核清的操作占用；项目名也形成占用对象 |
-| outbox | `id,operation_id,message_kind,message_generation,delivery_state` | `(operation_id,message_kind,message_generation)` 唯一；只引用已提交任务，不另存明文输入；发送不代表完成 |
+| outbox | `id,operation_id,message_kind,message_generation,delivery_state,attempt_count,next_attempt_at,last_session_id,last_message_id,last_error_code` | `(operation_id,message_kind,message_generation)` 唯一；只引用固定输入／结果版本，不另存秘密；四态及转换见执行篇 |
 | operation_events | `(operation_id,source,event_seq)` 主键，`kind,received_at,evidence_cipher,key_id,wrapped_dek` | source 限定 manager／agent；同来源同位置不同内容为冲突；原始命令输出须保护 |
 | audit_events | `id,user_id,action,target_type,target_id,operation_id,created_at,outcome` | 索引目标、操作与时间；禁止完整配置或 token 进入此表 |
 | schema_meta | `schema_version,manager_id,recovery_mode` | `manager_id` 为持久部署身份；备份恢复默认进入核对模式 |
@@ -155,6 +157,9 @@ SQLite 官方记录的 WAL-reset 问题已在 3.51.3 及指定旧分支回补版
 | executions | `operation_id` 主键；`input_digest,local_fingerprint,ledger_key_id,phase,session_id,start_nonce,permit_id,workspace_ref,result_cipher,key_id,wrapped_dek,report_acked` | 同操作同输入返回既有事实；Manager 摘要与本地指纹都要一致 |
 | local_claims | `(resource_kind,resource_id)` 主键，`operation_id` 外键 | 从准备到结果核清保持互斥，不因连接或进程退出自动释放 |
 | execution_events | `(operation_id,event_seq)` 主键，`kind,evidence_cipher,key_id,wrapped_dek,acknowledged` | 结果持久后可重报；Manager 确认后标记，不删除执行去重事实 |
+| project_bindings | `(docker_endpoint_id,project_name)` 唯一，`stack_id,ownership_revision,last_operation_id,baseline_collected_at,baseline_cipher,status` 及密钥封装列 | status 为 provisional／active／drifted；基线使用实际资源身份、逻辑键及来源证据，详细内容由执行篇维护 |
+
+executions 另保存 finalized、final_state、finalized_result_event_seq 及本次 pre/post 归属证据的加密引用；结果事件 ack 和本地释放是不同持久事实。恢复扫描保存固定身份集合／数量、扫描冻结状态和最后完成回执，观察快照可按协议期限丢弃，执行账本不可随之删除。以上是必要持久信息，不要求公开为 HTTP 字段；完整私有 DDL 与迁移文件在存储实现任务中形成。
 
 Agent 内部 `START_COMMITTED` 表示开始事实已持久化、命令可能执行；对外映射为 `running`。执行表还记录 `created_at,started_at,finished_at,exit_code` 及不含秘密的错误码。主机 PID 只可辅助诊断，不能单独证明旧进程仍在或从未执行；进程监督由 [Agent 设计](components/agent.md)规定。
 
@@ -170,7 +175,7 @@ Manager 事件与 Agent 回报分别分配从 1 开始的事件序列；Agent �
 | 部署目标 | operations 的 node_id 必须等于 Stack.node_id，version_id 必须属于该 Stack；用组合外键及事务校验同时约束 |
 | 节点凭据轮换 | 同一节点只有一代当前有效凭据；更新代次、当前 hash 与撤销旧代同事务完成，ledger_id 保持不变 |
 
-读回操作时按当前权限重新构造响应；幂等记录只保存结果身份和状态码，不能把先前管理员得到的完整响应原样返回给已经降权的同一用户。需要结果正文时从不可变版本或当前操作记录读取，输出权限另查。
+普通操作详情按当前权限投影当前记录，输出权限另查。原请求的幂等重放则先按 [HTTP 规格](specifications/http-api.md)检查当前回执权限，通过后返回原事务冻结的 `safe_response_json`、状态码和 `response_etag`，不能从当前对象重建响应；权限不足时拒绝重放，不返回旧权限下的数据。节点认领秘密的一次显示例外按 HTTP 规格处理。
 
 ## 8. 写入事务与并发处理
 
@@ -182,7 +187,8 @@ Go 仓储接口以一次业务提交为事务边界，事务内所有语句只�
 | 创建／Copy | 查幂等键；复核两端适用权限与目标项目名；创建新 Stack、独立密文版本及当前指针；写幂等结果与审计 | 返回目标；来源身份与版本不变 |
 | 受理部署 | 查幂等键；复核权限及可用会话；冻结并加密输入；插入操作、全部资源占用、幂等结果、审计与 prepare 发送意图 | 发送器读取已提交任务；绝不先发送再补表 |
 | 授权开始 | 复核用户 auth_rev、权限、节点会话、准备 nonce、输入、占用和取消；CAS 更新状态并记录 permit_id 与开始授权事件 | 只在对应活跃连接上发送许可；事务提交是授权与撤权的排序点 |
-| 结果落库 | 核对操作和事件位置；追加证据、更新状态；确定核清才释放占用；记录审计 | 确认 Agent 回报，再通知 Web；未知或矛盾保持占用 |
+| 结果落库 | 核对操作和事件位置；追加证据并按 outcome／观察／归属更新状态；可终结时保存 result_event_seq、release_status=pending 和 finalize 意图；记录审计 | ack 只确认回报；Manager 保留占用等待 finalized；未知保持 held |
+| 释放确认 | 核对 finalized 的输入、事件位置与终态，删除对应 resource_claims，写 release_status=released 和 outbox confirmed | 允许后续冲突操作；重复回执无副作用 |
 | 撤权／取消 | 更新授权版本或取消请求并记录审计；若尚未授权，可禁止后续开始 | 通知 Agent 并关闭应撤销的会话；已授权／开始的副作用不宣称立即撤回 |
 
 输入加密等纯计算可在事务外准备，但权限、版本、幂等及占用必须在事务中复核。并发同键由唯一约束裁定，败方回滚后读取胜方结果；只比较原始请求，不把新生成的 operation_id 纳入 HTTP 请求摘要。相同键但内容不同返回冲突。已有键的重试仍需当前读取权限，不能绕过撤权泄露旧结果。
@@ -227,3 +233,9 @@ Agent 先在数据库写入 prepare 记录和本地占用，再按 operation_id 
 M1 不自动回收配置版本、操作幂等记录、Agent 执行事实或仍可能被容器引用的工作目录。输出和单次输入另设上限；检测磁盘不足后拒绝新受理及新开始，保留查询与恢复能力，不通过删除证据腾空间。其代价是持续增长，M5 前必须落实 O11 的容量监控、保留及安全回收规则。
 
 schema 版本由顺序迁移维护；升级前生成数据库与密钥的可恢复备份组，迁移成功才更新 schema_version。启动发现较新 schema 拒绝写入，不能自动降级。M0 必须验证 CAS 并发、受理后崩溃、许可与撤权竞争、写盘失败、密文错配、旧键重试、账本回退及备份恢复；这些是待执行断言，当前没有通过记录。
+
+## 12. 本轮具体定义的范围
+
+领域对象的主语义仍由第 2—4 节维护；跨边界的字段结构由 [HTTP 规格](specifications/http-api.md)和[Agent Schema](../contracts/agent-v1.schema.json)维护；归属基线、outbox 和恢复动作由[执行与恢复](specifications/execution-recovery.md)维护。三处共同承担当前必要定义，不再抄成全字段数据字典。Schema 是线上对象约束，不是数据库 DDL，私有表结构不能直接作为返回对象。
+
+关键区别：Manager 保存版本、执行输入版本及实际镜像／资源身份分别记录；Agent event_seq 与 Manager revision 分别排序；null 表示未知／尚无，空集合只表示在相应成功观察范围内为空。时间表示、单位、默认值与字段适用范围随相应主定义维护。

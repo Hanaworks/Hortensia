@@ -122,3 +122,21 @@ F02 的标记只存在于测试构建上下文；不执行构建来证明“没�
 每项实验保留：运行版本、夹具摘要、故障点、消息顺序、数据库提交位置、实际资源变化、预期与实际差异及结论。日志脱敏后仍要能按 operation_id／permit_id／event_seq 交叉核对；不以 HTTP 202 或命令退出码单独作为成功依据。
 
 M0 的输出应足以决定技术组合和协议是否可用：缺少迟到许可、账本损坏、文件环境或一致备份证据时，相关设计保持未验证；失败要改设计并重做相应用例。M1 验收再使用真实 Web 和 Agent 完成全流程。迁移 T09／T10／T15 和规模 T18 的完整断言仍按 O05／O08 分别推进，本节没有通过缩小 M1 将它们从产品目标删除。
+
+## 8. v1 契约检查与新增故障用例
+
+当前可执行的检查只有静态契约与文档检查：在仓库根运行 `pwsh -File tools/check-contracts.ps1`（PowerShell 7.4+ 的 Test-Json）以及 `node tools/check-docs.mjs`（Node 18+）。前者验证消息正反例、每种 type 的覆盖、解码 FrozenPayload 与外层目标一致；后者核对现行 Markdown 的本地链接、锚点、表格列数和围栏。它们不连接 Manager／Agent／Docker，也不验证私钥、权限或进程结局。
+
+Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，样例为[合法形状](../contracts/examples/agent-v1.valid.json)和[结构反例](../contracts/examples/agent-v1.invalid.json)。合法报文集合是相互独立的结构样例；包含正常退出且归属 drifted 的样例，结构通过也必须在状态处理层拒绝 finalize。不能把所有正例顺次发送就称端到端通过。
+
+| 编号 | 可重现输入／故障点 | 后续实现必须满足的断言 |
+| --- | --- | --- |
+| V12 文件读取边界 | 用 YAML anchor 将 `env_file: ../outside.env` 合入 service；另用 `env_file: ${ENV_PATH}`、缺失 label_file、未启用 profile 中的外部引用 | 首次 Compose 调用计数为0，错误给源位置；原文保存仍可成功；正常包内字面量引用按原生对照通过 |
+| V13 自身重建与外部替换 | 先正常 Apply，再改变镜像触发自身重建；另组在外部删除后创建同名容器，再 Apply | 前组pre/post身份通过operation关联更新基线；后组drifted、up调用数0；不能普通查询自动刷新基线 |
+| V14 双端释放 | 在结果落库、finalize发送、Agent释放提交、finalized发送、Manager释放提交各点丢消息或重启 | result ack不释放；Manager pending时新冲突操作409；重复finalize无新执行，最终双方released |
+| V15 扫描期间变化 | scope=all翻页时让旧操作结束；pending扫描缺记录后改用新all扫描；迟到旧扫描complete；丢最后页／complete／completed响应；另组重启Agent | 固定身份集合完整；期间新事件持久并在当前连接ack；扫描替代时冻结连续，旧游标和complete失效；重启重扫而不漏历史；完成回执可重报 |
+| V16 结果判据 | 同样exit_code=0分别构造normal_exit+consistent、interrupted、complete+drifted；正常退出先观察失败再补观察；补观察含201个容器并重试同query_id | 仅正常／完整／一致组合成功；补观察沿原operation生成新event_seq且不增加up次数；已有查询重放／翻页读取固定快照，不重复采集或增加event_seq；未知不可直接finalize |
+| V17 HTTP回执与输出 | 成功保存后再保存新版本，然后重放第一key；Grant再次变化后重放旧key；输出含多字节字符及非法UTF8 | 返回原安全body与ETag；不透出input_digest；输出按同一规范化UTF8流切块，游标不落字符中间 |
+| V18 权限与前端 | 管理员无node.read查看pending节点；有deploy无operation.read提交；保存中继续编辑并再次点击保存 | 管理元信息可见而配置／观察不可见；只显示受理回执；第二次保存不并发提交，第一次超时先核对 |
+
+涉及构建配置、真实故障注入和 Docker 状态的 V01—V18 当前均未执行。O12 的人工恢复路径需要独立维护实验；没有完成前，unknown保持隔离是正确原型行为，不可据此声称可交付产品具备完整人工恢复能力。
