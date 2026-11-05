@@ -143,6 +143,8 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 
 ## 9. 已执行的 M0 子集
 
+当前代码行为与测试的逐项对应见 [M0 实际实现规格第 6 节](specifications/m0-channel-probe.md#6-规格到验证的对应)。支持范围按其中矩阵判断，不从20类Schema正例推定已完成20类业务交互。
+
 实现和可复验命令见 [M0 实施记录](implementation/m0-agent-channel.md)。目前 `go test ./...` 覆盖共享 Schema 与解码输入、真实 TLS 握手、身份与 session 替换、非法／分片超限消息、独立探活计时，以及内存许可门禁的超时／重复／失效竞争。CLI 测试启动两个独立 OS 子进程，经回环 TLS 通信；探活期限采用可控时钟测试，不把短握手测试当作真实等待 45 秒的网络实验。
 
 这些证据覆盖 V03／V05／V07／V10 的部分前置边界，不将整组用例标为完成。没有接入 Docker、SQLite 或真实权限仓储，没有执行结果重报、崩溃恢复、全量扫描或双端释放。当前工具链关闭 CGO，race 检查不能运行，不能报告竞态检测通过。

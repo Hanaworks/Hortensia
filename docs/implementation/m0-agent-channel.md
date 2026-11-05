@@ -8,7 +8,7 @@
 
 **Tech Stack:** 本机 Go 1.27.0；coder/websocket v1.8.15（ISC）、santhosh-tekuri/jsonschema/v6 v6.0.3（Apache-2.0）、regexp2 v1.11.5（MIT）；间接依赖 x/text v0.14.0。版本与校验和保存在 go.mod/go.sum。采用 Schema 库官方的 ECMAScript 引擎接入方式，正则匹配超时 100 ms 后拒绝，不手写一套 Path 正则翻译。这是本轮 Windows/amd64 验证组合，其他工具链和操作系统尚未验证。
 
-**Spec:** [通信规格](../specifications/agent-protocol.md)、[执行与恢复](../specifications/execution-recovery.md)、[消息 Schema](../../contracts/agent-v1.schema.json)。用户已要求继续推进现有方案，本轮沿既定 M0 范围实现。
+**Spec:** 完整任务的目标定义为[通信规格](../specifications/agent-protocol.md)、[执行与恢复](../specifications/execution-recovery.md)和[消息 Schema](../../contracts/agent-v1.schema.json)；基线 `98d9c13` 的最终接口、支持消息、状态与异常行为另见 [M0 实际实现规格](../specifications/m0-channel-probe.md)。本篇维护实施和验证记录。
 
 ## Global Constraints
 
@@ -40,7 +40,7 @@
 
 文件：`internal/channel/`、`internal/startgate/`、`cmd/channelprobe/`。
 
-通道接口：`NewServer(Config) (*Server,error)` 返回 HTTP Handler；`Connect(context.Context,ClientConfig) (*Peer,error)` 完成应用握手；`Peer.Run(context.Context)` 维持读循环与探活。门禁接口由其局部实现确定，必须覆盖本计划 Review Focus。
+最终通道接口：`NewServer(Config) (*Server,error)` 返回 HTTP Handler；`Connect(context.Context,ClientConfig) (*Peer,error)` 完成应用握手；`Peer.Run(context.Context) error` 维持读循环与探活，拒绝后续应用消息。门禁最终接口为 `New(Request,Hooks)`、`RegisterRequest`、`Authorize`、`Deny`、`Cancel`、`Invalidate`、`State`，输入、返回及状态转换在实际实现规格第 5 节维护。
 
 - [x] 先编写并运行失败测试：TLS 信任、认证来源、hello 身份、会话替换及重连冻结、非法消息关闭。
 - [x] 使用真实回环 TLS WebSocket 实现握手和受限读循环；命令行仅用于原型，两端配置使用文件提供秘密。
@@ -56,7 +56,7 @@
 
 测试观察过缺失行为的失败，再实现并复验。独立审阅发现并修正：探活未按最后 Pong 独立计时、hello 未参与去重、JSON 格式变化被误判为新内容、尚未完成 hello 的连接未随 Server.Close 关闭，以及极端数字触发依赖库 panic。上述问题均补有回归；方向测试也修正为合法形状的反向报文，分片超限在双向读写中核对 1009。
 
-数字解析现采用每 token 128 字节、指数绝对值≤128 的预算，再精确判定安全整数；避免浮点舍入和任意精度解析的资源消耗。具体值已同步通信规格。探活使用独立 15 秒发送、最后 Pong 后 45 秒期限；原型最多保留 4 个未完成 Ping，耗尽时报独立 transport budget 错误，不冒充“45 秒没有 Pong”。原型每连接最多记录 1024 条握手后的诊断消息，达到预算关闭；该限制不是产品吞吐量指标。
+数字解析现采用每 token 128 字节、指数绝对值≤128 的预算，再精确判定安全整数；避免浮点舍入和任意精度解析的资源消耗。具体值已同步通信规格。探活使用独立 15 秒发送、最后 Pong 后 45 秒期限；原型最多保留 4 个未完成 Ping，耗尽时报独立 transport budget 错误，不冒充“45 秒没有 Pong”。每连接指纹表最多 1024 项，包含 hello；满后再收到任何握手后消息均关闭，重复 ID 在表未满时不增加项数。该预算不是产品吞吐量指标。
 
 ## 复验与手工运行
 
