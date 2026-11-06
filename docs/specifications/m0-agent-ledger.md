@@ -20,7 +20,7 @@ Go 1.27.0、CGO_ENABLED=0；固定 `modernc.org/sqlite v1.61.1` 和其要求的 
 
 每个物理连接使用 WAL、synchronous=FULL、foreign_keys=ON、busy_timeout=5000，并读回校验；连接池最大打开／空闲连接均为 1。写事务统一 `sql.Tx`，以驱动 `_txlock=immediate` 在开始时取得写锁；不自行跨池拼 BEGIN/COMMIT。超时与事务失败不自动重试，不再次执行 Start。[驱动参数](https://pkg.go.dev/modernc.org/sqlite@v1.61.1#Driver.Open)、[SQLite 事务](https://sqlite.org/lang_transaction.html)、[WAL](https://sqlite.org/wal.html)
 
-首次 schema_version=1，DDL 内嵌在包内 `migrations/001_start_ledger.sql`。Create 在一事务中安装表和元数据；Open 只接受版本 1 及匹配元数据，缺失、损坏或较新版本均拒绝，不升级、不降级、不补空身份。当前没有历史 schema 升级，也没有备份恢复工具。
+首次 schema_version=1，DDL 内嵌在包内 `migrations/001_start_ledger.sql`。Create 在一事务中安装表和元数据；Open 只接受版本1、匹配元数据及与内嵌迁移一致的表／索引定义。比较前统一CRLF为LF并移除外围空白和末分号，避免Git换行转换使同版库无法打开；不宽泛重写SQL。忽略SQLite内部对象，其他额外表、索引、视图或触发器均视为未识别schema；不能仅凭版本号和列名接受缺失约束的库。缺失、损坏或较新版本均拒绝，不升级、不降级、不补空身份。当前没有历史schema升级，也没有备份恢复工具。
 
 ## 3. 固定数据与存储约束
 
@@ -69,7 +69,7 @@ Close先禁止新登记／新Gate并使所有现有Gate失效，等已进入Star
 
 CommitStart 回调在立即写事务内重读记录、检查本 boot、固定上下文、摘要、准备 session 与两个占用，CAS `ready → START_COMMITTED` 并保存全部许可字段。**只有本次首次成功提交才能返回 nil**；匹配的已有开始事实返回 ErrAlreadyCommitted，不同许可返回 ErrConflict，均不能再调用 Start。预读不是执行资格；CAS和事务检查才是提交边界。
 
-提交结束后仍由 Gate 在同一互斥内复查取消、连接失效及10秒期限，再调用 Start。Start 必须短小、不可重入 Gate；回调返回不代表业务成功。开始事实提交后若取消／失效／到期，Start 为0，但已持久事实及占用保留，不能报告 not_started 或取消完成。没有事件表，故不产生 started 报文。
+提交结束后仍由 Gate 在同一互斥内复查取消、连接失效及10秒期限，再调用 Start。Start 必须短小、不可重入 Gate，也不可调用会等待本 Gate 的 Store.Close；可用Get读取提交事实。回调返回不代表业务成功。开始事实提交后若取消／失效／到期，Start 为0，但已持久事实及占用保留，不能报告 not_started 或取消完成。没有事件表，故不产生 started 报文。
 
 Begin、写入、Commit 失败均不调用 Start，Gate 进入不确定状态或保留已经发生的取消／失效；原 Store 禁止重建 Gate，重开由新 boot 冻结。即使读回 ready，也不能据此重试旧门禁。已经开始的操作收到重复许可不再写入、不再次 Start。所有终态显示都不足以释放本轮占用；没有 Delete/Release/Finalize 接口。
 
