@@ -149,4 +149,10 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 
 实现和可复验命令见 [M0 实施记录](implementation/m0-agent-channel.md)。目前 `go test ./...` 覆盖共享 Schema 与解码输入、真实 TLS 握手、身份与 session 替换、非法／分片超限消息、独立探活计时，以及内存许可门禁的超时／重复／失效竞争。CLI 测试启动两个独立 OS 子进程，经回环 TLS 通信；探活期限采用可控时钟测试，不把短握手测试当作真实等待 45 秒的网络实验。
 
-这些证据覆盖 V03／V04／V05／V07／V10 的部分前置边界，不将整组用例标为完成；V04 的迟到、重复和失效仅由独立 Gate 回调实验验证，V03／V05 没有真实授权事务或崩溃实验。没有接入 Docker、SQLite 或真实权限仓储，没有执行结果重报、崩溃恢复、全量扫描或双端释放。当前工具链关闭 CGO，race 检查不能运行，不能报告竞态检测通过。
+上述94056e0证据覆盖V03／V04／V05／V07／V10的部分前置边界，不将整组用例标为完成；当时V04的迟到、重复和失效仅由独立Gate回调实验验证，V03／V05没有真实授权事务或崩溃实验，也没有SQLite接入。当前工具链关闭CGO，race检查不能运行，不能报告竞态检测通过。
+
+## 10. Agent 开始账本切片
+
+2026-11-07先保存[开始账本规格及L01—L10](specifications/m0-agent-ledger.md)与[实施计划和结果](implementation/m0-agent-ledger.md)，再编码。验证采用真实SQLite文件、实际写锁及事务中止、无副作用Start回调和三个边界的强制终止辅助进程。方法、逐项结果和交付版本以实施记录为准；复验命令为 `go test ./internal/agent/ledger -count=1 -timeout=90s`。
+
+本切片只覆盖Agent本地开始边界。没有Manager授权事务、真实工作区准备、执行事件／结果重报、网络任务、完整恢复扫描、双端释放或Docker副作用；进程终止不等于掉电，Windows验证不等于Linux部署验证。V03／V04／V05的相关前置断言有所推进，整组及整个M0仍需后续环境与模块证据。

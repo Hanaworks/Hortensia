@@ -134,7 +134,7 @@ Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，�
 
 ### 9.5 工程边界与验证输出
 
-建议在未来 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目录为工程建议，当前没有这些程序文件。
+建议在 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目前 `ledger` 已按[开始账本规格](../specifications/m0-agent-ledger.md)落实受控SQLite子集，其余目录仍为工程建议。该子集只有准备夹具、开始事实和占用，不是可处理真实部署的Agent。
 
 M0 至少输出：同一输入的原生对照、路径拒绝清单、10 秒许可迟到及撤权竞争、START_COMMITTED 前后崩溃、命令超时和残留进程、结果丢包与账本丢失证据。首次得到成功部署不代表这些故障边界已经验证。
 
