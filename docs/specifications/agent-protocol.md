@@ -137,7 +137,7 @@ Manager 在发送 finalize 前可存最终 state，但 release_status 必为 pen
 
 reconcile_reply 每页 records 按数量及总编码大小双重切分：不得超过请求 limit、200 项或 8 MiB；单条记录也必须满足结果预算。total 是本轮固定身份总数，complete=true 仅表示枚举到末页且 next_cursor=null。Manager 持久保存页和已见身份，检查重复、跳页、数量、node/ledger绑定；不能只信 complete。错误页 records=[]、complete=false、error 非空，不能被计入完成。
 
-每个 RecoveryRecord 的 operation_id/input_digest/目标与 latest_result 必须一致；result_event_seq 等于 latest_result.event_seq；无 result 时两者均 null。last_event_seq 不小于任何已存事件。phase=finalized 时 claims_held=false，final_state 与 finalized_result_event_seq 非空，指向真实已终结结果；其他状态不得用 report_acked=true 推断已经释放。
+每个 RecoveryRecord 的 operation_id/input_digest/目标与 latest_result 必须一致；result_event_seq 等于 latest_result.event_seq；无 result 时两者均 null。last_event_seq 不小于任何已存事件。report_acked只表示最新result已经获得持久确认，无result时为false；不代表全部历史事件或当前连接已确认，扫描期间变化事件的当前连接确认另行跟踪。phase=finalized 时 claims_held=false，final_state 与 finalized_result_event_seq 非空，指向真实已终结结果；其他状态不得用 report_acked=true 推断已经释放。
 
 原已开始进程可在扫描时结束。其新 started/result 继续持久上报；Agent 为本次扫描跟踪冻结后发生变化的事件，在当前连接得到 ack 前，不接受 reconcile_complete。未开始任务的取消可以产生 not_started 结果，但不能进入新的 START_COMMITTED。Manager 完成全部页后还要处理期间新增结果、核对旧授权和占用、保存缺失历史的 recovery_cases，并按结论完成 finalize。证据未知的情况仍隔离，不能以“全部页面收到”代替核对。
 
