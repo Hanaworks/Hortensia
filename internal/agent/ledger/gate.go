@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"docker-manager/internal/startgate"
@@ -16,14 +17,16 @@ import (
 // for an already entered Start callback to return. Start may query Get/Claims.
 func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func() time.Time, start func(startgate.Permit)) (*startgate.Gate, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.closing {
+		s.mu.Unlock()
 		return nil, ErrStorage
 	}
+	_, exists := s.gates[request.Operation]
+	s.mu.Unlock()
 	if !validID(request.Session) || !validID(request.Operation) || !validID(request.Nonce) || !validID(request.MessageID) || !validDigest(request.Digest) {
 		return nil, ErrInput
 	}
-	if _, exists := s.gates[request.Operation]; exists {
+	if exists {
 		return nil, ErrGateExists
 	}
 	record, err := s.readRecord(ctx, s.db, request.Operation)
@@ -42,6 +45,15 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	if record.Phase != PhaseReady {
 		return nil, ErrConflict
 	}
+	if s.journal != nil {
+		state, err := readEventState(ctx, s.db, request.Operation)
+		if err != nil {
+			return nil, err
+		}
+		if state.Blocked || state.LatestResultSeq.Valid || state.LastSeq != 0 {
+			return nil, ErrConflict
+		}
+	}
 	gate, err := startgate.New(request, startgate.Hooks{
 		Now: now,
 		CommitStart: func(permit startgate.Permit) error {
@@ -51,6 +63,17 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	})
 	if err != nil {
 		return nil, err
+	}
+	// Do not hold mu while querying SQLite: readers decrypt within a database
+	// transaction and briefly take mu to copy keys. Recheck registration and
+	// Close here so concurrent constructors still cannot grant two gates.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closing {
+		return nil, ErrStorage
+	}
+	if _, exists := s.gates[request.Operation]; exists {
+		return nil, ErrGateExists
 	}
 	s.gates[request.Operation] = gate
 	return gate, nil
@@ -72,6 +95,27 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 	s.mu.Unlock()
 	if closing {
 		return ErrStorage
+	}
+	startedAt := time.Now().UnixMilli()
+	var started sealedEvent
+	var binding eventBinding
+	if s.journal != nil {
+		binding = eventBinding{OperationID: permit.Operation, Digest: permit.Digest, Kind: "started", Seq: 1}
+		body, err := json.Marshal(struct {
+			Operation string `json:"operation_id"`
+			Digest    string `json:"input_digest"`
+			Seq       uint64 `json:"event_seq"`
+			Phase     string `json:"phase"`
+			PermitID  string `json:"permit_id"`
+			StartedAt string `json:"started_at"`
+		}{permit.Operation, permit.Digest, 1, PhaseStartCommitted, permit.PermitID, timestamp(startedAt)})
+		if err != nil {
+			return ErrInput
+		}
+		started, err = s.sealEvent(ctx, binding, body)
+		if err != nil {
+			return err
+		}
 	}
 	// databaseURI selects BEGIN IMMEDIATE for every sql.Tx. No pre-read can
 	// grant execution rights; all durable predicates are checked under its lock.
@@ -111,8 +155,17 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 	if record.Phase != PhaseReady {
 		return ErrConflict
 	}
+	if s.journal != nil {
+		state, err := readEventState(ctx, tx, permit.Operation)
+		if err != nil {
+			return err
+		}
+		if state.Blocked || state.LatestResultSeq.Valid || state.LastSeq != 0 {
+			return ErrConflict
+		}
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE executions SET phase=?,session_id=?,start_nonce=?,permit_id=?,auth_rev=?,reply_to=?,started_at=? WHERE operation_id=? AND owner_boot_id=? AND phase=?`,
-		PhaseStartCommitted, permit.Session, permit.Nonce, permit.PermitID, permit.AuthRev, permit.ReplyTo, time.Now().UnixMilli(), permit.Operation, s.boot, PhaseReady)
+		PhaseStartCommitted, permit.Session, permit.Nonce, permit.PermitID, permit.AuthRev, permit.ReplyTo, startedAt, permit.Operation, s.boot, PhaseReady)
 	if err != nil {
 		return ErrStorage
 	}
@@ -122,6 +175,14 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 	}
 	if changed != 1 {
 		return ErrConflict
+	}
+	if s.journal != nil {
+		if err := insertEvent(ctx, tx, binding, started); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE event_state SET last_seq=1 WHERE operation_id=?`, permit.Operation); err != nil {
+			return ErrStorage
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return ErrStorage

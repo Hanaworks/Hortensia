@@ -189,6 +189,11 @@ func (s *Store) RecordReadyFixture(ctx context.Context, rawPrepare []byte) (Reco
 			return Record{}, ErrStorage
 		}
 	}
+	if s.journal != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO event_state(operation_id,last_seq,blocked) VALUES(?,0,0)`, r.OperationID); err != nil {
+			return Record{}, ErrStorage
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return Record{}, ErrStorage
 	}

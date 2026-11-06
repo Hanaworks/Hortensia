@@ -38,6 +38,9 @@ var (
 	ErrFrozen           = errors.New("ledger operation frozen")
 	ErrGateExists       = errors.New("ledger gate already exists")
 	ErrAlreadyCommitted = errors.New("ledger start already committed")
+	ErrJournal          = errors.New("ledger journal unavailable")
+	ErrEvidence         = errors.New("ledger evidence invalid")
+	ErrKeyExhausted     = errors.New("ledger journal key exhausted")
 )
 
 const (
@@ -83,6 +86,7 @@ type Store struct {
 	boot      string
 	identity  Identity
 	key       []byte
+	journal   *journalConfig
 	validator *protocol.Validator
 	mu        sync.Mutex
 	gates     map[string]*startgate.Gate
@@ -173,9 +177,9 @@ func newStore(db *sql.DB, identity Identity, key []byte) (*Store, error) {
 // embedded migration. Column presence alone cannot establish PK/FK/CHECK/STRICT
 // constraints. SQLite's own indexes and internal objects are implementation
 // details and are excluded. This is a version check, not a general SQL parser.
-func validateSchema(ctx context.Context, db *sql.DB) error {
+func validateSchema(ctx context.Context, db *sql.DB, schema string) error {
 	expected := make(map[string]string)
-	for _, statement := range strings.Split(schemaV1, ";") {
+	for _, statement := range strings.Split(schema, ";") {
 		statement = normalizeSchemaSQL(statement)
 		fields := strings.Fields(statement)
 		if len(fields) >= 3 && fields[0] == "CREATE" && (fields[1] == "TABLE" || fields[1] == "INDEX") {
@@ -216,12 +220,23 @@ func normalizeSchemaSQL(statement string) string {
 // Create exclusively creates a new file. Any failure leaves that file in place;
 // a caller must never repair an uncertain ledger by creating a replacement.
 func Create(ctx context.Context, path, nodeID, keyID string, key []byte) (*Store, error) {
+	return createStore(ctx, path, nodeID, keyID, key, nil)
+}
+
+func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, journalKey *JournalKey) (*Store, error) {
 	identity := Identity{NodeID: nodeID, KeyID: keyID}
 	if err := validateIdentity(identity, false); err != nil {
 		return nil, err
 	}
 	if len(key) != 32 {
 		return nil, ErrKey
+	}
+	version, schema := 1, schemaV1
+	if journalKey != nil {
+		if err := validateJournalKey(*journalKey, key); err != nil {
+			return nil, err
+		}
+		version, schema = 2, schemaV2
 	}
 	full, err := localPath(path)
 	if err != nil {
@@ -253,11 +268,16 @@ func Create(ctx context.Context, path, nodeID, keyID string, key []byte) (*Store
 		return nil, ErrStorage
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, schemaV1); err != nil {
+	if _, err := tx.ExecContext(ctx, schema); err != nil {
 		return nil, ErrStorage
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_meta(id,node_id,ledger_id,schema_version,ledger_key_id,key_check) VALUES(1,?,?,1,?,?)`, identity.NodeID, identity.LedgerID, identity.KeyID, keyCheck(identity, key)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_meta(id,node_id,ledger_id,schema_version,ledger_key_id,key_check) VALUES(1,?,?,?,?,?)`, identity.NodeID, identity.LedgerID, version, identity.KeyID, keyCheck(identity, key)); err != nil {
 		return nil, ErrStorage
+	}
+	if journalKey != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO event_keys(id,key_id,key_check,uses) VALUES(1,?,?,0)`, journalKey.ID, journalKeyCheck(identity, *journalKey)); err != nil {
+			return nil, ErrStorage
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, ErrStorage
@@ -266,17 +286,31 @@ func Create(ctx context.Context, path, nodeID, keyID string, key []byte) (*Store
 	if err != nil {
 		return nil, err
 	}
+	if journalKey != nil {
+		s.journal = &journalConfig{keyID: journalKey.ID, kek: append([]byte(nil), journalKey.Key...)}
+	}
 	success = true
 	return s, nil
 }
 
 // Open refuses absent, unrecognized, or mismatched ledgers and never migrates.
 func Open(ctx context.Context, path string, expected Identity, key []byte) (*Store, error) {
+	return openStore(ctx, path, expected, key, nil)
+}
+
+func openStore(ctx context.Context, path string, expected Identity, key []byte, journalKey *JournalKey) (*Store, error) {
 	if err := validateIdentity(expected, true); err != nil {
 		return nil, err
 	}
 	if len(key) != 32 {
 		return nil, ErrKey
+	}
+	wantVersion, schema := 1, schemaV1
+	if journalKey != nil {
+		if err := validateJournalKey(*journalKey, key); err != nil {
+			return nil, err
+		}
+		wantVersion, schema = 2, schemaV2
 	}
 	full, err := localPath(path)
 	if err != nil {
@@ -296,7 +330,7 @@ func Open(ctx context.Context, path string, expected Identity, key []byte) (*Sto
 	if err := db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return nil, ErrStorage
 	}
-	if version != 1 {
+	if version != wantVersion {
 		return nil, ErrSchema
 	}
 	var actual Identity
@@ -305,7 +339,7 @@ func Open(ctx context.Context, path string, expected Identity, key []byte) (*Sto
 	if err := db.QueryRowContext(ctx, `SELECT node_id,ledger_id,ledger_key_id,schema_version,key_check FROM agent_meta WHERE id=1`).Scan(&actual.NodeID, &actual.LedgerID, &actual.KeyID, &schemaVersion, &check); err != nil {
 		return nil, ErrSchema
 	}
-	if schemaVersion != 1 {
+	if schemaVersion != wantVersion {
 		return nil, ErrSchema
 	}
 	if actual != expected {
@@ -314,8 +348,18 @@ func Open(ctx context.Context, path string, expected Identity, key []byte) (*Sto
 	if !hmac.Equal(check, keyCheck(actual, key)) {
 		return nil, ErrKey
 	}
-	if err := validateSchema(ctx, db); err != nil {
+	if err := validateSchema(ctx, db, schema); err != nil {
 		return nil, err
+	}
+	if journalKey != nil {
+		var actualKeyID string
+		var journalCheck []byte
+		if err := db.QueryRowContext(ctx, `SELECT key_id,key_check FROM event_keys WHERE id=1`).Scan(&actualKeyID, &journalCheck); err != nil {
+			return nil, ErrKey
+		}
+		if actualKeyID != journalKey.ID || !hmac.Equal(journalCheck, journalKeyCheck(actual, *journalKey)) {
+			return nil, ErrKey
+		}
 	}
 	var integrity string
 	if err := db.QueryRowContext(ctx, "PRAGMA quick_check").Scan(&integrity); err != nil || integrity != "ok" {
@@ -324,6 +368,9 @@ func Open(ctx context.Context, path string, expected Identity, key []byte) (*Sto
 	s, err := newStore(db, actual, key)
 	if err != nil {
 		return nil, err
+	}
+	if journalKey != nil {
+		s.journal = &journalConfig{keyID: journalKey.ID, kek: append([]byte(nil), journalKey.Key...)}
 	}
 	success = true
 	return s, nil
@@ -359,6 +406,9 @@ func (s *Store) Close() error {
 	}
 	s.mu.Lock()
 	clear(s.key)
+	if s.journal != nil {
+		clear(s.journal.kek)
+	}
 	s.closeErr = err
 	close(s.closeDone)
 	s.mu.Unlock()

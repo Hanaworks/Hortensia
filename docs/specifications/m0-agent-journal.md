@@ -59,7 +59,7 @@ func (s *Store) RecoveryRecord(ctx context.Context, operationID string) (json.Ra
 
 以上是存储接口。AcknowledgeEvent的调用方必须先完成认证、消息方向、当前session及reply_to关联验证；本轮只以受控调用验证持久确认，不提供线上ack处理器。函数自身校验ID、摘要、事件存在及记录关联，重复同session确认幂等；确认旧事件不覆盖最新结果。PendingEvents按event_seq升序返回ack_session不等于所给session的事件，因此新连接仍可取得已在旧连接确认的证据；它不是发送队列或扫描完成判据。
 
-ReadEvent返回解密后的原body字节副本，重报时仅更新信封；本模块没有网络封装入口。每操作至多一条started与一条首result，PendingEvents至多2条。result经现有Validator按完整报文及1MiB输出上限验证，另限制body不超过7MiB，为RecoveryRecord及后续完整报文留出空间；超预算拒绝，不默默截断并称完整。合法1.0／1e0事件序号按数学整数提取，但body原字节不重编码；同位置不同JSON字节也按冲突处理。
+ReadEvent返回解密后的原body字节副本，重报时仅更新信封；本模块没有网络封装入口。校验用临时信封及RecoveryRecord也必须直接嵌入已经验证的原body，不能重新序列化而放大HTML字符或改变字节。每操作至多一条started与一条首result，PendingEvents至多2条。result经现有Validator按完整报文及1MiB输出上限验证，另限制body不超过7MiB，为RecoveryRecord及后续完整报文留出空间；超预算拒绝，不默默截断并称完整。合法1.0／1e0事件序号按数学整数提取，但body原字节不重编码；同位置不同JSON字节也按冲突处理。
 
 继续使用已有固定错误，增加ErrJournal（非v2入口）、ErrEvidence（密文／关联证据无效）、ErrKeyExhausted；错误不带正文、密钥、SQL参数或驱动细节。读取坏密文整次失败，不输出部分结果或假造空结果。
 
@@ -75,7 +75,7 @@ RecordResultFixture校验既有result信封／Schema、操作／摘要及两个�
 
 RecoveryRecord在一个事务快照内读取操作、event_state、事件、确认及两占用。它输出现有Schema的精确字段，latest_result及result_event_seq必须指向同一原body，last_event_seq不得凭调用次数增加；有结果且未blocked则phase=result，无结果则按上述阶段映射。report_acked仅表示最新result曾获持久确认，没有result为false；当前连接的确认另由AckSession判断。claims_held必须通过两个占用完整匹配确认；缺失或不一致返回ErrEvidence。final_state和finalized_result_event_seq始终null。此读取不是完整恢复扫描，也不授权解除冻结。
 
-Close沿用既有锁顺序并清理KEK副本；不得持Store锁等待Gate，解密／加密期间使用受锁保护复制出的密钥。Start仍必须短小，不能重入Gate或调用Store.Close，可以查询已提交事件。所有结果、ack、读取及重启路径都不释放local_claims。
+Close沿用既有锁顺序并清理KEK副本；不得持Store锁等待Gate或数据库连接，解密／加密期间使用受锁保护复制出的密钥。NewGate在数据库读取前后分别检查关闭／重复登记，最后持锁登记，避免与事务内解密形成锁反转；执行资格仍由开始事务复核。Start仍必须短小，不能重入Gate或调用Store.Close，可以查询已提交事件。所有结果、ack、读取及重启路径都不释放local_claims。
 
 ## 6. 验收与完成条件
 
@@ -88,7 +88,7 @@ Close沿用既有锁顺序并清理KEK副本；不得持Store锁等待Gate，解
 | J03 | 额度预留后事件写入／Commit失败、进程终止；额度耗尽 | 预留次数不回退、未提交事件不可见；无Start；耗尽仍可读取、ack和恢复查询 |
 | J04 | v2正常许可、重复许可、started插入失败、提交期间取消 | Start内可读完整started；开始与事件全有或全无，最多启动一次；取消不删已提交证据 |
 | J05 | 四类首结果、错误目标／摘要／session／boot／seq／预算；not_started与开始并发 | 合法结果与指针原子提交；非法输入拒绝；竞争只允许未启动结果或开始事实其中之一 |
-| J06 | 相同result重试、同位置改body、并发重复、未来版本 | 重复不增序号或新额度；冲突保留旧证据并持久blocked及指纹；不得另起任务或覆盖较新结果 |
+| J06 | 相同result顺序重试、同位置改body、并发重复、未来版本 | 已可读到既有事件的顺序重试不耗新额度；并发重试允许浪费预留额度但只提交一份事件及序号；冲突保留旧证据并持久blocked及指纹，不得另起任务或覆盖较新结果 |
 | J07 | 正确／错摘要／错位置确认，重复确认，重开与新session | 确认只改变相应ack_session，不释放占用；新连接PendingEvents重取原body；不声称已验证网络关联 |
 | J08 | ready、当前/旧boot开始无结果、四类结果、blocked／缺占用 | RecoveryRecord符合Schema且字段来自同一快照；保留许可、未知隔离、latest_result和seq一致，ack不代表释放 |
 | J09 | 辅助进程在started提交后、result提交前事务中、result提交后及ack提交后强制终止 | 重开只有完整提交的事件／指针／确认；body不变、额度不回退、原占用仍在、旧操作不重启 |
