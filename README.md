@@ -32,6 +32,7 @@
 | 查精确定义 | [数据设计](docs/data-design.md)、[接口规格](docs/api-design.md)：逻辑实体、操作、状态和失败边界 |
 | 对接首条流程 | [HTTP 规格](docs/specifications/http-api.md)、[Agent 协议](docs/specifications/agent-protocol.md)、[协议 Schema](contracts/agent-v1.schema.json)：消息和返回对象、字段约束、关联及错误 |
 | 核对已实现的具体行为 | [M0 实际实现规格](docs/specifications/m0-channel-probe.md)：实际报文、支持矩阵、参数、状态、错误及代码／测试对应 |
+| 判断本轮做什么、怎样算完成 | [M0 实施与验收](docs/implementation/m0-agent-channel.md#本轮验收标准)：AC01—AC11 的通过条件、证据缺口与交接范围；当前切片尚未全部验收 |
 | 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
 | 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
 | 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |

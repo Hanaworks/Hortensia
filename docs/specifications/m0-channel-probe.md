@@ -1,6 +1,6 @@
 # M0 通信原型实际实现规格
 
-更新日期：2026-11-05。实现基线：`98d9c13`。本文按该提交的代码描述当前程序的输入、输出、交互、状态和异常处理；后续实现改变这些行为时同步更新本文。
+更新日期：2026-11-06。实现基线：`98d9c13`。本文按该提交的代码描述当前程序的输入、输出、交互、状态和异常处理；后续实现改变这些行为时同步更新本文。
 
 文档形成时点：完整 v1 通信规格与消息 Schema 先于本轮代码存在；本篇由 `dc0529c` 根据已完成的原型回填。编码前的 M0 实施计划只定义实验目标、主要约束和验证任务，未完整列出最终参数、消息支持及 Gate 接口。本文提供当前实现的核对依据；实施期间形成的技术选择及其来源在第 7 节登记，不将回填内容追记为编码前已经确定或用户逐项批准。
 
@@ -209,6 +209,8 @@ Authorize 在断线检查后依次检查 session→operation→nonce→digest→
 主要可判定错误为 `ErrSession/ErrOperation/ErrDigest/ErrNonce/ErrReplyTo`、`ErrPermit/ErrPermitConflict`、`ErrExpired/ErrCanceled/ErrInvalidated`、`ErrCommitting/ErrAlreadyStarted/ErrDenied/ErrUncertain`、`ErrRequest/ErrCommitFailed`，分别对应身份关联、许可、状态或回调失败。它们是 Go 包内错误，不是已在网上发出的 Error 报文；CommitStart返回的外部错误还会与ErrCommitFailed合并，不承诺其错误文本可直接安全记录。
 
 ## 6. 规格到验证的对应
+
+本节仅提供测试入口。[实施与验收中的 AC01—AC11](../implementation/m0-agent-channel.md#本轮验收标准)定义本切片的接受条件、已识别缺口和完成判据；当前尚未全部验收。以下测试文件覆盖范围不能代替逐条判定。
 
 | 规格行为 | 已有测试入口 | 证据边界 |
 | --- | --- | --- |
