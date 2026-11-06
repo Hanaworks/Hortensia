@@ -1,6 +1,6 @@
 # Agent 模块设计
 
-更新日期：2026-11-04。状态：M1 内部设计与 v1 执行工作规格，尚未原型验证。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接 R02、R04—R10、R12、R13、R15 及 Q03、Q04、Q06—Q10。Agent 主动接入已确认；具体报文由 [Agent 协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，不把工作规格当成运行结果。
+更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本及事件／首结果的受控子集已有原型证据，尚无完整Agent。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
 
 ## 1. 内部组成
 
@@ -134,11 +134,13 @@ Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，�
 
 ### 9.5 工程边界与验证输出
 
-建议在 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目前 `ledger` 已按[开始账本规格](../specifications/m0-agent-ledger.md)落实受控SQLite子集，其余目录仍为工程建议。该子集只有准备夹具、开始事实和占用，不是可处理真实部署的Agent。
+建议在 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目前 `ledger` 已按[开始账本规格](../specifications/m0-agent-ledger.md)和[事件日志规格](../specifications/m0-agent-journal.md)落实受控SQLite子集，其余目录仍为工程建议。该子集包含准备夹具、开始事实、占用、加密首结果及单操作恢复读取，尚不能处理真实部署。
 
 M0 至少输出：同一输入的原生对照、路径拒绝清单、10 秒许可迟到及撤权竞争、START_COMMITTED 前后崩溃、命令超时和残留进程、结果丢包与账本丢失证据。首次得到成功部署不代表这些故障边界已经验证。
 
 ## 10. 结果与释放接入
+
+2026-11-07的[事件日志切片](../implementation/m0-agent-journal.md)已落实started与开始事实原子提交、首份受控result加密保存、确认及单操作RecoveryRecord读取。其v2新库不隐式升级v1，调用方仍须提供真实执行／归属证据和网络关联；下面补观察及finalize目标机制尚未实现，不能因能读取结果而释放占用。
 
 结果的 outcome 区分 not_started、normal_exit、interrupted、unknown；ownership_status 区分 not_checked、consistent、drifted、unknown。正常退出只有在观察 complete 且归属 consistent 时才可自动终结；不能只用 exit_code 判定是否可释放。正常退出但观察失败、尚无明确漂移时，接收绑定原 operation_id 的只读补观察，保留原进程事实，以新 event_seq 发布新观察及重新核对的 ownership_status，不执行第二次 Compose。观察完整但归属 drifted／unknown 仍保持核对。
 

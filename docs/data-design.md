@@ -1,6 +1,6 @@
 # Docker Manager 数据设计
 
-更新日期：2026-11-07。状态：逻辑模型及 M1 物理存储提案；Agent 开始账本的必要子集已进入真实 SQLite 原型实现，具体范围和验收见[账本实施记录](implementation/m0-agent-ledger.md)。本文面向持久化及接口实现者，承接 [arc42 共同概念](https://docs.arc42.org/section-8/)与[构件的数据职责](architecture.md#5-构件视图与逐层展开)，细化 R04、R05、R07、R11—R17 及 Q02、Q04、Q05、Q07、Q08、Q10。第 7—11 节落实 P09，除明确列出的原型子集外仍是待实现、待验证的设计。
+更新日期：2026-11-07。状态：逻辑模型及M1物理存储提案；Agent开始账本及事件／首结果的必要子集已有真实SQLite原型证据，具体范围见[账本实施记录](implementation/m0-agent-ledger.md)与[事件日志记录](implementation/m0-agent-journal.md)。本文面向持久化及接口实现者，承接[arc42共同概念](https://docs.arc42.org/section-8/)与[构件的数据职责](architecture.md#5-构件视图与逐层展开)，细化R04、R05、R07、R11—R17及Q02、Q04、Q05、Q07、Q08、Q10。第7—11节落实P09，除明确列出的原型子集外仍是待实现、待验证的设计。
 
 ## 1. 数据责任和关系
 
@@ -151,7 +151,7 @@ SQLite 官方记录的 WAL-reset 问题已在 3.51.3 及指定旧分支回补版
 
 ### 7.2 Agent 表与边界
 
-2026-11-07 的[开始账本实施规格](specifications/m0-agent-ledger.md)展开 agent_meta、executions 和 local_claims 的当前必要子集，物理DDL位于 `internal/agent/ledger/migrations/001_start_ledger.sql`。它包含稳定目标、项目与执行配置、原始输入本地HMAC、owner_boot、auth_rev和完整开始许可；不存输入正文，不包含结果密文、execution_events或project_bindings。受控ready夹具不等于工作区已完成原生预检，下面整表设计不能据此全部标为已实现。
+2026-11-07的[开始账本规格](specifications/m0-agent-ledger.md)在001_start_ledger.sql展开agent_meta、executions和local_claims子集，保存稳定目标、原始输入HMAC、owner_boot与完整许可，不存输入正文。随后[事件日志规格](specifications/m0-agent-journal.md)在002_event_journal.sql定义新v2库，新增execution_events、event_state、event_keys和event_conflicts，保存加密started／首result、结果指针、包装额度及冲突。v1仍用原入口，v2不是自动升级脚本；开始phase保留，result阶段从指针派生。项目归属project_bindings、真实准备和释放尚未实现，下表完整目标不能全部标为已实现。
 
 | 表 | 主列与约束 | 用途 |
 | --- | --- | --- |
@@ -213,6 +213,8 @@ HTTP 幂等摘要使用接口规定的规范化请求，不含服务端新生成
 
 AEAD 密钥轮换先建立并可靠备份新 key_id，再切换新写入；历史 DEK 逐行在事务中重新包裹，不改变配置版本或输入摘要。旧密钥只有在全部在线引用、备份保留和恢复需求核清后才能退出。M1 首先提供可验证的密钥备份与失效拒绝，自动轮换工具须经过恢复测试后交付。
 
+当前Agent v2事件原型已验证独立KEK／DEK的完整body封装、绑定AAD和配对校验；单KEK最多1048576次包装，先以独立事务永久预留后加密，事件回滚不退款。该上限是本轮保守技术选择。调用者负责专用密钥供给；本模块没有密钥文件管理、轮换、备份回退检测，也未实现Manager配置加密，不能将本节全部机制标为已交付。
+
 ## 10. Agent 文件与执行账本的一致性
 
 Agent 先在数据库写入 prepare 记录和本地占用，再按 operation_id 建立独立 staging 临时目录。校验路径及字节数、写入文件、同步文件与父目录，并在同一文件系统原子发布到 `workspaces/{stack_id}/{version_id}/package/` 后，才把账本改为 ready。已有固定版本目录须逐文件核对包内原始字节，吻合才复用；不覆盖被外部修改的目录。运行 manifest、受控空 env 文件及每次操作的监督材料保存在包外按 operation_id 组织的运行目录，不混入不可变配置包。目录同步和重命名需按首个支持环境实际验证；不同平台不能照搬成功结论。
@@ -234,7 +236,7 @@ Agent 先在数据库写入 prepare 记录和本地占用，再按 operation_id 
 
 M1 不自动回收配置版本、操作幂等记录、Agent 执行事实或仍可能被容器引用的工作目录。输出和单次输入另设上限；检测磁盘不足后拒绝新受理及新开始，保留查询与恢复能力，不通过删除证据腾空间。其代价是持续增长，M5 前必须落实 O11 的容量监控、保留及安全回收规则。
 
-schema版本由顺序迁移维护；升级前生成数据库与密钥的可恢复备份组，迁移成功才更新schema_version。启动发现较新schema拒绝写入，不能自动降级。M0必须验证CAS并发、受理后崩溃、许可与撤权竞争、写盘失败、密文错配、旧键重试、账本回退及备份恢复。2026-11-07的开始账本切片已验证Agent并发首次提交、进程终止重开及真实SQLite事务错误拒绝，结果见L01—L10；其余尤其Manager受理、真正写盘故障、加密和备份恢复仍未验证，不能把整个集合列为通过。
+完整产品的schema版本由顺序迁移维护；升级前生成数据库与密钥的可恢复备份组，迁移成功才更新schema_version。启动发现较新schema拒绝写入，不能自动降级。M0必须验证CAS并发、受理后崩溃、许可与撤权竞争、写盘失败、密文错配、旧键重试、账本回退及备份恢复。2026-11-07的开始账本切片已验证Agent并发首次提交、进程终止重开及真实SQLite事务错误拒绝，结果见L01—L10；事件日志切片进一步验证Agent事件加密／密文错配、包装额度、事件原子性与恢复读取，结果见J01—J10。当前v1/v2互拒且无升级工具；Manager受理与加密、真正写盘故障、密钥轮换、账本回退及备份恢复仍未验证，不能把整个集合列为通过。
 
 ## 12. 本轮具体定义的范围
 

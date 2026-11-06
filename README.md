@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager` 是暂名。当前处于 M0 技术原型阶段：本目录有现行文档、历史归档、协议 Schema／示例、Go通信原型及Agent持久开始账本，已建立本地Git仓库。原型可验证本机TLS连接、许可门禁及SQLite开始边界，尚无可安装的Docker管理产品。
+`docker-manager`是暂名。当前处于M0技术原型阶段：本目录有现行文档、历史归档、协议Schema／示例、Go通信原型，以及Agent开始账本和加密事件／结果日志，已建立本地Git仓库。原型可验证本机TLS连接、许可门禁、持久开始与结果重读，尚无可安装的Docker管理产品。
 
 ## 主要能力与边界
 
@@ -35,7 +35,7 @@
 | 核对已实现的具体行为 | [M0 实际实现规格](docs/specifications/m0-channel-probe.md)：实际报文、支持矩阵、参数、状态、错误及代码／测试对应 |
 | 判断本轮做什么、怎样算完成 | [M0 实施与验收](docs/implementation/m0-agent-channel.md#本轮验收标准)：AC01—AC11 的通过条件、逐项结果与交接范围；当前通信及独立门禁切片已验收，整个M0仍未完成 |
 | 跟进持久开始账本 | [账本实施规格](docs/specifications/m0-agent-ledger.md)与[实施计划／验收记录](docs/implementation/m0-agent-ledger.md)：编码前定义范围、存储、接口、故障行为与L01—L10 |
-| 跟进事件与结果持久化 | [事件日志规格](docs/specifications/m0-agent-journal.md)与[实施计划／验收记录](docs/implementation/m0-agent-journal.md)：started、首结果、加密、确认和恢复读取，按J01—J10推进 |
+| 跟进事件与结果持久化 | [事件日志规格](docs/specifications/m0-agent-journal.md)与[实施计划／验收记录](docs/implementation/m0-agent-journal.md)：started、首结果、加密、确认和恢复读取，J01—J10已验收 |
 | 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
 | 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
 | 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |
@@ -48,7 +48,7 @@
 
 可在仓库根运行 `go test ./... -count=1` 复验当前原型，其中包含真正两个进程的回环 TLS 握手；`pwsh -File tools/check-contracts.ps1` 和 `node tools/check-docs.mjs` 继续检查静态契约与文档。Go 版本、手工运行命令和范围见 M0 实施记录。
 
-持久开始账本已按独立规格接入Gate的受控测试，网络通道仍保持冻结。下一步先补事件／结果与恢复记录，再接入受控任务交互；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。真正未知／中断执行继续保持隔离，人工解除仍须验证。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。每个模块执行[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)，仓库工作约定同时保存在AGENTS.md。
+开始账本及事件／首结果／单操作恢复读取已按独立规格验收，网络通道仍冻结。下一步先落实Manager持久操作／事件接收及会话／核对约束，再接入受控任务交互；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。事件模块使用显式新v2库，尚无v1升级工具；结果来自受控夹具，未知／中断执行和资源占用仍保持隔离。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。每个模块执行[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)，仓库工作约定同时保存在AGENTS.md。
 
 新决定记录于 decisions，再同步需求、设计、接口和测试。已有历史材料中的助手建议不会因为再次引用而变成用户已确认决定。正式名称、许可证、发布方式及首版完整范围仍需确定。
 

@@ -1,6 +1,6 @@
 # Docker Manager 测试计划
 
-更新日期：2026-11-07。状态：测试方案与 M0／M1 验证规格；M0 的通信与独立许可门禁切片已验收，完整产品测试尚未执行。本文供实现者和测试执行者使用，持续承接 req42 所组织的[需求与成功标准](requirements.md)，以及 arc42 所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
+更新日期：2026-11-07。状态：测试方案与M0／M1验证规格；M0通信与独立许可门禁、Agent开始账本及事件／首结果日志切片已验收，完整产品测试尚未执行。本文供实现者和测试执行者使用，持续承接req42所组织的[需求与成功标准](requirements.md)，以及arc42所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
 
 ## 1. 验证目标与分层
 
@@ -156,3 +156,11 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 2026-11-07先保存[开始账本规格及L01—L10](specifications/m0-agent-ledger.md)与[实施计划和结果](implementation/m0-agent-ledger.md)，再编码。验证采用真实SQLite文件、实际写锁及事务中止、无副作用Start回调和三个边界的强制终止辅助进程。方法、逐项结果和交付版本以实施记录为准；复验命令为 `go test ./internal/agent/ledger -count=1 -timeout=90s`。
 
 本切片只覆盖Agent本地开始边界。没有Manager授权事务、真实工作区准备、执行事件／结果重报、网络任务、完整恢复扫描、双端释放或Docker副作用；进程终止不等于掉电，Windows验证不等于Linux部署验证。V03／V04／V05的相关前置断言有所推进，整组及整个M0仍需后续环境与模块证据。
+
+## 11. Agent 事件与首结果日志切片
+
+2026-11-07编码前以5c0c1f7保存[事件日志规格及J01—J10](specifications/m0-agent-journal.md)和[实施计划](implementation/m0-agent-journal.md)，源码／测试版本8ff708b。J01—J10通过：v1/v2入口与结构拒绝、独立密钥封装与额度、started原子提交、四类首结果、同位重试／冲突、确认、原文读取及单操作恢复投影均有对应断言。真实SQLite语句与Commit故障验证无部分事件；四组子进程分别在started后、实际result事务中、result后和ack后强杀，核对原文、序号、结果指针、确认、计数和占用。
+
+最终全量5个测试包通过，750条测试及子测试通过记录，其中ledger213条，失败0、测试跳过0；该计数包含父组与辅助入口，并非750个独立场景。Go静态检查、构建、依赖校验、契约与文档检查通过，具体环境和审阅修正在实施记录维护。复验命令：`go test ./... -count=1 -timeout=120s`；仅事件模块可用 `go test ./internal/agent/ledger -run TestJournal -count=1 -timeout=90s`。
+
+本轮推进V05／V07／V09／V15涉及的本地持久事实前提，不据此将整组标为通过。结果来自受控夹具；Ack仅可信内部API，未接网络认证和reply_to；RecoveryRecord仅单操作读取，未接完整核对扫描。Manager持久受理／授权、真实Docker结果、双端释放、旧库升级、密钥轮换、备份回退及掉电耐久仍未验证；Windows进程强杀不替代这些实验。
