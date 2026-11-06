@@ -26,7 +26,7 @@
 | 阅读任务 | 入口与主要内容 |
 | --- | --- |
 | 看这套文档如何安排 | [项目文档规划](docs/documentation-plan.md)：各篇职责、主骨架、参考、展开深度及检查记录 |
-| 回看实施与交付的教训 | [项目实施规格与验收复盘](docs/implementation-lessons.md)：本次问题、影响、纠正和后续执行要求 |
+| 回看从文档到交付的教训 | [项目文档编写到实施交付的全过程复盘](docs/implementation-lessons.md)：资料阅读、规划与深度、阶段判断、实施验收及后续执行要求 |
 | 审阅产品目标与范围 | [需求规格](docs/requirements.md)：R01—R17、Q01—Q11、术语、使用场景和边界 |
 | 核对日常操作方式 | [功能与交互设计](docs/functional-design.md)：编辑部署、跨节点、权限和转换流程 |
 | 理解整体及模块 | [架构设计](docs/architecture.md) → [Manager](docs/components/manager.md)、[Agent](docs/components/agent.md)、[Web](docs/components/web.md) |
