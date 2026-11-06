@@ -114,6 +114,9 @@ func TestUpgradeRejectsAlternateCredentials(t *testing.T) {
 			if err == nil || resp == nil || resp.StatusCode != http.StatusUnauthorized {
 				t.Fatalf("expected HTTP 401, got %v %v", resp, err)
 			}
+			if resp.Header.Get("Cache-Control") != "no-store" {
+				t.Fatalf("credential rejection must disable caching: %v", resp.Header)
+			}
 		})
 	}
 }
@@ -134,12 +137,29 @@ func TestSessionReplacementClosesOldConnection(t *testing.T) {
 		t.Fatal("new session was not isolated")
 	}
 	_, _, err = first.conn.Read(deadline(t))
-	if websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
-		t.Fatalf("old session not replaced: %v", err)
+	requireClose(t, err, websocket.StatusPolicyViolation, "session_replaced")
+	// The connection-map cleanup runs after current-session cleanup. Wait for
+	// that exit barrier; receipt of the Close frame alone is earlier than both.
+	cleanupCtx := deadline(t)
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	for {
+		s.mu.Lock()
+		remaining := len(s.connections)
+		s.mu.Unlock()
+		if remaining == 1 {
+			break
+		}
+		select {
+		case <-cleanupCtx.Done():
+			t.Fatalf("old handler did not finish cleanup; %d connections remain", remaining)
+		case <-tick.C:
+		}
 	}
 	if got := s.CurrentSession(); got != second.SessionID {
 		t.Fatalf("old cleanup removed new session: %s", got)
 	}
+	assertFrozenResponse(t, second.conn, second.v, requestForTest(second.SessionID, "00000000-0000-4000-8000-000000000102"), second.SessionID)
 }
 
 func TestPostHandshakeInvalidMessagesClose(t *testing.T) {
@@ -153,6 +173,7 @@ func TestPostHandshakeInvalidMessagesClose(t *testing.T) {
 			defer p.Close()
 			kind := websocket.MessageText
 			want := websocket.StatusPolicyViolation
+			reason := "unexpected_message"
 			body := []byte(`{"protocol":1,"type":"request_start","message_id":"00000000-0000-4000-8000-000000000100","session_id":"` + p.SessionID + `","reply_to":null,"body":{"operation_id":"00000000-0000-4000-8000-000000000004","input_digest":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","start_nonce":"00000000-0000-4000-8000-000000000011"}}`)
 			switch name {
 			case "duplicate_hello":
@@ -163,20 +184,27 @@ func TestPostHandshakeInvalidMessagesClose(t *testing.T) {
 				body = []byte(strings.Replace(string(body), p.SessionID, "00000000-0000-4000-8000-000000000008", 1))
 			case "binary":
 				kind = websocket.MessageBinary
+				reason = "text_required"
 			case "invalid_utf8":
 				body = []byte{0xff}
 				want = websocket.StatusInvalidFramePayloadData
+				reason = "invalid_utf8"
 			case "duplicate_json_key":
 				body = bytes.Replace(body, []byte(`"protocol":1`), []byte(`"protocol":1,"protocol":1`), 1)
+				reason = "invalid_message"
 			case "oversized":
 				body = []byte(strings.Repeat(" ", 8*1024*1024+1))
 				want = websocket.StatusMessageTooBig
+				reason = ""
+			}
+			if name == "duplicate_hello" || name == "wrong_direction" || name == "old_session" || name == "binary" {
+				if _, err := p.v.Validate(body); err != nil {
+					t.Fatalf("policy fixture must otherwise pass schema: %v", err)
+				}
 			}
 			_ = p.conn.Write(deadline(t), kind, body)
 			_, _, err = p.conn.Read(deadline(t))
-			if websocket.CloseStatus(err) != want {
-				t.Fatalf("want close %d, got %v", want, err)
-			}
+			requireClose(t, err, want, reason)
 		})
 	}
 }
@@ -246,9 +274,7 @@ func TestHelloMessageIDCannotBeReused(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _, err := c.Read(deadline(t))
-	if websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
-		t.Fatalf("hello ID reuse accepted: %v", err)
-	}
+	requireClose(t, err, websocket.StatusPolicyViolation, "unexpected_message")
 }
 
 func TestEquivalentJSONRetryKeepsSameMeaning(t *testing.T) {
@@ -263,7 +289,9 @@ func TestEquivalentJSONRetryKeepsSameMeaning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, data := range [][]byte{raw, pretty} {
+	decimal := bytes.Replace(raw, []byte(`"protocol":1`), []byte(`"protocol":1.0`), 1)
+	exponent := bytes.Replace(raw, []byte(`"protocol":1`), []byte(`"protocol":1e0`), 1)
+	for _, data := range [][]byte{raw, pretty, decimal, exponent} {
 		if err = c.Write(deadline(t), websocket.MessageText, data); err != nil {
 			t.Fatal(err)
 		}

@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"math/big"
 	"net"
@@ -118,12 +119,20 @@ func (p *probeProcess) line(t *testing.T, ctx context.Context) map[string]any {
 	return nil
 }
 
-func (p *probeProcess) wait(t *testing.T, success bool) {
+func (p *probeProcess) wait(t *testing.T, wantCode int) {
 	t.Helper()
 	err := <-p.done
 	p.waited = true
-	if (err == nil) != success {
-		t.Fatalf("process exit=%v stderr=%q stdout=%q", err, p.diagnostic.String(), p.output.String())
+	code := 0
+	if err != nil {
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) {
+			t.Fatalf("process wait failed: %v", err)
+		}
+		code = exit.ExitCode()
+	}
+	if code != wantCode {
+		t.Fatalf("process exit=%d want=%d stderr=%q stdout=%q", code, wantCode, p.diagnostic.String(), p.output.String())
 	}
 }
 
@@ -208,13 +217,13 @@ func TestManagerAndAgentProcessesUseVerifiedTLS(t *testing.T) {
 			t.Fatalf("unexpected output field %q", field)
 		}
 	}
-	agent.wait(t, true)
+	agent.wait(t, 0)
 	if agent.diagnostic.Len() != 0 {
 		t.Fatalf("duration expiry was not clean: %q", agent.diagnostic.String())
 	}
 
 	untrusted := launchProbe(t, ctx, append(append([]string{}, base...), "-token-file", token)...)
-	untrusted.wait(t, false)
+	untrusted.wait(t, 1)
 	if strings.TrimSpace(untrusted.diagnostic.String()) != "connection_failed" || untrusted.output.Len() != 0 {
 		t.Fatal("untrusted TLS was not rejected with a fixed diagnostic")
 	}
@@ -224,14 +233,20 @@ func TestManagerAndAgentProcessesUseVerifiedTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	unauthorized := launchProbe(t, ctx, append(append([]string{}, base...), "-token-file", wrongFile, "-ca", cert)...)
-	unauthorized.wait(t, false)
+	unauthorized.wait(t, 1)
 	if strings.TrimSpace(unauthorized.diagnostic.String()) != "unauthorized" || unauthorized.output.Len() != 0 {
 		t.Fatal("401 did not terminate with fixed diagnostic")
 	}
 
+	invalidArgs := launchProbe(t, ctx, append(append([]string{}, base...), "-token-file", token, "-ca", cert, "-duration", "0s")...)
+	invalidArgs.wait(t, 2)
+	if invalidArgs.diagnostic.String() != "invalid_arguments\n" || invalidArgs.output.Len() != 0 {
+		t.Fatal("invalid duration did not terminate with a fixed argument diagnostic")
+	}
+
 	_ = manager.input.Close()
-	manager.wait(t, true)
-	for _, p := range []*probeProcess{manager, agent, untrusted, unauthorized} {
+	manager.wait(t, 0)
+	for _, p := range []*probeProcess{manager, agent, untrusted, unauthorized, invalidArgs} {
 		if strings.Contains(p.output.String()+p.diagnostic.String(), testToken) || strings.Contains(p.output.String()+p.diagnostic.String(), wrongToken) {
 			t.Fatal("credential leaked")
 		}
