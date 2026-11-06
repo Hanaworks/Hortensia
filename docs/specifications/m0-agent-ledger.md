@@ -24,7 +24,7 @@ Go 1.27.0、CGO_ENABLED=0；固定 `modernc.org/sqlite v1.61.1` 和其要求的 
 
 ## 3. 固定数据与存储约束
 
-稳定执行上下文为 `(node_id, ledger_id, operation_id, stack_id, version_id, input_digest)`；node/ledger 由单库身份确定。session 只绑定本次准备和开始，不能代替稳定身份。原始 payload_bytes 由现有 Validator 校验后解码，从同一原文提取 project_name、docker_endpoint_id 和 policy_revision；不重新序列化后计算指纹。
+稳定执行上下文为 `(node_id, ledger_id, operation_id, stack_id, version_id, input_digest)`；node/ledger 由单库身份确定。session 只绑定本次准备和开始，不能代替稳定身份。原始 payload_bytes 由现有 Validator 校验后解码，从同一原文提取 project_name、docker_endpoint_id 和 policy_revision；不重新序列化后计算指纹。已通过Schema的数学整数写法1、1.0、1e0必须提取为相同整数；其原始字节仍不同，同操作改写会触发本地指纹冲突。时间物理列采用Unix毫秒INTEGER，Record查询结果再转UTC文本。
 
 | 表 | 本轮字段与约束 | 事务语义 |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ Go 1.27.0、CGO_ENABLED=0；固定 `modernc.org/sqlite v1.61.1` 和其要求的 
 
 必要字段 NOT NULL，BLOB 长度、阶段、成组许可、数字范围、主键和外键由 DDL 约束；UUID 与 prepare 的完整内容沿用应用层 Schema 验证。开始字段第一次提交后没有覆盖或清空方法。project 不只用显示名作键，避免不同端点混淆。登记第二个占用失败时整个新操作回滚，不能留下半条记录。
 
-key_check = HMAC-SHA-256(K_ledger, `docker-manager/ledger-key/v1\x00` + JSON编码的 `[node_id,ledger_id,key_id]`)；Open 用恒定时间比较，不能仅凭 key_id 相同认定密钥正确。local_fingerprint = HMAC-SHA-256(K_ledger, 原始 payload_bytes)。Manager input_digest 只作为32字节不透明值保存，不验证 Manager HMAC。既有 operation_id 必须同时匹配稳定上下文、两个摘要、项目／配置、准备 session；冲突拒绝且不覆盖。报文 message_id 变化不改变准备事实。
+key_check = HMAC-SHA-256(K_ledger, `docker-manager/ledger-key/v1` + 单字节0x00 + JSON编码的 `[node_id,ledger_id,key_id]`)；Open 用恒定时间比较，不能仅凭 key_id 相同认定密钥正确。local_fingerprint = HMAC-SHA-256(K_ledger, 原始 payload_bytes)。Manager input_digest 只作为32字节不透明值保存，不验证 Manager HMAC。既有 operation_id 必须同时匹配稳定上下文、两个摘要、项目／配置、准备 session；冲突拒绝且不覆盖。报文 message_id 变化不改变准备事实。
 
 不存配置原文、payload_b64、输出或密钥，因此本切片不需要把完整正文加密机制一并实现。身份、项目名、时间等元数据仍明文，指纹不得当作公开接口字段输出。K_ledger 的生成、秘密文件权限、备份与轮换仍由后续身份／密钥模块落实；本 API 复制调用方密钥，关闭时尽力清零，不宣称 Go 内存可完全擦除。
 
@@ -63,7 +63,9 @@ Record 暴露本轮表的元数据：Identity、OperationID、StackID、VersionI
 
 每次 Create/Open 生成新的不可由调用者指定的随机 boot_id；登记时保存 owner_boot_id。重开后 Get/Claims 可查询旧记录；RecordReadyFixture 和 NewGate 对旧 boot 记录拒绝为 ErrFrozen，不更改 phase、不补许可、不续期限。本轮没有解除冻结入口。独立的 Store 可以创建不同的新夹具操作，数据库占用约束仍有效；此机制不是生产 Agent 的进程单实例锁，也不检测旧备份回退。
 
-同一 Store 每操作最多创建一个 Gate；constructor 校验身份、prepare session、摘要与 ready，成功后保留登记，取消、拒绝或失败后也不允许再 NewGate。再次使用既有 Gate 的 RegisterRequest/Authorize 遵守原规格。新 Gate 不能绕过已经开始的记录。
+同一 Store 每操作最多创建一个 Gate；constructor 校验身份、prepare session、摘要与 ready，成功后保留登记，取消、拒绝或失败后也不允许再 NewGate。NewGate及提交适配器负责按既有Id/Digest/Revision规则校验请求与许可字段，包括nonce、message_id、permit_id和reply_to；不能依赖内存Gate的非空检查替代类型约束。再次使用既有 Gate 的 RegisterRequest/Authorize 遵守原规格。新 Gate 不能绕过已经开始的记录。
+
+Close先禁止新登记／新Gate并使所有现有Gate失效，等已进入Start的短回调退出后关闭数据库；不得持有Store登记锁调用Invalidate，避免Start内Get的锁反转。Close返回后旧Gate不能再次调用Start；并发／重复Close均应等待同一次关闭完成。数据库调用的context取消只结束对应等待／事务，不自动等于业务Cancel或连接失效；后者由调用者明确调用Gate方法。另一个Open不会撤销仍存活的第一个Store，这不是进程接管机制。
 
 CommitStart 回调在立即写事务内重读记录、检查本 boot、固定上下文、摘要、准备 session 与两个占用，CAS `ready → START_COMMITTED` 并保存全部许可字段。**只有本次首次成功提交才能返回 nil**；匹配的已有开始事实返回 ErrAlreadyCommitted，不同许可返回 ErrConflict，均不能再调用 Start。预读不是执行资格；CAS和事务检查才是提交边界。
 
@@ -87,13 +89,13 @@ Begin、写入、Commit 失败均不调用 Start，Gate 进入不确定状态或
 | --- | --- | --- |
 | L01 | Create、关闭、正确Open；重新建立物理连接 | 身份不变、boot改变；SQLite3.54.1、WAL/FULL/外键/5000读回正确；原文件不能被Create覆盖 |
 | L02 | 缺文件、错误node/ledger/keyID/key、非32字节密钥、损坏库、较新schema | 固定错误，不能生成替代库或改写执行证据 |
-| L03 | 合法prepare夹具、相同重放、变摘要／原始字节／目标／项目／配置 | 同输入一条记录；任一固定内容冲突拒绝，原文不入库；原bytes而非重编码参与HMAC |
+| L03 | 合法prepare夹具及1/1.0/1e0整数形式、相同重放、变摘要／原始字节／目标／项目／配置 | 同输入一条记录；任一固定内容冲突拒绝，原文不入库；原bytes而非重编码参与HMAC |
 | L04 | 同Stack或同端点项目的并发新操作，另一端点不同Stack | 冲突组仅一个操作与两占用完整提交；非冲突组可登记；没有半条记录 |
 | L05 | 合法许可及重复、不同reply_to重放、变permit/auth_rev；重复Gate构造 | Start内读到完整已提交事实；总调用数1；不同许可不覆盖；新Gate不得再次获得资格 |
 | L06 | 提交前取消／失效；提交过程中取消／失效；提交后窗口到期 | Start=0；提交过的开始事实和两占用仍在；无虚构取消完成或释放 |
 | L07 | 真实第二连接写锁等待超时／context取消、语句中止、延迟外键导致Commit失败 | Start=0；原事实与占用保留；原Gate不得再提交，新Gate拒绝；错误无秘密回显 |
 | L08 | 辅助进程分别停在开始提交前、提交后Start前、Start后，再由父进程强制终止 | 重开数据与故障点一致；每组旧操作NewGate/重新登记均冻结；累计Start不增加 |
-| L09 | 关闭重开旧ready/committed；改Gate摘要/session/关联、破坏占用夹具 | 旧boot及不完整执行资格不能启动；时间窗口不由数据库UTC时间恢复 |
+| L09 | 关闭重开旧ready/committed；改Gate摘要/session/关联、非法UUID/超范围许可、破坏占用夹具；提交中及Start中Close | 旧boot及不完整执行资格不能启动；时间窗口不由数据库UTC时间恢复；Close无死锁且返回后无新Start |
 | L10 | 全量测试、vet、构建、模块校验、契约和文档检查；静态接线审阅 | 原通信切片回归通过；仍无网络任务入口与Docker调用；全部本轮结果、版本和限制可查 |
 
 L07 的语句／提交故障证明代码拒绝继续，不冒充真实磁盘耗尽或掉电实验。L08 是进程终止恢复，不证明硬件掉电耐久。真实Linux、磁盘满／损坏期间写入、备份回退、迁移、完整加密、事件重报、两端核对与释放均待后续验证。
