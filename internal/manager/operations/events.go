@@ -88,6 +88,13 @@ func resultProjection(p parsedEvent) (state, release string) {
 // does not authenticate a socket or prove that the reported Docker work ran.
 // The returned ack may be sent only after this call succeeds.
 func (s *Store) ReceiveEvent(ctx context.Context, b Binding, raw []byte) ([]byte, error) {
+	if s.version == 2 {
+		return s.ReceiveRecoveryEvent(ctx, b, raw)
+	}
+	return s.receiveNormalEvent(ctx, b, raw)
+}
+
+func (s *Store) receiveNormalEvent(ctx context.Context, b Binding, raw []byte) ([]byte, error) {
 	env, err := s.validator.Validate(raw)
 	if err != nil || (env.Type != "started" && env.Type != "result") || env.SessionID == nil || *env.SessionID != b.SessionID || len(env.Body) > maxEventBodyBytes {
 		return nil, ErrInput
@@ -140,6 +147,9 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 	if err = s.requireOperationEvidence(ctx, tx, op); err != nil {
 		return false, err
 	}
+	if op.ReleaseStatus == "released" {
+		return false, errRecoveryReleased
+	}
 	existing, err := s.readEvent(ctx, tx, op, p.seq)
 	if err == nil {
 		defer clear(existing.Body)
@@ -153,6 +163,11 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 	}
 	if !errors.Is(err, ErrNotFound) {
 		return false, err
+	}
+	if s.version == 2 {
+		if err = s.validateEventAgainstRecovery(ctx, tx, op, env.Type, p, env.Body); err != nil {
+			return false, err
+		}
 	}
 	if op.Blocked {
 		return false, ErrFrozen
@@ -298,6 +313,9 @@ func (s *Store) ReadEvent(ctx context.Context, operation string, seq uint64) (Ev
 // validateOperationEvents checks the projection against authenticated evidence
 // in the caller's snapshot. A gap before seq2 is legal; an invented result is not.
 func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Operation) error {
+	if op.ReleaseStatus == "released" {
+		return s.verifyAbsenceRelease(ctx, q, op)
+	}
 	rows, err := q.QueryContext(ctx, `SELECT event_seq FROM operation_events WHERE operation_id=? ORDER BY event_seq`, op.OperationID)
 	if err != nil {
 		return ErrStorage

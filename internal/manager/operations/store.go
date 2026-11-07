@@ -23,18 +23,24 @@ import (
 //go:embed migrations/001_operations.sql
 var schemaV1 string
 
+//go:embed migrations/002_recovery.sql
+var schemaV2 string
+
 // Store owns independent copies of its keys and must not be copied. Open on
 // the same database changes the durable active boot and revokes older writers.
 type Store struct {
-	db        *sql.DB
-	boot      string
-	identity  Identity
-	keys      Keys
-	validator *protocol.Validator
-	mu        sync.Mutex
-	closing   bool
-	closeDone chan struct{}
-	closeErr  error
+	version         int
+	recoveryMu      sync.Mutex
+	recoveryBlocked map[string]bool
+	db              *sql.DB
+	boot            string
+	identity        Identity
+	keys            Keys
+	validator       *protocol.Validator
+	mu              sync.Mutex
+	closing         bool
+	closeDone       chan struct{}
+	closeErr        error
 }
 
 func init() {
@@ -133,9 +139,9 @@ func normalizeSchemaSQL(statement string) string {
 
 // Exact app-owned SQL prevents a database with removed constraints from being
 // mistaken for the supported schema. SQLite's own internal objects are ignored.
-func validateSchema(ctx context.Context, db *sql.DB) error {
+func validateSchema(ctx context.Context, db *sql.DB, ddl string) error {
 	expected := make(map[string]string)
-	for _, statement := range strings.Split(schemaV1, ";") {
+	for _, statement := range strings.Split(ddl, ";") {
 		statement = normalizeSchemaSQL(statement)
 		fields := strings.Fields(statement)
 		if len(fields) >= 3 && fields[0] == "CREATE" && (fields[1] == "TABLE" || fields[1] == "INDEX") {
@@ -170,6 +176,10 @@ func validateSchema(ctx context.Context, db *sql.DB) error {
 // Create exclusively creates a new controlled database. A failed creation is
 // deliberately left in place; callers must not silently replace uncertain data.
 func Create(ctx context.Context, path, managerID string, keys Keys) (*Store, error) {
+	return createVersion(ctx, path, managerID, keys, 1)
+}
+
+func createVersion(ctx context.Context, path, managerID string, keys Keys, version int) (*Store, error) {
 	if !validID(managerID) {
 		return nil, ErrIdentity
 	}
@@ -197,6 +207,7 @@ func Create(ctx context.Context, path, managerID string, keys Keys) (*Store, err
 		db.Close()
 		return nil, err
 	}
+	s.version = version
 	success := false
 	defer func() {
 		if !success {
@@ -208,10 +219,10 @@ func Create(ctx context.Context, path, managerID string, keys Keys) (*Store, err
 		return nil, ErrStorage
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, schemaV1); err != nil {
+	if _, err := tx.ExecContext(ctx, schemaForVersion(version)); err != nil {
 		return nil, ErrStorage
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode) VALUES(1,1,?,?,0)`, managerID, s.boot); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode) VALUES(1,?,?,?,?)`, version, managerID, s.boot, version == 2); err != nil {
 		return nil, ErrStorage
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO keys(singleton,digest_key_id,encryption_key_id,digest_key_check,encryption_key_check,uses) VALUES(1,?,?,?,?,0)`, keys.DigestID, keys.EncryptionID, keyCheck(managerID, "dm-manager-digest-key-v1", keys.DigestID, keys.DigestKey), keyCheck(managerID, "dm-manager-encryption-key-v1", keys.EncryptionID, keys.EncryptionKey)); err != nil {
@@ -228,6 +239,10 @@ func Create(ctx context.Context, path, managerID string, keys Keys) (*Store, err
 // mode, freezes nodes, and prevents older Store boots from making more writes.
 // This is ordinary restart handling, not protection against backup rollback.
 func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Store, error) {
+	return openVersion(ctx, path, expected, keys, 1)
+}
+
+func openVersion(ctx context.Context, path string, expected Identity, keys Keys, wantVersion int) (*Store, error) {
 	if !validID(expected.ManagerID) || !validKeyID(expected.DigestKeyID) || !validKeyID(expected.EncryptionKeyID) {
 		return nil, ErrIdentity
 	}
@@ -255,10 +270,10 @@ func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Stor
 	if err := db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
 		return nil, ErrStorage
 	}
-	if version != 1 {
+	if version != wantVersion {
 		return nil, ErrSchema
 	}
-	if err := validateSchema(ctx, db); err != nil {
+	if err := validateSchema(ctx, db, schemaForVersion(wantVersion)); err != nil {
 		return nil, err
 	}
 	var actual Identity
@@ -266,7 +281,7 @@ func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Stor
 	if err := db.QueryRowContext(ctx, `SELECT manager_id,schema_version FROM manager_meta WHERE singleton=1`).Scan(&actual.ManagerID, &schemaVersion); err != nil {
 		return nil, ErrSchema
 	}
-	if schemaVersion != 1 {
+	if schemaVersion != wantVersion {
 		return nil, ErrSchema
 	}
 	if actual.ManagerID != expected.ManagerID {
@@ -291,6 +306,7 @@ func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Stor
 	if err != nil {
 		return nil, err
 	}
+	s.version = wantVersion
 	defer func() {
 		if !success {
 			s.Close()
@@ -306,6 +322,14 @@ func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Stor
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET frozen=1`); err != nil {
 		return nil, ErrStorage
+	}
+	if wantVersion == 2 {
+		if _, err := tx.ExecContext(ctx, `UPDATE recovery_scans SET status='abandoned' WHERE id IN (SELECT active_round FROM recovery_nodes WHERE active_round<>'')`); err != nil {
+			return nil, ErrStorage
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE recovery_nodes SET active_round=''`); err != nil {
+			return nil, ErrStorage
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, ErrStorage
@@ -359,4 +383,11 @@ func (s *Store) Close() error {
 	close(s.closeDone)
 	s.mu.Unlock()
 	return err
+}
+
+func schemaForVersion(version int) string {
+	if version == 2 {
+		return schemaV2
+	}
+	return schemaV1
 }

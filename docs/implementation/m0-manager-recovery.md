@@ -18,11 +18,17 @@
 
 Task1提供：CreateRecovery/OpenRecovery参数沿原Create/Open；BindRecoverySessionFixture(ctx,Binding,agentBootID)error；StartRecovery(ctx,Binding,scope string,limit int)([]byte,error)；NextRecoveryRequest(ctx,Binding)([]byte,error)；ReceiveRecoveryPage(ctx,Binding,raw []byte)(RecoveryState,error)；ReadRecoveryState(ctx,nodeID string)(RecoveryState,error)；ReadRecoveryPage(ctx,roundID string,pageNo int)(json.RawMessage,error)。页号从0开始。
 
+2026-11-07接口审阅补充：Task1同时提供RecordRecoveryFailureFixture(ctx,Binding,requestID,code string)(RecoveryState,error)，检查当前轮持久请求关联；scan_expired/scan_changed/cursor_invalid标expired保持冻结，busy不改变进度，同scope Start随后可新建轮次。覆盖complete已准备后过期，不让completing永久卡住（R08/R09）。
+
 内部共享：`loadRecoveryScan(ctx,q,Binding)(recoveryScan,error)`读取当前轮并验证绑定及双方boot；`readRecoveryScanByID(ctx,q,id)(recoveryScan,error)`只读历史；`readRecoveryPages(ctx,q,recoveryScan)([]json.RawMessage,error)`在调用方同一事务中重读校验全部已存页／请求／members；返回每页原body，调用者负责clear。`recoveryPageBinding(scan,pageNo,cursor) blobBinding`生成独立用途AAD上下文。所有helper不自行开始／提交事务。
 
 Task2提供：`parseRecoveryRecord(raw json.RawMessage)(recoveryRecord,error)`，私有record字段OperationID,Digest,StackID,VersionID,ProjectName,Phase,FinalState string；LastSeq,ResultSeq,FinalizedSeq uint64；ClaimsHeld,ReportAcked bool；Result,Raw json.RawMessage。Task1共同Schema后调用它做跨字段核对。支持数学整数表示，原文不重编码。Task2提供ProcessRecovery、PrepareRecoveryComplete、ReceiveRecoveryCompleted、ReceiveRecoveryEvent、RecoveryCases、ReadRecoveryCase，公开签名按规格。完成方法沿Task1的requests表保存kind=reconcile_complete，page_no=-1。
 
+ProcessRecovery及ReceiveRecoveryCompleted返回(RecoveryState,error)，PrepareRecoveryComplete与ReceiveRecoveryEvent返回([]byte,error)；RecoveryCases(ctx,nodeID)返回([]RecoveryCase,error)，RecoveryCase字段ID,NodeID,LedgerID,OperationID,Kind,RoundID string；ReadRecoveryCase(ctx,id)返回(json.RawMessage,error)。2026-11-07业务编码前补充R05/R06：phase=reconciliation_required的原可终结result仍必须隔离并抑制finalize，不将其作为正常成功页消费；其正文留在加密页及case。
+
 DDL列名按规格表固定；recovery_scans的page_limit、body_bytes与公开Limit/Bytes映射。requests.raw为BLOB，accepted为0/1；pages只保存加密body和请求关联，其余从校验后的原body读；members记录page_no/record_no。cases的kind和fingerprint用于去重，round_id可空串（真实事件无活动轮）；absence_releases只存operation_id与round_id。Task1在v2 operations的release_status CHECK允许released，但只有state=canceled、cancel_requested=1、无permit/事件且blocked=0的无记录例外；Task2必须从证明校验，而非仅信字符串。
+
+2026-11-07业务实施前补充R05/R09：Task1增加recovery_expected(round_id,operation_id,last_event_seq)，主键(round,op)，Start的新轮冻结事务用本节点operations的max_event_seq固定水位；Task2据此区分合法页后新事件和扫描前历史倒退，后者入case。先记录此基线变化再依赖实现。
 
 ## 实施顺序
 
@@ -51,5 +57,13 @@ DDL列名按规格表固定；recovery_scans的page_limit、body_bytes与公开L
 ## 审阅重点与暂缺
 
 额外关注：页提交后业务消费失败重试、固定页比实时事件旧、请求构造成功但提交失败、旧completed跨boot重放、absence释放后出现矛盾事件。分别由R03/R05/R08/R09/R10断言；不得借测试夹具清frozen绕过真实握手。
+
+2026-11-07审阅修订（相关业务实现前保存）：同页异文必须持久case；已absence释放后出现ready等无事件记录同样隔离；释放事务复查该节点case；合法超范围真实事件先加密保存case再ack，目标／摘要／permit矛盾保存case但不ack。以上分别扩充R03/R06/R07/R09，不改变未知必须隔离的主规则。
+
+2026-11-07实现中先记录再修复（R06/R09/R10）：recovery_nodes增加quarantined 0/1；Store增加由Store.mu保护的recoveryBlocked map[string]bool。case先本地屏障，再独立事务持久隔离，之后才seal及case事务，失败不ack且保持隔离。最终准入与完成／absence释放也检查此屏障；新绑定／Start不清。事件事务重读发现released必须转case，堵住事务外Get后发生释放的竞争。故障测试区分保护屏障先提交与case正文事务原子性。
+
+后续定向复核（修复前）：members增加phase并校验其与加密页一致，索引(operation_id,phase,round_id)。Task2在not_started事件事务查询并核验历史START_COMMITTED页，覆盖Process先跑、结果后到的反序及并发；absence证明补expected水位0关联检查（R05/R07/R09）。
+
+整轮审阅更正（修改前记录，R05/R09）：Agent同boot可能在新Manager轮次重放旧snapshot，单凭expected水位不能证明回退，取消watermark_regression自动case。保留较新Manager事实／claims且非空仍waiting，expected仅承接absence历史依据；补带页后结果的换session／Manager重开组合回归，要求没有虚假case。
 
 合法finalized及补观察历史目前保存隔离证据，不会当作已完成释放；普通非空任务可能停在waiting，这是缺少后续双端释放的明确依赖，不是页面接收失败。历史审计目前不自动清理；未验证长期磁盘容量、真实Docker／网络、备份回退、旧库升级及掉电耐久。本轮使用本机数据库与辅助进程，不需要联调环境；进入真实环境前另说明要求。

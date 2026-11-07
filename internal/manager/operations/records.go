@@ -43,7 +43,7 @@ func (s *Store) readOperation(ctx context.Context, q querier, id string) (Operat
 	default:
 		return Operation{}, ErrEvidence
 	}
-	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" {
+	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !(s.version == 2 && o.ReleaseStatus == "released") {
 		return Operation{}, ErrEvidence
 	}
 	if o.ReleaseStatus == "pending" && (!terminalState(o.State) || o.LatestResultSeq == 0 || o.Blocked) {
@@ -85,6 +85,9 @@ func readClaims(ctx context.Context, q querier, id string) ([]Claim, error) {
 }
 
 func (s *Store) requireClaims(ctx context.Context, q querier, o Operation) error {
+	if o.ReleaseStatus == "released" {
+		return s.verifyAbsenceRelease(ctx, q, o)
+	}
 	claims, err := readClaims(ctx, q, o.OperationID)
 	if err != nil {
 		return err
@@ -305,6 +308,12 @@ func (s *Store) validateControlIntents(ctx context.Context, q querier, op Operat
 	}
 	if prepare == nil || (cancel != nil) != op.CancelRequested {
 		return nil, ErrEvidence
+	}
+	if op.ReleaseStatus == "released" {
+		if err := s.verifyAbsenceRelease(ctx, q, op); err != nil {
+			return nil, err
+		}
+		return intents, nil
 	}
 	wantPrepare := "confirmed"
 	if op.State == "accepted" && op.MaxEventSeq == 0 {

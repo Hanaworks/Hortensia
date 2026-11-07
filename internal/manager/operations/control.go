@@ -126,6 +126,9 @@ func (s *Store) SetGrantFixture(ctx context.Context, user, node, capability stri
 }
 
 func (s *Store) BindSessionFixture(ctx context.Context, b Binding) error {
+	if s.version != 1 {
+		return ErrSchema
+	}
 	if !validID(b.NodeID) || !validID(b.LedgerID) || !validID(b.SessionID) {
 		return ErrInput
 	}
@@ -165,6 +168,14 @@ func (s *Store) BindSessionFixture(ctx context.Context, b Binding) error {
 // allowFrozen permits evidence ingestion while a replacement session reconciles;
 // it never permits an old Store or a non-current connection to mutate evidence.
 func (s *Store) requireBinding(ctx context.Context, q querier, b Binding, allowFrozen bool) error {
+	if !allowFrozen {
+		s.mu.Lock()
+		blocked := s.recoveryBlocked[b.NodeID]
+		s.mu.Unlock()
+		if blocked {
+			return ErrFrozen
+		}
+	}
 	if !validID(b.NodeID) || !validID(b.LedgerID) || !validID(b.SessionID) {
 		return ErrInput
 	}
