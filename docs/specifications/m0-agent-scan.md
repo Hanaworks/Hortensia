@@ -1,10 +1,10 @@
 # M0 Agent 恢复扫描实施规格
 
-日期2026-11-07，起点2de48fd。本篇与[实施计划](../implementation/m0-agent-scan.md)在编码前保存。状态：实施基线，尚未验收。技术细节为本轮实现选择，不表述为用户逐项确认。
+日期2026-11-07，起点2de48fd。本篇与[实施计划](../implementation/m0-agent-scan.md)在编码前以9f6c34c保存，源码／测试版本a34a769。状态：S01—S12通过，Agent本地扫描切片可供源码交接，整个M0尚未完成。实施中修订及实施后接手说明保留各自时点；技术细节为本轮实现选择，不表述为用户逐项确认。
 
 ## 1. 目的与完成边界
 
-现有Agent只能读取一条RecoveryRecord，Manager不能据此确认已经取得整本账本。本模块在`internal/agent/ledger`增加完整身份枚举、固定记录快照、分页、变化事件确认屏障及持久扫描结束回执。共享字段引用[Agent协议§7.2](agent-protocol.md#72-恢复扫描)、[Schema](../../contracts/agent-v1.schema.json)、[数据设计§7.2](../data-design.md#72-agent-表与边界)；开始／事件主定义继续由[账本](m0-agent-ledger.md)、[日志](m0-agent-journal.md)维护。
+本轮开工前Agent只能读取一条RecoveryRecord，Manager不能据此确认已经取得整本账本。本模块在`internal/agent/ledger`增加完整身份枚举、固定记录快照、分页、变化事件确认屏障及持久扫描结束回执。共享字段引用[Agent协议§7.2](agent-protocol.md#72-恢复扫描)、[Schema](../../contracts/agent-v1.schema.json)、[数据设计§7.2](../data-design.md#72-agent-表与边界)；开始／事件主定义继续由[账本](m0-agent-ledger.md)、[日志](m0-agent-journal.md)维护。
 
 必须区分三个完成：页面complete仅为枚举结束；reconcile_completed证明Agent完成本轮扫描检查并关闭扫描冻结；Manager还须核对旧许可、占用、变化结果、缺失历史和必要释放，持久保存completed后才能开放新受理。当前交付只覆盖前两项。可信夹具提供已认证session和Manager完成请求，不提供HTTP或网络认证，也不代替Manager业务判断。
 
@@ -43,7 +43,7 @@ v3 Create／Open均建立新的active_boot、frozen=1；Open保留变化集合�
 
 fingerprint为HMAC-SHA256(K_ledger,`dm-scan-record-v1`+0字节+原RecoveryRecord字节)，不作公共input_digest。正文不写入SQL、WAL、错误或日志；缓存生命周期终止尽力clear，不承诺Go内存彻底擦除。持久成员可用于核对扫描身份，不允许重开时据此复活单调计时或分页资格。
 
-2026-11-07最终源码审阅补充容量说明：pending→all或dirty重建时，在新快照提交前保留旧快照，以保障替换失败仍可使用旧扫描。此时两份原投影合计最多64MiB，另外还有单条解密、JSON校验、完整页面、成员／游标及分配器的临时开销；32MiB不是整个进程的内存上限，未做真实节点峰值内存测量。替换成功清旧缓存，失败清未发布的新缓存。
+2026-11-07最终源码审阅补充容量说明：pending→all或dirty重建时，在新快照提交前保留旧快照；失败保留旧活动身份及缓存，只有原扫描未dirty且仍有效时才可继续使用。此时两份原投影合计最多64MiB，另外还有单条解密、JSON校验、完整页面、成员／游标及分配器的临时开销；32MiB不是整个进程的内存上限，未做真实节点峰值内存测量。替换成功清旧缓存，失败清未发布的新缓存。
 
 ## 4. 冻结、快照与分页
 

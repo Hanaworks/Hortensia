@@ -1,6 +1,6 @@
 # Agent 模块设计
 
-更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本及事件／首结果的受控子集已有原型证据，尚无完整Agent。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
+更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本、事件／首结果及[本地恢复扫描](../specifications/m0-agent-scan.md)的受控切片已完成，尚无完整Agent；扫描完成边界与证据见[验收记录](../implementation/m0-agent-scan.md)。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
 
 ## 1. 内部组成
 
@@ -134,7 +134,7 @@ Linux 执行器为命令建立独立进程组，持续读取 stdout／stderr，�
 
 ### 9.5 工程边界与验证输出
 
-建议在 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目前 `ledger` 已按[开始账本规格](../specifications/m0-agent-ledger.md)和[事件日志规格](../specifications/m0-agent-journal.md)落实受控SQLite子集，其余目录仍为工程建议。该子集包含准备夹具、开始事实、占用、加密首结果及单操作恢复读取，尚不能处理真实部署。
+建议在 `internal/agent/` 内按 `identity`、`channel`、`ledger`、`workspace`、`executor`、`compose` 分包。channel 不能绕过 ledger 调用 executor；executor 只接收已冻结的结构化输入；workspace 不负责生成业务配置。目前 `ledger` 已按[开始账本规格](../specifications/m0-agent-ledger.md)、[事件日志规格](../specifications/m0-agent-journal.md)和[扫描规格](../specifications/m0-agent-scan.md)落实受控SQLite子集，其余目录仍为工程建议。该子集包含准备夹具、开始事实、占用、加密首结果、单操作恢复读取及本地全账本扫描／完成回执，尚不能处理真实部署。
 
 M0 至少输出：同一输入的原生对照、路径拒绝清单、10 秒许可迟到及撤权竞争、START_COMMITTED 前后崩溃、命令超时和残留进程、结果丢包与账本丢失证据。首次得到成功部署不代表这些故障边界已经验证。
 
@@ -168,21 +168,22 @@ Agent 对外接收受认证的结构化任务，内部把它分成固定输入�
 
 ### 11.2 当前子模块的实际协作与未接线处
 
-当前网络路径是 `channelprobe → channel → protocol`，只做握手、探活及冻结诊断。另一条受控路径是测试调用 `ledger.RecordReadyFixture → ledger.NewGate → startgate.Authorize → 持久提交 → Start回调`；v2随后允许 `RecordResultFixture` 保存首结果。这两条路径互不接通，函数名中的 Fixture 是能力边界，不是正式准备／执行服务的别名。
+当前网络路径是 `channelprobe → channel → protocol`，只做握手、探活及冻结诊断。另一条受控路径是测试调用 `ledger.RecordReadyFixture → ledger.NewGate → startgate.Authorize → 持久提交 → Start回调`；v2／v3随后允许 `RecordResultFixture` 保存首结果。v3另有 `CreateRecovery／OpenRecovery → BindRecoverySessionFixture → Reconcile → CompleteReconcile` 的本地扫描路径，初次扫描完成后才允许新的准备与开始；扫描期间已有执行仍可保存结果，变化须由当前会话确认。这些账本路径尚未与网络接通，函数名中的 Fixture 是能力边界，不是正式准备／执行服务的别名。
 
 | 现有模块输出 | 当前能证明什么 | 后续接入方仍需承担什么 |
 | --- | --- | --- |
 | `RecordReadyFixture` 的 Record 与两个 Claim | prepare 结构、固定身份／摘要、同操作去重和占用已登记 | 工作区物化、原生预检、能力与实际连接验证；当前函数不执行这些动作，不能用于真实部署处理器 |
-| `NewGate` 及其 Start 回调 | 本boot的一次门禁；回调前开始事实已提交；v2同时有started事件 | 当前连接失效时调用Invalidate，真正取消调用Cancel，提供单调时钟和短Start回调；数据库context取消不能代替业务取消 |
+| `NewGate` 及其 Start 回调 | 本boot的一次门禁；回调前开始事实已提交；v2／v3同时有started事件；v3扫描冻结阻止新开始 | 当前连接失效时调用Invalidate，真正取消调用Cancel，提供单调时钟和短Start回调；数据库context取消不能代替业务取消 |
 | `RecordResultFixture` 的 Event | 提供的首结果满足结构及账本前提，原body加密持久保存 | 证明真实进程结局、资源观察及归属；存储模块不会测得这些事实，也尚不接受补观察的新result版本 |
-| `PendingEvents`／`ReadEvent`／`AcknowledgeEvent` | 可重读原body，按连接判断是否待确认，持久记录逐事件确认 | 当前session、方向、reply_to与事件的网络关联检查，发送重试和队列预算；调用确认函数本身不是线上ack验收 |
-| `RecoveryRecord` | 单一数据库快照中的开始、事件、确认、占用一致，按证据派生协议阶段 | 全账本分页、扫描期间冻结、变化事件核对和完成握手；一次读取不能完成节点恢复或释放占用 |
+| `PendingEvents`／`ReadEvent`／`AcknowledgeEvent` | 可重读原body，按连接判断是否待确认，持久记录逐事件确认；v3确认事务复核当前绑定session／boot | 认证连接、方向、reply_to与事件的网络关联检查，发送重试和队列预算；调用确认函数本身不是线上ack验收 |
+| `RecoveryRecord` | 单一数据库快照中的开始、事件、确认、占用一致，按证据派生协议阶段；作为全账本扫描的内部投影基础 | 业务恢复判定；一次读取不能证明身份枚举完整或释放占用 |
+| v3 `Reconcile`／`CompleteReconcile` | 持久冻结、固定成员与有界原文分页、当前会话变化确认、期限与scope替换、持久completed重放；完成不释放claims | 将可信会话接到真实通道并适配错误；Manager持久接收全部页、合并变化、核对旧许可／占用／缺失历史及必要释放，再保存completed并开放新受理 |
 
-`executions.phase` 当前只保存ready或START_COMMITTED；有result、blocked或旧boot未知时，恢复接口按[事件模块阶段映射](../specifications/m0-agent-journal.md#83-数据状态与对外阶段的区别)派生协议phase。Manager的操作state还需要独立判定，不能把某个本地phase字符串复制成用户看到的成功。v1／v2分别用自己的打开入口和DDL，v2是新实验库，没有v1升级工具；开新库不能绕过原节点未知任务。
+`executions.phase` 当前只保存ready或START_COMMITTED；有result、blocked或旧boot未知时，恢复接口按[事件模块阶段映射](../specifications/m0-agent-journal.md#83-数据状态与对外阶段的区别)派生协议phase。Manager的操作state还需要独立判定，不能把某个本地phase字符串复制成用户看到的成功。v1开始账本、v2日志、v3扫描分别使用自己的打开入口和DDL；v3是显式新实验库，没有v1／v2升级工具，开新库不能绕过原节点未知任务。扫描的完整行为和S01—S12证据集中在[扫描规格](../specifications/m0-agent-scan.md)及[验收记录](../implementation/m0-agent-scan.md)，不以本表替代模块定义。
 
 ### 11.3 生命周期与故障定位
 
-持久身份与账本、配置工作区、连接／Gate、子进程具有不同寿命。连接重建只换session并失效旧许可；Store重开产生新boot而冻结旧执行资格；工作区可能仍被应用挂载使用；进程退出后仍要保存结局并完成核对。M0已实现Store.Close使Gate失效并等待短Start回调退出后关闭数据库，但没有生产进程单实例锁、Compose进程监督和工作区清理。完整服务关闭按第9.4节落实，不能把关闭数据库当成已终止Docker副作用。
+持久身份与账本、配置工作区、连接／Gate、子进程具有不同寿命。连接重建只换session并失效旧许可；Store重开产生新boot而冻结旧执行资格；工作区可能仍被应用挂载使用；进程退出后仍要保存结局并完成核对。v3在同boot重连时可以保留活动扫描及原期限，重开则因原文缓存丢失拒绝续页并保持冻结；最近completed只可重放回执，不能结束新的冻结。M0已实现Store.Close使Gate失效并等待短Start回调退出后关闭数据库，再清理扫描缓存，但没有生产进程单实例锁、Compose进程监督和工作区清理。完整服务关闭按第9.4节落实，不能把关闭数据库当成已终止Docker副作用。
 
 | 现象／修改范围 | 定位顺序与源码入口 | 必须守住的边界及验证 |
 | --- | --- | --- |
@@ -190,6 +191,7 @@ Agent 对外接收受认证的结构化任务，内部把它分成固定输入�
 | 许可看似有效却没有Start | 原操作boot、占用、prepared_session、Gate期限／取消、开始提交；[gate.go](../../internal/agent/ledger/gate.go)和[startgate](../../internal/startgate/gate.go) | 已提交但未调用Start也保留证据；不能再建Gate，检查L05—L09、J04 |
 | 结果保存失败或冲突 | 原事件位置／body、blocked、密钥额度、事务；[results.go](../../internal/agent/ledger/results.go)、[journal_crypto.go](../../internal/agent/ledger/journal_crypto.go) | 原结果不覆盖、额度预留不退款、占用不释放；检查J02—J06 |
 | 重开后未知或确认后仍待发送 | 当前boot、最新结果、ack_session、claims；[events.go](../../internal/agent/ledger/events.go)、[recovery.go](../../internal/agent/ledger/recovery.go) | 旧连接确认不代替新连接核对；无结果不伪造退出码；检查J07—J09 |
+| 扫描无法续页、不能完成或重连后仍冻结 | 先按[扫描规格的异常与维护说明](../specifications/m0-agent-scan.md#6-异常维护与验证)检查版本／boot／session、active／dirty、变化确认及completed，再查原文缓存与期限 | 过期和重开不解冻；历史completed不结束新扫描；变化确认与完成同事务约束不拆开，验证以[S01—S12](../implementation/m0-agent-scan.md)为准 |
 | 修改支持的Compose输入或清理工作区 | 第9.2—9.3节、[预检算法](../specifications/execution-recovery.md#2-配置预检与原生执行)、运行挂载引用 | 先改支持矩阵和验收，再开放能力；需真实原生对照T04／T13／T17，现有账本测试不能证明 |
 
-排障以固定错误码、node／ledger／operation、阶段和事件位置定位，不把密钥、解密body或配置全文放入普通日志。包内完整字段、锁顺序、事务失败与修改规则分别见[开始账本内部说明](../specifications/m0-agent-ledger.md#7-内部实现与维护说明)和[事件日志内部说明](../specifications/m0-agent-journal.md#7-内部结构与职责)；本页保留组件间协作，不复制各表字典。验收证据以[L01—L10](../implementation/m0-agent-ledger.md)和[J01—J10](../implementation/m0-agent-journal.md)为准，本次仅补文档，没有新增真实部署、完整恢复或掉电耐久结论。
+排障以固定错误码、node／ledger／operation、阶段和事件位置定位，不把密钥、解密body或配置全文放入普通日志。包内完整字段、锁顺序、事务失败与修改规则分别见[开始账本内部说明](../specifications/m0-agent-ledger.md#7-内部实现与维护说明)、[事件日志内部说明](../specifications/m0-agent-journal.md#7-内部结构与职责)和[扫描规格](../specifications/m0-agent-scan.md)；本页保留组件间协作，不复制各表字典。验收证据以[L01—L10](../implementation/m0-agent-ledger.md)、[J01—J10](../implementation/m0-agent-journal.md)和[S01—S12](../implementation/m0-agent-scan.md)为准。2026-11-07本次入口同步反映新增本地扫描切片；验证使用本机临时数据库与辅助进程，无需真实部署环境，未新增真实Compose、Manager完整业务恢复、旧库升级或掉电耐久结论。

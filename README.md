@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager`是暂名。当前处于M0技术原型阶段：本目录有现行文档、历史归档、协议Schema／示例、Go通信原型、Agent开始账本和加密事件／结果日志，以及Manager本地持久协调库，已建立本地Git仓库。原型可验证本机TLS连接、许可门禁、持久任务／许可／事件及结果重读，尚无可安装的Docker管理产品。
+`docker-manager`是暂名。当前处于M0技术原型阶段：本目录有现行文档、历史归档、协议Schema／示例、Go通信原型、Agent开始账本、加密事件／结果日志和本地恢复扫描，以及Manager本地持久协调库，已建立本地Git仓库。原型可验证本机TLS连接、许可门禁、持久任务／许可／事件、结果重读及Agent扫描完成边界，尚无可安装的Docker管理产品。
 
 ## 主要能力与边界
 
@@ -37,6 +37,7 @@
 | 跟进持久开始账本 | [账本实施规格](docs/specifications/m0-agent-ledger.md)与[实施计划／验收记录](docs/implementation/m0-agent-ledger.md)：编码前定义范围、存储、接口、故障行为与L01—L10 |
 | 跟进事件与结果持久化 | [事件日志规格](docs/specifications/m0-agent-journal.md)与[实施计划／验收记录](docs/implementation/m0-agent-journal.md)：started、首结果、加密、确认和恢复读取，J01—J10已验收 |
 | 跟进Manager持久协调 | [Manager实施规格](docs/specifications/m0-manager-operations.md)与[实施计划／验收记录](docs/implementation/m0-manager-operations.md)：固定输入、双占用、事务许可、回报幂等和乱序、结果／释放意图；M01—M10已验收，未接网络任务 |
+| 跟进Agent完整账本扫描 | [扫描实施规格](docs/specifications/m0-agent-scan.md)与[实施计划／验收记录](docs/implementation/m0-agent-scan.md)：本地v3扫描切片已完成，覆盖持久冻结、固定成员／原文快照、分页、当前连接确认和完成回执；Agent扫描完成与Manager业务恢复分开 |
 | 接手账本与事件模块维护 | [开始账本内部说明](docs/specifications/m0-agent-ledger.md)、[事件日志内部结构与流转](docs/specifications/m0-agent-journal.md#7-内部结构与职责)：职责、调用流程、字段来源和生命周期、异常定位及修改约束 |
 | 按独立模块接手阅读 | [模块阅读与补全范围](docs/documentation-plan.md#131-模块阅读与补全范围)：通信各内部单元、账本／事件及Manager／Agent／Web的说明入口；共同定义、本地定义和转换处理分别落实 |
 | 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
@@ -51,7 +52,7 @@
 
 可在仓库根运行 `go test ./... -count=1` 复验当前原型，其中包含真正两个进程的回环 TLS 握手；`pwsh -File tools/check-contracts.ps1` 和 `node tools/check-docs.mjs` 继续检查静态契约与文档。Go 版本、手工运行命令和范围见 M0 实施记录。
 
-开始账本及事件／首结果／单操作恢复读取已按独立规格验收；Manager本地持久协调本轮按独立规格实施，逐项结果见其验收记录。网络通道仍冻结。下一步落实完整核对扫描／会话恢复约束，再接入受控任务交互与双端释放；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。Agent事件模块使用显式新v2库，Manager使用独立新v1库，尚无旧库升级工具；结果来自受控夹具，未知／中断执行和资源占用仍保持隔离。进入真实Docker或跨机验证前会先明确联调环境需求。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。每个模块执行[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)，仓库工作约定同时保存在AGENTS.md。
+开始账本、事件日志和Manager本地协调已有独立验收；本轮完成Agent本地恢复扫描切片，范围和证据见[扫描规格](docs/specifications/m0-agent-scan.md)及[验收记录](docs/implementation/m0-agent-scan.md)。网络通道仍冻结。下一步是Manager扫描页的持久接收与业务核对，再接入受控任务交互和双端释放；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。Agent保留v1开始账本／v2日志，扫描使用显式新v3库；Manager仍为独立v1库，尚无旧库升级工具。结果、身份与会话来自受控夹具，扫描完成不释放资源或证明整个节点恢复。本轮使用本机临时数据库与辅助进程，无需用户提供真实部署环境；进入真实Docker或跨机验证前会先明确联调环境需求。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。每个模块执行[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)，仓库工作约定同时保存在AGENTS.md。
 
 新决定记录于 decisions，再同步需求、设计、接口和测试。已有历史材料中的助手建议不会因为再次引用而变成用户已确认决定。正式名称、许可证、发布方式及首版完整范围仍需确定。
 

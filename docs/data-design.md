@@ -163,6 +163,8 @@ SQLite 官方记录的 WAL-reset 问题已在 3.51.3 及指定旧分支回补版
 
 executions 另保存 finalized、final_state、finalized_result_event_seq 及本次 pre/post 归属证据的加密引用；结果事件 ack 和本地释放是不同持久事实。恢复扫描保存固定身份集合／数量、扫描冻结状态和最后完成回执，观察快照可按协议期限丢弃，执行账本不可随之删除。以上是必要持久信息，不要求公开为 HTTP 字段；完整私有 DDL 与迁移文件在存储实现任务中形成。
 
+后续[M0扫描模块](specifications/m0-agent-scan.md)在显式新v3库落实recovery_control、recovery_members、recovery_changes：固定身份／水位、持续冻结及最后完成回执持久保存；含结果的原文快照仅在当前boot有界缓存，SQL仍引用既有加密事件。当前没有finalized，pending/all集合因此相同；重启只重放已完成回执，不恢复旧活动分页，也不释放claims。此版本仍无旧库迁移，三版本不能同时作为同一真实节点的执行入口。
+
 Agent 内部 `START_COMMITTED` 表示开始事实已持久化、命令可能执行；对外映射为 `running`。执行表还记录 `created_at,started_at,finished_at,exit_code` 及不含秘密的错误码。主机 PID 只可辅助诊断，不能单独证明旧进程仍在或从未执行；进程监督由 [Agent 设计](components/agent.md)规定。
 
 ### 7.3 身份关联、事件序列与发布完整性
