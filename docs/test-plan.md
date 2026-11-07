@@ -164,3 +164,11 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 最终全量5个测试包通过，750条测试及子测试通过记录，其中ledger213条，失败0、测试跳过0；该计数包含父组与辅助入口，并非750个独立场景。Go静态检查、构建、依赖校验、契约与文档检查通过，具体环境和审阅修正在实施记录维护。复验命令：`go test ./... -count=1 -timeout=120s`；仅事件模块可用 `go test ./internal/agent/ledger -run TestJournal -count=1 -timeout=90s`。
 
 本轮推进V05／V07／V09／V15涉及的本地持久事实前提，不据此将整组标为通过。结果来自受控夹具；Ack仅可信内部API，未接网络认证和reply_to；RecoveryRecord仅单操作读取，未接完整核对扫描。Manager持久受理／授权、真实Docker结果、双端释放、旧库升级、密钥轮换、备份回退及掉电耐久仍未验证；Windows进程强杀不替代这些实验。
+
+## 12. Manager 本地持久协调切片
+
+2026-11-07在前述Agent切片之后，按[Manager规格](specifications/m0-manager-operations.md)与[实施记录](implementation/m0-manager-operations.md)推进M01—M10。原第11节的未验证列表保留其当时边界；本轮新增受控输入受理、双占用、真实持久用户／Grant与许可排序、事件原文幂等／乱序、结果投影和finalize意图的本地验证，完整结果以本轮逐项表为准。
+
+观测直接检查原输入字节、permit/auth_rev、事件与操作revision、claims、意图、密钥包装次数和故障后重开结果。实际SQL语句及延迟外键Commit失败检查无部分事实；两个进程强杀位置分别在result事务内和提交后确认发出前。首次result后不删除claims，unknown／interrupted保持核对。
+
+这是Manager库与既有协议的受控组合；身份、ready、执行观察仍来自Fixture。完整认证／网络任务、HTTP幂等、扫描解冻、补观察、finalized释放、真实Docker、掉电耐久及备份回退继续未验证。真实环境验证前先确认部署组合和联调范围，不能以本地进程实验标记整组V05／V07通过。

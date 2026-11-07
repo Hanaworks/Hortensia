@@ -1,6 +1,6 @@
 # Manager 模块设计
 
-更新日期：2026-11-07。状态：M1 内部设计及 v1 工作规格；现有 Manager 模式仅是 M0 冻结通信探针，尚无用户 HTTP 服务、配置仓储和持久操作协调器。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中 Manager 的内部展开，承接 R01—R07、R11—R17 及 Q02—Q05、Q07—Q10。第 7 节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以[M0 实现规格](../specifications/m0-channel-probe.md)为准。第 8 节于本次文档补全时加入，说明内部数据处理与维护入口，不追记为已有完整实现。
+更新日期：2026-11-07。状态：M1内部设计及v1工作规格；现有Manager命令模式仍是M0冻结通信探针，另有独立的[本地持久协调库](../specifications/m0-manager-operations.md)，尚无用户HTTP服务、配置仓储或完整Manager进程。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中Manager的内部展开，承接R01—R07、R11—R17及Q02—Q05、Q07—Q10。第7节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以各M0模块规格为准。第8节说明内部数据处理与维护入口，不追记为已有完整实现。
 
 ## 1. 内部组成与依赖
 
@@ -170,4 +170,4 @@ O 的 prepare 经节点会话发送，ready 只进入准备完成；request_star
 | 命令有结果但目标仍占用 | 原 result、ownership_status、release_status、finalize/finalized 关联 | ack 只保存证据；查[双端释放](../specifications/execution-recovery.md#53-双端释放握手)，不能手工删占用当作修复 |
 | 修改返回结构或权限 | HTTP 投影与当前授权，Agent 证据原文保持独立 | 不把新增协议字段自动暴露给 Web；同时检查权限裁剪、敏感输出和 T14 |
 
-现有可接手源码仅包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)等原型部分，具体函数与诊断由[M0 维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。第 7.1 节的 Manager 业务目录仍为建议；下一步持久授权／事件接收需要先建立独立实施基线，不能直接用探针内存会话充当操作仓储。本次文档补全不新增业务运行或恢复验收结论。
+现有原型包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)，具体函数与诊断由[M0维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。2026-11-07进一步新增[Manager本地持久协调模块](../specifications/m0-manager-operations.md)：独立v1库保存固定输入、双占用、持久Grant／许可、started／首result及finalize意图，源码从[operations](../../internal/manager/operations/types.go)进入，证据见[实施与验收](../implementation/m0-manager-operations.md)。第7.1节其余业务目录仍为建议；认证、配置仓储、HTTP、投递、扫描解冻和释放仍待接入，不能把Fixture身份和本地库称为完整Manager进程。
