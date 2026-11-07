@@ -1,6 +1,6 @@
 # Manager 模块设计
 
-更新日期：2026-11-07。状态：M1内部设计及v1工作规格；现有Manager命令模式仍是M0冻结通信探针，另有独立的[本地持久协调库](../specifications/m0-manager-operations.md)，尚无用户HTTP服务、配置仓储或完整Manager进程。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中Manager的内部展开，承接R01—R07、R11—R17及Q02—Q05、Q07—Q10。第7节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以各M0模块规格为准。第8节说明内部数据处理与维护入口，不追记为已有完整实现。
+更新日期：2026-11-07。状态：M1内部设计及v1工作规格；现有Manager命令模式仍是M0冻结通信探针，另有独立的[本地持久协调库](../specifications/m0-manager-operations.md)和本轮实现的[v2扫描接收与业务恢复](../specifications/m0-manager-recovery.md)，尚无用户HTTP服务、配置仓储或完整Manager进程。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中Manager的内部展开，承接R01—R07、R11—R17及Q02—Q05、Q07—Q10。第7节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以各M0模块规格为准。第8节说明内部数据处理与维护入口，不追记为已有完整实现。
 
 ## 1. 内部组成与依赖
 
@@ -170,4 +170,16 @@ O 的 prepare 经节点会话发送，ready 只进入准备完成；request_star
 | 命令有结果但目标仍占用 | 原 result、ownership_status、release_status、finalize/finalized 关联 | ack 只保存证据；查[双端释放](../specifications/execution-recovery.md#53-双端释放握手)，不能手工删占用当作修复 |
 | 修改返回结构或权限 | HTTP 投影与当前授权，Agent 证据原文保持独立 | 不把新增协议字段自动暴露给 Web；同时检查权限裁剪、敏感输出和 T14 |
 
-现有原型包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)，具体函数与诊断由[M0维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。2026-11-07进一步新增[Manager本地持久协调模块](../specifications/m0-manager-operations.md)：独立v1库保存固定输入、双占用、持久Grant／许可、started／首result及finalize意图，源码从[operations](../../internal/manager/operations/types.go)进入，证据见[实施与验收](../implementation/m0-manager-operations.md)。第7.1节其余业务目录仍为建议；认证、配置仓储、HTTP、投递、扫描解冻和释放仍待接入，不能把Fixture身份和本地库称为完整Manager进程。
+现有原型包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)，具体函数与诊断由[M0维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。2026-11-07进一步新增[Manager本地持久协调模块](../specifications/m0-manager-operations.md)：独立v1库保存固定输入、双占用、持久Grant／许可、started／首result及finalize意图，源码从[operations](../../internal/manager/operations/types.go)进入，证据见[实施与验收](../implementation/m0-manager-operations.md)。本轮v2扫描接收与业务恢复沿用该库的事务和加密机制，内部流程见下节。第7.1节其余业务目录仍为建议；认证、配置仓储、HTTP、网络投递及双端释放仍待接入，不能把Fixture身份和本地库称为完整Manager进程。
+
+### 8.4 本轮本地扫描接收与业务恢复
+
+本轮实现及R01—R12证据由[独立恢复规格](../specifications/m0-manager-recovery.md)和[实施与验收](../implementation/m0-manager-recovery.md)维护。恢复使用显式新Manager v2库，保留v1入口且不做旧库升级；输入是可信绑定、Agent boot及完整协议报文，尚未接入HTTP或网络任务处理器。
+
+调用方先绑定当前节点／ledger／session和Agent boot，再启动扫描。存储层在冻结事务保存本地轮次、请求及当时已有操作／事件水位；这些expected记录用于证明无记录释放的操作在该轮开始时已经存在且没有事件。收件箱核查请求关联、分页与数量，将原body加密保存；业务层在页面完整后重读证据，对照既有操作、许可、事件和占用，幂等导入首结果或建立隔离case。
+
+Agent同boot可能向新Manager轮次重放此前固定快照，因此不能仅凭页面水位低于expected判定历史回退。旧页与较新Manager事件合并时保留原终态和claims，非空任务仍等待后续核对，不回退状态也不制造case；真正同位异文和开始／未开始互斥事实仍隔离。members.phase只索引已保存页中的阶段，必须回到解密原页核验；接收not_started的最终事件事务也检查已有START_COMMITTED页，防止Process返回waiting后迟到结果覆盖已知开始事实，不补造started消息或时间。
+
+业务就绪后才保存complete请求；当前completed提交前再次检查绑定、页面、隔离和释放依据，只解除该节点的冻结。换session／任一boot或收到scan_expired、scan_changed、cursor_invalid等明确失效会废弃旧轮完成资格；旧回执不能开放新轮。发现矛盾时，quarantined保护事实先持久化，再保存加密case；即使密钥额度或case写入失败也不开放受理，当前没有清除隔离或强制解锁入口。
+
+本轮只实现all完整证明缺席、从未授权且无事件的取消释放例外，absence_releases保留引用的扫描依据。已存在Agent记录的任务仍等待not_started／真实结果；可终结结果保留pending、finalize意图和claims，unknown／interrupted结果沿原规则保持核对。本库未知操作、矛盾记录、finalized历史及超出首结果序列的历史均保留case，不补造操作、结果或释放事实。下一依赖是双端finalize／finalized及受控任务通道；检查数据库和本地组合不替代真实Compose、备份回退或掉电耐久验证。

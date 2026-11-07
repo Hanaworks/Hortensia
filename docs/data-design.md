@@ -149,6 +149,18 @@ SQLite 官方记录的 WAL-reset 问题已在 3.51.3 及指定旧分支回补版
 
 操作表另含 `created_at,updated_at`；许可有关列在未授权时为空，授权后与状态一起提交。配置和操作密文均按第 9 节统一封装；版本所引用的文件清单和环境不得只存可变外部路径。外键默认禁止级联删除证据。Stack 版本指针采用 `(id,current_version_id)` 引用 config_versions 的 `(stack_id,id)`；parent_id 同样限定同一 Stack，避免仅凭一个有效 ID 指向别的 Stack。[外键规则](https://sqlite.org/foreignkeys.html)
 
+#### 7.1.1 M0 已实现的 Manager 存储子集
+
+上述表是M1完整目标，不等于当前DDL。[本地协调规格](specifications/m0-manager-operations.md)的独立v1库实现固定输入、占用、用户／Grant、许可及首事件／结果；本轮[扫描接收与业务恢复规格](specifications/m0-manager-recovery.md)通过显式新v2库扩展它，完整私有字段、约束、用途和生命周期只在该规格及`002_recovery.sql`维护。本轮实现与R01—R12证据见[恢复验收记录](implementation/m0-manager-recovery.md)，两版互拒且无自动迁移。
+
+v2将恢复数据按职责保存：recovery_nodes关联当前Agent boot、轮次及quarantined隔离事实；recovery_scans／requests保存轮次和持久请求链；recovery_pages保存加密原body，members定位页内身份和phase；recovery_expected在开始冻结事务固定本库已有操作及事件水位，作为absence证明操作当时已存在且无事件的历史依据；recovery_cases保存未知或矛盾历史的加密证据。页面完整后仍须重读校验关联和索引，不能仅凭计数为零判为空账本，也不能把页面缺失或解密失败解释为空。
+
+Agent同boot的旧快照可跨新的Manager轮次重放，expected不是判断Agent历史回退的凭据。旧页与新事件合并保留较新Manager事实及claims，非空任务仍waiting；同位异文或互斥事实才按对应规则隔离。members.phase必须与解密页一致，接收not_started的最终事件事务据此定位并核验任何已保存START_COMMITTED页，防止业务核对之后写入互斥终态。当前completed提交仍是独立的开放条件。
+
+本轮release_status=released只允许可信all扫描缺席且从未授权／无事件的取消例外，由absence_releases引用完整持久扫描，并与取消终态、投递抑制和删除claims同事务保存。常规结果仍为pending并保留占用，真实finalized释放尚未实现；不能从通用M1的released取值推定该路径已可用。已释放任务后来出现记录或事件仍须隔离，不能重写原取消证明。
+
+quarantined在保存case正文前独立持久化，并跨轮次／重开保留；case写入失败无成功ack，已有隔离也不撤销。当前没有resolved_at对应的解决／清除入口，没有自动回收扫描或case；上表的人工解决及长期保留能力仍为目标设计。后续清理必须保留absence引用的证据和未解决case。
+
 ### 7.2 Agent 表与边界
 
 2026-11-07的[开始账本规格](specifications/m0-agent-ledger.md)在001_start_ledger.sql展开agent_meta、executions和local_claims子集，保存稳定目标、原始输入HMAC、owner_boot与完整许可，不存输入正文。随后[事件日志规格](specifications/m0-agent-journal.md)在002_event_journal.sql定义新v2库，新增execution_events、event_state、event_keys和event_conflicts，保存加密started／首result、结果指针、包装额度及冲突。v1仍用原入口，v2不是自动升级脚本；开始phase保留，result阶段从指针派生。项目归属project_bindings、真实准备和释放尚未实现，下表完整目标不能全部标为已实现。

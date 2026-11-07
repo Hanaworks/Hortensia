@@ -1,6 +1,6 @@
 # Docker Manager 测试计划
 
-更新日期：2026-11-07。状态：测试方案与M0／M1验证规格；M0通信与独立许可门禁、Agent开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成，逐项验收以各模块实施记录为准，完整产品测试尚未执行。本文供实现者和测试执行者使用，持续承接req42所组织的[需求与成功标准](requirements.md)，以及arc42所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
+更新日期：2026-11-07。状态：测试方案与M0／M1验证规格；M0通信与独立许可门禁、Agent开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成；本轮实现Manager扫描接收与业务恢复，逐项结果与证据见[本轮验收记录](implementation/m0-manager-recovery.md)。完整产品测试尚未执行。本文供实现者和测试执行者使用，持续承接req42所组织的[需求与成功标准](requirements.md)，以及arc42所组织的[运行、质量与风险](architecture.md)。文档检查不能替代下列软件验证。
 
 ## 1. 验证目标与分层
 
@@ -180,3 +180,13 @@ Schema 主定义为 [agent-v1.schema.json](../contracts/agent-v1.schema.json)，
 观察对象包括实际返回原文、排序与总数、持久成员和变化索引、当前确认session、冻结状态、开始事实与claims。真实SQL语句／Commit失败及完成事务内、提交后回执送出前的进程终止用于核对原子边界；具体测试、运行环境、结果及限制只在扫描验收页维护。本轮使用Windows本机临时数据库和辅助进程，无需用户提供Docker节点或跨机联调环境。
 
 Agent末页只证明本地枚举到尾，reconcile_completed只证明本轮Agent扫描检查完成。Manager页持久接收、期间变化合并、旧许可与缺失历史核对、业务恢复及新受理解冻仍是下一步；网络认证／错误适配、finalized释放、真实Compose、旧库升级、备份回退和掉电耐久仍未完成或未验证。v1／v2入口保留，v3新库不构成升级方案；这些本地证据不将V05／V07／V11的完整跨端恢复场景标为通过。
+
+## 14. Manager 扫描接收与业务恢复切片
+
+2026-11-07按事前基线`72bc30a`的[恢复规格](specifications/m0-manager-recovery.md)和[实施及R01—R12验收记录](implementation/m0-manager-recovery.md)实现Manager v2扫描收件箱、业务核对和完成屏障。第9—13节保留各轮当时的验收数字及未实现边界；本轮逐项结果、审阅修正、运行环境和限制只在新验收页维护，不将模块验收扩展为完整产品验收。
+
+本轮验证以真实Manager v2／Agent v3本地库交换reconcile、页面、事件和completed，分别观察页面原文／成员／请求关联、expected历史依据、操作／许可／claims、absence依据、case与quarantined、当前轮及冻结状态。关键场景包括空扫描握手、pending转all、旧快照与较新事件合并、Agent同boot跨session／Manager重开继续旧快照、终态待finalize、旧boot／session完成回执，以及complete准备后新增隔离条件。较旧页面不得回退Manager事实或仅因水位差制造case；Process后迟到的not_started也不能覆盖已保存页中的开始事实。未知或暂不支持的历史必须持久隔离，不能用伪造Operation或直接清frozen满足断言。
+
+页面、case、无记录取消释放及completed分别注入真实SQL语句失败与延迟外键Commit失败；case正文失败无ack，但预先提交的quarantined保护事实必须保留。完成回执事务内及提交后的真实辅助进程强杀，用于重开检查持久证据、占用和冻结，再走新一轮双端握手。复验入口为 `go test ./internal/manager/operations -run '^TestRecovery' -count=1 -timeout=120s`，最终执行结果和版本以验收记录为准。
+
+自动released仅覆盖完整all无记录、无许可／事件的取消例外；有Agent历史的结果仍待真正finalize／finalized模块。当前身份／会话绑定及执行结果有受控夹具边界，网络任务、真实Compose、旧库升级、备份回退和掉电耐久仍未完成或未验证，不将V05／V07／V11整组标为通过。本轮无需用户提供部署环境；真实Docker或跨机验证前再明确联调要求。

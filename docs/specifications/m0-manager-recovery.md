@@ -1,6 +1,6 @@
 # M0 Manager 扫描接收与业务恢复规格
 
-日期2026-11-07，起点67a8963。本篇与[实施计划](../implementation/m0-manager-recovery.md)在编码前保存；状态：实施基线，尚未验收。以下是依据现行主规格的技术落实，不表述为用户逐项确认。
+日期2026-11-07，起点67a8963。本篇与[实施计划](../implementation/m0-manager-recovery.md)在编码前保存并提交为72bc30a；实现／测试版本00fa64e，R01—R12已完成本地库切片验收。以下是依据现行主规格的技术落实，不表述为用户逐项确认，也不代表整个M0完成。
 
 ## 1. 目的、依据与本轮终点
 
@@ -106,7 +106,7 @@ PrepareComplete与ReceiveCompleted各在最终事务内检查：当前轮已完�
 
 诊断按node/ledger/双方boot/session → 当前round及请求关联 → 页与members一致性 → case → 操作原许可／结果／claims → absence依据 → complete请求／回执顺序查看。修改分页须查原字节与双预算；修改解冻须同时检查重开、旧回执、并发新事件及其他节点；修改释放必须保留独立证据分支，不能仅允许released字符串。
 
-验收稳定编号R01—R12见[实施记录](../implementation/m0-manager-recovery.md)。覆盖真实SQLite失败／Commit失败、重开与辅助进程终止，及Manager v2与Agent v3的本地组合。运行环境沿既有Go／SQLite组合；需要Docker／Compose或跨机验证前再告知用户，当前不需要联调环境。实现后补源码入口及完整实例，保留事前基线和事后补充时点。
+验收稳定编号R01—R12及逐项证据见[实施记录](../implementation/m0-manager-recovery.md)。覆盖真实SQLite失败／Commit失败、重开与辅助进程终止，及Manager v2与Agent v3的本地组合。运行环境沿既有Go／SQLite组合；需要Docker／Compose或跨机验证前再告知用户，当前不需要联调环境。第7节是实现后的源码入口及完整实例，事前基线和实施中的更正记录均保留。
 
 ## 7. 实施后的接手路径与完整实例
 

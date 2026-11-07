@@ -1,10 +1,10 @@
 # Docker Manager 开发实施计划
 
-更新日期：2026-11-07。状态：M0通信／独立许可门禁、Agent持久开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成，具体范围与验收证据见各模块实施记录；整个M0仍未完成，M1尚未实现，无工期承诺。面向用户与实现者，承接req42的[范围、需求和风险](requirements.md)，以及arc42的[模块、运行、决策及质量](architecture.md)。文档编写安排另见[文档规划](documentation-plan.md)。
+更新日期：2026-11-07。状态：M0通信／独立许可门禁、Agent持久开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成；本轮实现Manager扫描接收与业务恢复，具体范围与证据见[本轮验收记录](implementation/m0-manager-recovery.md)。整个M0仍未完成，M1尚未实现，无工期承诺。面向用户与实现者，承接req42的[范围、需求和风险](requirements.md)，以及arc42的[模块、运行、决策及质量](architecture.md)。文档编写安排另见[文档规划](documentation-plan.md)。
 
 ## 1. 已有基础与开工条件
 
-已有资产为原始讨论、11月决定及归档、需求与设计文档，以及M1技术组合和v1通信／执行工作规格。2026-11-04已建立Git仓库，初始提交`c5ea0fc`保存上一轮全部资料；当前另有协议Schema、正反例、静态检查脚本、Go通信原型、SQLite开始账本、加密事件日志、Manager本地持久协调及Agent本地恢复扫描。实现与证据分别见[通信实施记录](implementation/m0-agent-channel.md)、[账本实施记录](implementation/m0-agent-ledger.md)、[事件日志实施记录](implementation/m0-agent-journal.md)、[Manager实施记录](implementation/m0-manager-operations.md)和[扫描实施记录](implementation/m0-agent-scan.md)，尚无完整产品服务。
+已有资产为原始讨论、11月决定及归档、需求与设计文档，以及M1技术组合和v1通信／执行工作规格。2026-11-04已建立Git仓库，初始提交`c5ea0fc`保存上一轮全部资料；当前另有协议Schema、正反例、静态检查脚本、Go通信原型、SQLite开始账本、加密事件日志、Manager本地持久协调、Agent本地恢复扫描及Manager扫描接收与业务恢复。实现与证据分别见[通信实施记录](implementation/m0-agent-channel.md)、[账本实施记录](implementation/m0-agent-ledger.md)、[事件日志实施记录](implementation/m0-agent-journal.md)、[Manager协调实施记录](implementation/m0-manager-operations.md)、[Agent扫描实施记录](implementation/m0-agent-scan.md)和[Manager恢复实施记录](implementation/m0-manager-recovery.md)，尚无完整产品服务。
 
 优先审阅产品行为和 P01—P10，以具体设计开展 O02、O03、O04、O07 的验证。存储自动搬运按用户要求继续暂缓；O05 阻塞完整迁移，不阻塞节点、编辑、部署和 Copy／Apply。M1 是首个内部可验收增量建议，正式首版包含哪些后续切片仍待决定，本计划不把全部目标写成首版排期。
 
@@ -35,7 +35,7 @@ M3 的资源能力和转换器可按依赖分别推进，不必等全部资源�
 | 配置与文件 | 多文件、环境、附属配置和 Docker 端点路径是否与原生一致 | 支持组合与拒绝组合，记录 Compose 版本，不先承诺全平台 |
 | 持久化 | 配置内容、版本指针、操作和发送意图能否一致提交；如何恢复密钥和内容 | 存储方案及最小恢复演练；发现新对象时回填数据设计 |
 
-其中已开展Go契约校验、真实回环TLS双进程握手、独立许可门禁，以及SQLite开始账本／加密事件／首结果、确认、单操作恢复读取、事务失败和进程终止重开实验。Manager本地持久操作／许可／事件接收的范围与M01—M10证据见[独立规格](specifications/m0-manager-operations.md)及[实施记录](implementation/m0-manager-operations.md)。Agent现已完成本地全账本扫描、连续冻结、当前会话变化确认及持久完成回执，准确边界和S01—S12证据见[扫描规格](specifications/m0-agent-scan.md)及[验收记录](implementation/m0-agent-scan.md)。Manager扫描页持久接收、业务恢复判定与受理解冻、完整数据库与密钥恢复、认领／轮换、线上任务重报、双端释放和Docker故障实验仍待执行。P07—P09的完整组合尚未验证；整体夹具和故障点见[测试计划第7节](test-plan.md#7-m0m1-验证规格)，各持久模块子集结果见其第10—13节。原型结果改变模块和协议安排时，先复核文档规划与正文，再继续依赖它的实现。
+其中已开展Go契约校验、真实回环TLS双进程握手、独立许可门禁，以及SQLite开始账本／加密事件／首结果、确认、单操作恢复读取、事务失败和进程终止重开实验。Manager本地持久操作／许可／事件接收的范围与M01—M10证据见[独立规格](specifications/m0-manager-operations.md)及[实施记录](implementation/m0-manager-operations.md)。Agent本地全账本扫描、连续冻结、当前会话变化确认及持久完成回执的准确边界和S01—S12证据见[扫描规格](specifications/m0-agent-scan.md)及[验收记录](implementation/m0-agent-scan.md)。本轮新增Manager v2扫描页持久接收、业务核对、无记录取消释放及当前回执解冻，范围和R01—R12证据见[恢复规格](specifications/m0-manager-recovery.md)及[验收记录](implementation/m0-manager-recovery.md)。完整数据库与密钥恢复、认领／轮换、线上任务重报、真实finalize／finalized双端释放和Docker故障实验仍待执行。P07—P09的完整组合尚未验证；整体夹具和故障点见[测试计划第7节](test-plan.md#7-m0m1-验证规格)，各持久模块子集入口见其第10—14节。原型结果改变模块和协议安排时，先复核文档规划与正文，再继续依赖它的实现。
 
 ## 4. M1 工程落实与任务依赖
 
@@ -110,6 +110,10 @@ O05 需要逐阶段明确：来源何时退出、目标何时启动、业务访�
 随后完成[Manager本地持久协调切片](implementation/m0-manager-operations.md)：基线3bf8629、源码／测试c02e1fd，M01—M10通过；独立Manager v1库保存加密输入、双占用、事务许可及首事件／结果，包含真实SQL失败与进程终止重开。身份／配置／ready仍由Fixture提供，节点重连或Open后只补事实，不任意解冻；终态保留pending和claims。下一依赖改为完整核对扫描／会话恢复、受控任务通道及双端释放，真实Compose验证前再明确联调环境需求。
 
 2026-11-07随后完成Agent本地恢复扫描切片，按[扫描规格](specifications/m0-agent-scan.md)及[实施记录](implementation/m0-agent-scan.md)交接：显式新v3库持久保存冻结、扫描成员／变化集合和最近完成回执，当前boot的有界原文快照负责分页与期限。Agent完成只结束本轮扫描屏障，不删除claims、不恢复旧Gate，也不证明Manager业务核对结束。下一步先实现Manager扫描页持久接收、变化合并与业务恢复判定，再接受控网络任务及双端释放。本轮只使用本机临时数据库和辅助进程，无需用户提供真实部署环境；旧库升级、备份回退和掉电耐久均未实现或验证。
+
+同日继续实现[Manager扫描接收与业务恢复](specifications/m0-manager-recovery.md)，事前规格与验收基线为`72bc30a`，本轮实现及R01—R12证据见[验收记录](implementation/m0-manager-recovery.md)。显式新v2库保存加密页面、请求链、无记录释放的本地历史依据和隔离证据，并兼容Agent同boot旧快照与较新Manager事件合并；只有完整all缺席且从未授权／观察的任务可以取消释放，普通终态仍保留pending及claims。页面收齐、业务就绪和当前completed提交分别核对，quarantined不因换轮或重开消失，未知及暂不支持的历史持续隔离。
+
+当前下一依赖为双端finalize／finalized释放及受控任务通道接线，并继续落实认领／轮换、真实准备和Compose执行。Manager v1／v2及Agent v1／v2／v3入口各自保留，无旧库升级或备份回退恢复入口。用户当前无需提供部署环境；进入真实Docker、Compose或跨机验证前再说明所需组合及联调范围。本地库组合与进程重开实验不代表完整M0、网络恢复或掉电耐久已经完成。
 
 整体架构、关键模块或物理契约形成新决定时，复核当前需要的设计深度和文档安排；重要内部机制变复杂可独立成专题，简单部分继续合载。进度按实际能力与证据报告，不按预定文件数或未经估算的百分比判断。
 
