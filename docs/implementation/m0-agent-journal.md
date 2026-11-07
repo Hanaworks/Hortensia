@@ -94,3 +94,11 @@
 交付入口：[v2创建与打开](../../internal/agent/ledger/journal_store.go)、[加密与额度](../../internal/agent/ledger/journal_crypto.go)、[事件读取与确认](../../internal/agent/ledger/events.go)、[首结果](../../internal/agent/ledger/results.go)、[恢复读取](../../internal/agent/ledger/recovery.go)、[v2DDL](../../internal/agent/ledger/migrations/002_event_journal.sql)。开始适配沿用gate.go。调用者提供独立密钥，只能以受控结果夹具验证本模块；没有新增可部署的CLI或产品入口。
 
 未交付／未验证：v1→v2升级、密钥文件／轮换／备份恢复及回退检测、掉电／真实磁盘故障、Linux运行、CGO race、真实进程结果与归属、补观察结果版本、Manager持久授权／事件接收、线上发送重试／ack关联、完整恢复扫描及双端释放。结果和确认都不解除占用。下一模块先补Manager持久操作／事件接收及会话／核对约束，再接入受控任务通道；每个模块仍先定具体规格与验收条件。
+
+## 维护交接说明补充
+
+2026-11-07用户补充规格也要面向其他开发者和维护者。本次根据8ff708b源码及DDL补充[规格第7—10节](../specifications/m0-agent-journal.md#7-内部结构与职责)：文件和协作职责、两阶段结果检查流程、开始／确认／恢复提交点、三类状态的区别、全部新增持久字段的来源和生命周期、错误定位及修改时必须维持的约束。同步开始账本说明及后续模块的交付要求。
+
+本次仅完善文档，不改变源码、Schema或J01—J10判据；原软件测试结果仍绑定8ff708b。本次检查针对说明与源码是否一致、本地链接／锚点及Markdown结构，不将历史软件测试记为再次执行。初次规格基线、后续实现修订和本次交付后补充的时间分别保留。
+
+独立核对说明后修正三处措辞：5000毫秒只约束SQLite锁等待、整体期限由调用context控制；not_started输给started竞争仅返回错误，不写异文冲突行；started从许可生成seq=1而result从body提取序号。最后文档检查结果记入文档规划第12节，通信规格同时补充维护入口及独立ledger尚未接入网络的界限。

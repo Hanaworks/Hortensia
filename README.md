@@ -36,6 +36,7 @@
 | 判断本轮做什么、怎样算完成 | [M0 实施与验收](docs/implementation/m0-agent-channel.md#本轮验收标准)：AC01—AC11 的通过条件、逐项结果与交接范围；当前通信及独立门禁切片已验收，整个M0仍未完成 |
 | 跟进持久开始账本 | [账本实施规格](docs/specifications/m0-agent-ledger.md)与[实施计划／验收记录](docs/implementation/m0-agent-ledger.md)：编码前定义范围、存储、接口、故障行为与L01—L10 |
 | 跟进事件与结果持久化 | [事件日志规格](docs/specifications/m0-agent-journal.md)与[实施计划／验收记录](docs/implementation/m0-agent-journal.md)：started、首结果、加密、确认和恢复读取，J01—J10已验收 |
+| 接手账本与事件模块维护 | [开始账本内部说明](docs/specifications/m0-agent-ledger.md)、[事件日志内部结构与流转](docs/specifications/m0-agent-journal.md#7-内部结构与职责)：职责、调用流程、字段来源和生命周期、异常定位及修改约束 |
 | 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
 | 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
 | 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |

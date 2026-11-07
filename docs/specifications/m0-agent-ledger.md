@@ -2,6 +2,8 @@
 
 日期：2026-11-07。起点：`d53de6d`。本规格在本模块编码前形成，落实用户“每个模块都需要实施规格等文档流程”的要求。状态：实施基线，验收结果由[执行计划与记录](../implementation/m0-agent-ledger.md)维护。
 
+读者包括模块实现者、后续接手开发者和维护人员。第1—6节保留v1开始账本的实施范围与验收定义；第7节按现有源码补充内部实现、流转、数据语义和定位方法。当前源码另有[事件日志v2扩展](m0-agent-journal.md)，其加密结果、确认和恢复读取不属于v1的原始交付，不能把下文“本轮没有”理解为整个代码库仍无这些能力。
+
 ## 1. 目标、依据与本次边界
 
 交付对象是下一轮 Agent 实现者。本轮给已有内存许可门禁提供真实 SQLite 开始提交边界，证明固定输入、占用和开始事实不会因重复许可或普通进程重启变成第二次启动机会。可观察终点是受控 Start 回调至多一次，回调前完整开始事实已提交；重开库后旧操作只能查询，不能恢复执行。
@@ -99,3 +101,87 @@ Begin、写入、Commit 失败均不调用 Start，Gate 进入不确定状态或
 | L10 | 全量测试、vet、构建、模块校验、契约和文档检查；静态接线审阅 | 原通信切片回归通过；仍无网络任务入口与Docker调用；全部本轮结果、版本和限制可查 |
 
 L07 的语句／提交故障证明代码拒绝继续，不冒充真实磁盘耗尽或掉电实验。L08 是进程终止恢复，不证明硬件掉电耐久。真实Linux、磁盘满／损坏期间写入、备份回退、迁移、完整加密、事件重报、两端核对与释放均待后续验证。
+
+## 7. 内部实现与维护说明
+
+本节于2026-11-07交付后补充，按源码版本8ff708b核对，不追记为初次编码前已具备的说明。v1的字段与持久行为仍由前文定义；本节解释它们如何协作，并标出同包v2扩展的边界。阅读顺序为：先确认使用Create/Open还是CreateJournal/OpenJournal，再沿入口、事务、返回值和故障处理追踪一个operation_id。
+
+### 7.1 组成、责任与源码入口
+
+| 部分 | 内部职责 | 维护入口 |
+| --- | --- | --- |
+| Store及数据库连接 | 持有单库身份、本次boot、密钥副本、连接池和Gate登记；创建／打开时验证版本、密钥配对、连接设置和结构；关闭时统一失效Gate | [store.go](../../internal/agent/ledger/store.go)的createStore、openStore、verifyConnection、validateSchema、Close |
+| 准备记录和资源占用 | 从已校验prepare中取得固定元数据及原payload指纹；同事务写一条执行记录和两条占用；提供Record／Claim查询投影 | [records.go](../../internal/agent/ledger/records.go)的RecordReadyFixture、readRecord、readClaims |
+| 持久开始适配 | 将请求绑定本boot准备记录；向Gate注入commitStartExpected；事务内复核资格并且只承认首次开始提交 | [ledger/gate.go](../../internal/agent/ledger/gate.go)的NewGate、commitStartExpected、samePreparedRecord、samePermit |
+| 内存许可门禁 | 管理10秒窗口、请求关联、许可选择和取消／断线；提交后在同一互斥区内复查并调用Start | [startgate/gate.go](../../internal/startgate/gate.go)；完整接口和状态见[通信原型规格第5节](m0-channel-probe.md#5-独立开始许可门禁) |
+| 数据库约束 | 保证固定类型、主键、两种phase和许可字段成组，以及占用引用；不是输入报文校验器 | [001_start_ledger.sql](../../internal/agent/ledger/migrations/001_start_ledger.sql)；应用层prepare结构沿用[Agent Schema](../../contracts/agent-v1.schema.json) |
+
+`Store`和`Gate`均不能按值复制。Store的boot、Gate登记表、closing及密钥副本是进程内状态；执行记录和占用是持久事实。Store不是进程单实例锁：另一个Open生成不同boot，但不会终止旧Store。网络连接认证、session替换通知以及真实执行器在调用方；当前测试夹具代替这些调用方，不是生产入口。
+
+### 7.2 一次操作如何流转
+
+```mermaid
+sequenceDiagram
+    participant C as 受控调用方
+    participant S as Store
+    participant G as Gate
+    participant D as SQLite
+    C->>S: RecordReadyFixture(prepare原报文)
+    S->>S: 校验Schema、节点、原payload指纹
+    S->>D: 事务A：固定输入、ready、两条占用
+    D-->>S: Commit成功
+    S-->>C: Record
+    C->>S: NewGate(request_start字段)
+    S->>D: 预读本boot准备记录
+    S->>G: 注入CommitStart及Start回调
+    S-->>C: Gate
+    C->>G: Authorize(许可)
+    G->>G: 关联、窗口、状态检查
+    G->>S: CommitStart(许可)
+    S->>D: 事务B：重读资格与占用，CAS开始事实
+    D-->>S: Commit成功
+    S-->>G: 首次提交成功
+    G->>G: 复查取消、断线和期限
+    G->>C: Start短回调
+```
+
+事务A前，Validator校验完整prepare及其解码输入；随后只把所需元数据和指纹带入事务。新操作先插入executions，再登记stack和project占用，任一步失败整体回滚。既有操作先检查boot，再比较固定输入和准备session；完全匹配直接返回原Record，保留原创建时间和phase，即使它已开始也不恢复新的执行资格。该重放分支不修复占用；提交开始时必须重新核对恰好两条匹配占用。
+
+NewGate的数据库预读只用于建立本次关联。当前实现先在Store锁内检查关闭／已有Gate，释放锁后读数据库，构造后再持锁检查并登记；不能持Store锁等待数据库连接。真正执行资格由事务B重读并检查，随后以operation_id、owner_boot_id、phase=ready条件更新，要求恰好一行改变。两次检查的目的不同：前者避免登记重复Gate，后者防止准备后发生的状态或占用变化被绕过。
+
+Gate调用CommitStart时不持Gate锁，允许取消／断线同时进入；Commit返回后重新持锁检查。只有本次首次提交成功且仍未取消／失效／过期，才在这次互斥区内调用Start。数据库START_COMMITTED与Gate的started不是一个状态：提交后取消可能留下完整开始事实而Start调用数为0；此时仍按可能开始处理。数据库UTC时间用于记录事实，Gate的10秒期限来自内存时钟，重开不能用started_at或created_at恢复期限。
+
+v2复用同一调用链，在事务A额外初始化event_state，在事务B同时提交started事件；加密额度在事务B之前单独预留。具体边界见[事件日志规格第5节](m0-agent-journal.md#5-提交重复冲突及重启)，不要为v1补造历史started或把v2DDL当成升级脚本。
+
+### 7.3 私有数据的来源与生命周期
+
+下表说明第3节字段的含义和产生者，物理类型、空值与唯一约束以v1 DDL为准。DDL未为业务字段声明DEFAULT，调用代码负责显式赋值；所有未注明可空的字段均必填。
+
+| 字段 | 含义、来源和保存方式 | 生命周期／查询映射 |
+| --- | --- | --- |
+| agent_meta.id、schema_version | 单行槽位1与v1版本1；同时检查PRAGMA user_version | 创建时固定；不提供运行时迁移或修改接口 |
+| node_id、ledger_id、ledger_key_id | 调用方提供节点及账本密钥ID，Create生成账本UUID；三者组成Identity | 整个库稳定；Open必须与调用方预期一致；密钥ID不等于密钥 |
+| key_check | 32字节密钥配对HMAC，算法见第3节 | 创建时生成，Open比较；不是配置内容或密钥备份 |
+| operation_id、stack_id、version_id | prepare绑定的操作、目标Stack、固定配置版本，TEXT | 首次登记后固定；对应Record同名字段，不能换成最新版本 |
+| input_digest、local_fingerprint | 前者解码Manager传入摘要，后者由Agent对原payload字节计算；均为32字节BLOB | 首次登记后固定；Record.Digest和LocalFingerprint输出无填充Base64url；前者不由本模块验证Manager HMAC，后者不向公网接口公开 |
+| project_name、docker_endpoint_id、policy_revision | 来自解码输入及其execution_profile，前两项TEXT，revision为安全范围INTEGER | 固定运行目标和配置修订，不跟随后续配置变化；映射ProjectName、EndpointID、PolicyRevision |
+| prepared_session | prepare信封的session_id，TEXT | 固定准备连接；请求及许可必须匹配，不在重连后覆盖为新session |
+| owner_boot_id | 首次登记时Store随机boot，TEXT | 映射Record.BootID；同库重新打开生成的新boot只存在新Store，不改旧行；不匹配即冻结写入／开始资格 |
+| phase | ready或START_COMMITTED，TEXT | 首次登记ready；仅首次开始事务可改为START_COMMITTED，不回退、不表示命令成功 |
+| session_id、start_nonce、permit_id、auth_rev、reply_to | 获准开始的许可及请求关联；除auth_rev为INTEGER外均TEXT；ready时全部NULL | 开始事务一次写齐，readRecord组装Record.Permit；reply_to是当时匹配的请求ID，不是许可身份，samePermit比较不包含它 |
+| created_at、started_at | Agent本机Unix毫秒INTEGER；前者首次登记时生成，后者仅开始时生成且此前NULL | 查询转为UTC毫秒文本；ready时StartedAt为空串且Permit为nil。时间不参与窗口续期或自动恢复执行 |
+| local_claims.resource_kind、resource_id、operation_id | kind决定stack_id或紧凑JSON `[docker_endpoint_id,project_name]` 键，operation_id指向持有人 | 与准备记录同事务建立；当前无更新／释放接口；Claims按kind、id排序返回，不负责推断可释放状态 |
+
+请求重传的message_id集合、已选择许可、取消／失效、Gate状态、deadline都只在内存。数据库只保存被消费许可当时的reply_to，不保存整个重传集合。`Get`返回单个Record；`Claims`是独立查询，两次调用不能当作同一事务快照。当前Get未找到返回ErrNotFound；Claims未找到返回空集合，不保证该操作存在。v2需要一致恢复投影时使用RecoveryRecord。
+
+### 7.4 维护定位与修改影响
+
+| 现象或修改点 | 首先核对什么 | 相关代码与验证 |
+| --- | --- | --- |
+| Open失败 | 是身份、密钥、schema还是存储错误；使用的v1/v2入口、预期身份和对应密钥是否一致；不要新建替代库或手改user_version | store.go；[store_test.go](../../internal/agent/ledger/store_test.go)的打开拒绝、连接替换与结构约束测试 |
+| 准备冲突或资源已占用 | 同operation的固定输入／原字节是否改变；新operation是否占用相同Stack或端点项目；通过Get／Claims读取现存事实，不删除占用重试 | records.go；[records_test.go](../../internal/agent/ledger/records_test.go)的固定输入、并发占用与回滚测试 |
+| ErrFrozen或ErrGateExists | 记录是否属于旧boot；当前Store是否已经登记过该操作的Gate；这些不是临时重试信号 | gate.go；[gate_test.go](../../internal/agent/ledger/gate_test.go)的FrozenReadyAndCommitted及ConcurrentConstruction测试 |
+| 已保存开始但未观察到Start | 检查提交后的取消、失效、到期或进程终止；先保留事实，不能由回调次数反推未开始或自行补结果 | gate.go、startgate/gate.go；gate_test.go的CommitThenCancelInvalidateOrExpire及[restart_test.go](../../internal/agent/ledger/restart_test.go) |
+| 改动事务、关闭或锁顺序 | 维持两条占用原子性、开始只提交一次、提交后复查、Close等待短回调且不持Store锁等待Gate／数据库 | [fault_test.go](../../internal/agent/ledger/fault_test.go)、gate_test.go；修改共享Store/Gate时还需执行v2事件日志回归 |
+
+故障证据记录错误类别、使用的入口版本和受影响operation_id等必要元数据；固定错误不提供底层SQL文本，不能靠向诊断加入原payload或密钥补充上下文。当前模块没有修复命令、迁移或解锁入口。扩充恢复能力时，应先定义证据、状态转换和完成条件，再新增接口；不要通过改数据库phase、owner_boot_id或删除local_claims绕过既有边界。
