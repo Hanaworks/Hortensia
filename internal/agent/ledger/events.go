@@ -193,6 +193,9 @@ func (s *Store) AcknowledgeEvent(ctx context.Context, operationID, digest string
 		return ErrStorage
 	}
 	defer tx.Rollback()
+	if err := s.requireRecoverySession(ctx, tx, sessionID); err != nil {
+		return err
+	}
 	event, err := s.readEvent(ctx, tx, operationID, seq)
 	if err != nil {
 		return err

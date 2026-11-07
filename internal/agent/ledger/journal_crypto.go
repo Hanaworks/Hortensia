@@ -58,6 +58,9 @@ func (s *Store) reserveKeyUse(ctx context.Context, keyID string) error {
 		return ErrStorage
 	}
 	defer tx.Rollback()
+	if err := s.requireRecoveryWriter(ctx, tx); err != nil {
+		return err
+	}
 	var actualID string
 	var uses int64
 	if err := tx.QueryRowContext(ctx, `SELECT key_id,uses FROM event_keys WHERE id=1`).Scan(&actualID, &uses); err != nil {

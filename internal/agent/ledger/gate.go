@@ -13,13 +13,19 @@ import (
 // constructing another gate must never turn uncertainty into permission.
 // The context governs database work only. Business cancellation and connection
 // loss must still be delivered explicitly to Gate.Cancel or Gate.Invalidate.
-// Start must be short and must not reenter Gate or call Store.Close; Close waits
+// Start must be short and must not reenter Gate or call Store.Close, recovery
+// session/scan APIs, or NewGate; those operations can wait for Start to return.
+// Close waits
 // for an already entered Start callback to return. Start may query Get/Claims.
 func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func() time.Time, start func(startgate.Permit)) (*startgate.Gate, error) {
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()
 		return nil, ErrStorage
+	}
+	if s.recovery != nil && s.recovery.localFrozen {
+		s.mu.Unlock()
+		return nil, ErrFrozen
 	}
 	_, exists := s.gates[request.Operation]
 	s.mu.Unlock()
@@ -28,6 +34,9 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	}
 	if exists {
 		return nil, ErrGateExists
+	}
+	if err := s.requireRecoveryMutation(ctx, s.db, request.Session); err != nil {
+		return nil, err
 	}
 	record, err := s.readRecord(ctx, s.db, request.Operation)
 	if err != nil {
@@ -72,6 +81,9 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	if s.closing {
 		return nil, ErrStorage
 	}
+	if s.recovery != nil && s.recovery.localFrozen {
+		return nil, ErrFrozen
+	}
 	if _, exists := s.gates[request.Operation]; exists {
 		return nil, ErrGateExists
 	}
@@ -95,6 +107,9 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 	s.mu.Unlock()
 	if closing {
 		return ErrStorage
+	}
+	if err := s.requireRecoveryMutation(ctx, s.db, permit.Session); err != nil {
+		return err
 	}
 	startedAt := time.Now().UnixMilli()
 	var started sealedEvent
@@ -124,6 +139,9 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 		return ErrStorage
 	}
 	defer tx.Rollback()
+	if err := s.requireRecoveryMutation(ctx, tx, permit.Session); err != nil {
+		return err
+	}
 	record, err := s.readRecord(ctx, tx, permit.Operation)
 	if err != nil {
 		return err
@@ -177,7 +195,7 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 		return ErrConflict
 	}
 	if s.journal != nil {
-		if err := insertEvent(ctx, tx, binding, started); err != nil {
+		if err := s.insertEvent(ctx, tx, binding, started); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE event_state SET last_seq=1 WHERE operation_id=?`, permit.Operation); err != nil {

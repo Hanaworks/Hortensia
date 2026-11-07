@@ -47,13 +47,13 @@ func journalKeyCheck(identity Identity, key JournalKey) []byte {
 // CreateJournal creates a new version-2 controlled ledger. It is not an
 // upgrade or replacement path for a node with an existing version-1 ledger.
 func CreateJournal(ctx context.Context, path, nodeID, keyID string, key []byte, journalKey JournalKey) (*Store, error) {
-	return createStore(ctx, path, nodeID, keyID, key, &journalKey)
+	return createStore(ctx, path, nodeID, keyID, key, &journalKey, storeFormat{version: 2, schema: schemaV2})
 }
 
 // OpenJournal validates both identities and actual keys, including an empty
 // journal. It refuses version 1 and performs no repair or migration.
 func OpenJournal(ctx context.Context, path string, expected Identity, key []byte, journalKey JournalKey) (*Store, error) {
-	return openStore(ctx, path, expected, key, &journalKey)
+	return openStore(ctx, path, expected, key, &journalKey, storeFormat{version: 2, schema: schemaV2})
 }
 
 func (s *Store) requireJournal() error {

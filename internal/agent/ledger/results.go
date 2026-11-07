@@ -55,6 +55,9 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 		return Event{}, false, ErrStorage
 	}
 	defer tx.Rollback()
+	if err := s.requireRecoveryWriter(ctx, tx); err != nil {
+		return Event{}, false, err
+	}
 	record, err := s.readRecord(ctx, tx, b.OperationID)
 	if err != nil {
 		return Event{}, false, err
@@ -85,6 +88,9 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE event_state SET blocked=1 WHERE operation_id=?`, b.OperationID); err != nil {
 			return Event{}, false, ErrStorage
+		}
+		if err := s.noteRecoveryConflict(ctx, tx); err != nil {
+			return Event{}, false, err
 		}
 		if err := tx.Commit(); err != nil {
 			return Event{}, false, ErrStorage
@@ -124,7 +130,7 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 	if sealed == nil {
 		return Event{}, true, nil
 	}
-	if err := insertEvent(ctx, tx, b, *sealed); err != nil {
+	if err := s.insertEvent(ctx, tx, b, *sealed); err != nil {
 		return Event{}, false, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE event_state SET last_seq=?,latest_result_seq=? WHERE operation_id=?`, b.Seq, b.Seq, b.OperationID); err != nil {
@@ -136,11 +142,11 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 	return Event{OperationID: b.OperationID, Digest: b.Digest, Kind: b.Kind, Seq: b.Seq, Body: append(json.RawMessage(nil), body...)}, false, nil
 }
 
-func insertEvent(ctx context.Context, tx *sql.Tx, b eventBinding, sealed sealedEvent) error {
+func (s *Store) insertEvent(ctx context.Context, tx *sql.Tx, b eventBinding, sealed sealedEvent) error {
 	if _, err := tx.ExecContext(ctx, `INSERT INTO execution_events(operation_id,event_seq,kind,body_cipher,wrapped_dek,key_id,body_fingerprint) VALUES(?,?,?,?,?,?,?)`, b.OperationID, b.Seq, b.Kind, sealed.Cipher, sealed.WrappedDEK, sealed.KeyID, sealed.Fingerprint); err != nil {
 		return ErrStorage
 	}
-	return nil
+	return s.noteRecoveryEvent(ctx, tx, b.OperationID, b.Seq)
 }
 
 func (s *Store) requireStartedEvent(ctx context.Context, q querier, record Record) error {

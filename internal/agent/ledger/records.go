@@ -158,6 +158,9 @@ func (s *Store) RecordReadyFixture(ctx context.Context, rawPrepare []byte) (Reco
 		return Record{}, ErrStorage
 	}
 	defer tx.Rollback()
+	if err := s.requireRecoveryMutation(ctx, tx, *env.SessionID); err != nil {
+		return Record{}, err
+	}
 	existing, err := s.readRecord(ctx, tx, r.OperationID)
 	if err == nil {
 		if existing.BootID != s.boot {

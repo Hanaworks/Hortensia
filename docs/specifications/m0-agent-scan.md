@@ -31,15 +31,19 @@ v3 Create／Open均建立新的active_boot、frozen=1；Open保留变化集合�
 
 成功响应直接使用现行Schema，不增加线上字段。输入非法、错误session、存储失败等返回Go错误且无成功报文；ErrScanExpired映射scan_expired，ErrScanCursor映射cursor_invalid，ErrScanBusy映射busy，ErrScanIncomplete／ErrScanChanged表示不能完成。实际线上error页／protocol_error映射和发送由未来通道适配器承担；本轮函数不是完整网络处理器。
 
+同一连接message_id不可对应不同body的通用约束仍由通道适配器检查，本地扫描模块不另建无限请求ID缓存。RecoveryScanState.Frozen是持久冻结值；冻结事务失败后localFrozen可能仍为true，实际准入更严格，不能用诊断读取代替写事务检查。
+
 | 持久对象 | 本地定义与来源 | 生命周期／约束 |
 | --- | --- | --- |
 | recovery_control单行id=1 | active_boot、current_session、frozen、active_scan_id、active_scope、active_limit、active_total、dirty、completed_scan_id、completed_scope、completed_total | 空ID／scope用空串；未有total为0；frozen/dirty为0/1；有效active必须frozen；completed保留到下一次成功完成替换 |
 | recovery_members | scan_id、ordinal、operation_id、last_event_seq、result_event_seq、phase、report_acked、record_fingerprint | 固定按operation_id升序；ordinal从0；唯一(scan,ordinal)及(scan,operation)，operation外键；无result序号0；HMAC绑定原投影。保存当前活动及最近已完成集合，替换旧活动或下一次完成才清理旧集合 |
 | recovery_changes | operation_id、event_seq | 联合主键及事件外键；整个连续冻结期的新事件集合；重连／升级scope／过期／重开均保留，ACK不删除；成功完成才清除 |
 | 内存recoveryConfig | 独立scan互斥锁、Now、localFrozen、一个scanSnapshot | localFrozen仅由Store.mu保护，用于新Gate登记；scan锁串行页面／会话切换／完成，不在事件写事务取此锁 |
-| 内存scanSnapshot | scanID、scope、limit、deadline、records原字节、对应members、已签发游标／页、已枚举末页标记 | 一个Store最多一份，最多4096记录及32MiB原投影；单条受既有7MiB事件预算及完整8MiB信封约束；过期／替换／完成／Close清理正文 |
+| 内存scanSnapshot | scanID、scope、limit、deadline、records原字节、对应members、已签发游标／页、已枚举末页标记 | 一个Store最多一份已发布快照，每份最多4096记录及32MiB原投影；单条受既有7MiB事件预算及完整8MiB信封约束；过期／替换／完成／Close清理正文 |
 
 fingerprint为HMAC-SHA256(K_ledger,`dm-scan-record-v1`+0字节+原RecoveryRecord字节)，不作公共input_digest。正文不写入SQL、WAL、错误或日志；缓存生命周期终止尽力clear，不承诺Go内存彻底擦除。持久成员可用于核对扫描身份，不允许重开时据此复活单调计时或分页资格。
+
+2026-11-07最终源码审阅补充容量说明：pending→all或dirty重建时，在新快照提交前保留旧快照，以保障替换失败仍可使用旧扫描。此时两份原投影合计最多64MiB，另外还有单条解密、JSON校验、完整页面、成员／游标及分配器的临时开销；32MiB不是整个进程的内存上限，未做真实节点峰值内存测量。替换成功清旧缓存，失败清未发布的新缓存。
 
 ## 4. 冻结、快照与分页
 
@@ -64,6 +68,8 @@ fingerprint为HMAC-SHA256(K_ledger,`dm-scan-record-v1`+0字节+原RecoveryRecord
 
 单调deadline为成功建立快照时所用起点加15分钟；重复、重连、ACK及翻页不延期，到达边界即失效。无跨重启计时恢复。到期只有新null/null才能重新扫描，不因到期解冻。
 
+到期缓存采用访问时清理：下一次扫描／完成调用观察到过期时清除内存原文；没有后台计时线程。期限在取得数据库事务后以及发布页面／完成前复核，数据库锁等待不能把已过期扫描变成有效末页。内存占用即使无人再访问也受单快照预算限制。
+
 ## 5. 扫描期间变化与完成
 
 旧执行可以继续写result，未开始取消可以写not_started；开始阶段仍禁止新START_COMMITTED。新事件与recovery_changes在同一事务写入。RecordResultFixture保持原PreparedSession本地执行关联；新连接发送及ACK则用当前绑定session，不能把此夹具接口当网络接收器。
@@ -83,3 +89,23 @@ Complete对当前活动扫描检查：缓存完整且未到期、scan／ledger�
 排障先查ledger与版本、active_boot/current_session/frozen，再查活动scan／成员数量／dirty、变化事件的ack_session，最后查completed。不能按墙钟日期推测缓存仍有效，也不能因一条complete=true就删除占用。改分页查原文字节和完整信封预算；改事件／冲突查同事务变化登记；改会话查新连接重ACK；改关闭／Gate查反向等待；改v3结构先定升级及兼容验收。
 
 稳定验收S01—S12见[实施记录](../implementation/m0-agent-scan.md)。交付前核对最终源码、运行证据及维护说明，保留本次事前基线和实施修订时间。真实Docker、Manager业务恢复、线上联调、升级、备份回退和掉电耐久均不能由本切片代替。
+
+## 7. 代码接手与完整实例
+
+本节于2026-11-07实施后补充，事前规则仍以9f6c34c及本篇标明的修订为依据。
+
+| 入口／文件 | 处理与维护规则 |
+| --- | --- |
+| [scan_store.go](../../internal/agent/ledger/scan_store.go)、[store.go](../../internal/agent/ledger/store.go) | 明确选择v3格式；校验文件／密钥／DDL后注册新boot并冻结；失败清理未发布Store持有的密钥副本，Close不持Store.mu等待DB或扫描锁 |
+| [scan_barrier.go](../../internal/agent/ledger/scan_barrier.go) | 会话绑定串行化；freezeRecoveryGates先设localFrozen再锁外Invalidate；原写事务检查active_boot/current_session/frozen及本地屏障，故障后保持保守拒绝 |
+| [gate.go](../../internal/agent/ledger/gate.go)、[records.go](../../internal/agent/ledger/records.go) | 构造Gate的预读不授权；最终登记看本地状态，开始／prepare提交看事务状态。完成扫描只允许未来流程，不恢复已失效Gate |
+| [results.go](../../internal/agent/ledger/results.go)、[events.go](../../internal/agent/ledger/events.go) | insertEvent同事务增加变化索引；同位冲突置dirty；ACK核当前session但不删索引。不得把事件确认、扫描完成及claims释放合并 |
+| [recovery.go](../../internal/agent/ledger/recovery.go) | readRecoveryRecord接受caller的querier，内部读取同一事务中的完整事件／占用与许可；公开RecoveryRecord继续提供单操作事务包装 |
+| [scan_snapshot.go](../../internal/agent/ledger/scan_snapshot.go) | 独立提交冻结后构建完整快照；先关闭身份游标，再逐项解密；持久members与活动控制原子替换；scanWire只拼接原文，verifyScanMembers检查数据库水位／HMAC与内存固定成员一致 |
+| [scan.go](../../internal/agent/ledger/scan.go) | Reconcile处理首请求／续页／升级；页面只在事务和期限检查成功后签发下一游标／末页资格；Complete检查变化当前确认并原子写回执，旧回执重放不改控制状态 |
+
+例：S1先完成空扫描并准备任务A，随后开始扫描X。固定记录仍显示A为ready。A在冻结期间收到取消并保存not_started/seq1，X的页面不改，但recovery_changes新增(A,1)，Complete被拒。S1确认后，若换成S2，原变化条目继续存在，旧ack_session=S1仍不足；S2重新确认后，可信Manager若已经完成自己的业务核对才发送Complete。Agent提交completed(X)、清变化索引并解除扫描准入，A的两项claims仍保留，等待另外的finalize流程。
+
+若完成回执丢失后Agent重启，Open将frozen置1且丢失活动缓存。Manager重发Complete(X)只取得同一持久完成body；新冻结不会因此解除。要重新开放扫描准入仍须从新首页完成另一轮。若X页面生成后出现异文冲突，则dirty优先阻止X翻页和结束；重新固定快照会显示reconciliation_required，不能靠旧结果ACK掩盖冲突。
+
+正文快照、成员指纹及变化集合各有不同作用：正文保证翻页不读到新状态，持久成员证明枚举过哪些身份／水位，变化集合补充固定快照之后的事件。任何一项缺失、过期或错关联都不应被解释为空账本。恢复的业务决策及资源释放尚在Manager／finalize模块；未来接线须继续走独立实施规格与验收流程。

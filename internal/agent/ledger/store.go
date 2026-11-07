@@ -41,6 +41,12 @@ var (
 	ErrJournal          = errors.New("ledger journal unavailable")
 	ErrEvidence         = errors.New("ledger evidence invalid")
 	ErrKeyExhausted     = errors.New("ledger journal key exhausted")
+	ErrRecovery         = errors.New("ledger recovery unavailable")
+	ErrScanExpired      = errors.New("ledger recovery scan expired")
+	ErrScanCursor       = errors.New("ledger recovery cursor invalid")
+	ErrScanBusy         = errors.New("ledger recovery scan busy")
+	ErrScanIncomplete   = errors.New("ledger recovery scan incomplete")
+	ErrScanChanged      = errors.New("ledger recovery scan changed")
 )
 
 const (
@@ -80,13 +86,15 @@ func verifyConnection(conn sqlite.ExecQuerierContext, _ string) error {
 type Identity struct{ NodeID, LedgerID, KeyID string }
 
 // Store must not be copied. Each instance owns a fresh boot and all gates it
-// creates; opening another Store does not revoke an existing one.
+// creates. For v3, OpenRecovery revokes an older Store's durable write access;
+// this cannot stop already-entered execution. V1/v2 retain their prior lifecycle.
 type Store struct {
 	db        *sql.DB
 	boot      string
 	identity  Identity
 	key       []byte
 	journal   *journalConfig
+	recovery  *recoveryConfig
 	validator *protocol.Validator
 	mu        sync.Mutex
 	gates     map[string]*startgate.Gate
@@ -220,10 +228,16 @@ func normalizeSchemaSQL(statement string) string {
 // Create exclusively creates a new file. Any failure leaves that file in place;
 // a caller must never repair an uncertain ledger by creating a replacement.
 func Create(ctx context.Context, path, nodeID, keyID string, key []byte) (*Store, error) {
-	return createStore(ctx, path, nodeID, keyID, key, nil)
+	return createStore(ctx, path, nodeID, keyID, key, nil, storeFormat{version: 1, schema: schemaV1})
 }
 
-func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, journalKey *JournalKey) (*Store, error) {
+type storeFormat struct {
+	version  int
+	schema   string
+	recovery *RecoveryOptions
+}
+
+func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, journalKey *JournalKey, format storeFormat) (*Store, error) {
 	identity := Identity{NodeID: nodeID, KeyID: keyID}
 	if err := validateIdentity(identity, false); err != nil {
 		return nil, err
@@ -231,12 +245,10 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 	if len(key) != 32 {
 		return nil, ErrKey
 	}
-	version, schema := 1, schemaV1
 	if journalKey != nil {
 		if err := validateJournalKey(*journalKey, key); err != nil {
 			return nil, err
 		}
-		version, schema = 2, schemaV2
 	}
 	full, err := localPath(path)
 	if err != nil {
@@ -258,20 +270,28 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 		return nil, err
 	}
 	success := false
+	var s *Store
 	defer func() {
 		if !success {
 			db.Close()
+			if s != nil {
+				s.clearOwnedKeys()
+			}
 		}
 	}()
+	s, err = newStore(db, identity, key)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, ErrStorage
 	}
 	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, schema); err != nil {
+	if _, err := tx.ExecContext(ctx, format.schema); err != nil {
 		return nil, ErrStorage
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_meta(id,node_id,ledger_id,schema_version,ledger_key_id,key_check) VALUES(1,?,?,?,?,?)`, identity.NodeID, identity.LedgerID, version, identity.KeyID, keyCheck(identity, key)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO agent_meta(id,node_id,ledger_id,schema_version,ledger_key_id,key_check) VALUES(1,?,?,?,?,?)`, identity.NodeID, identity.LedgerID, format.version, identity.KeyID, keyCheck(identity, key)); err != nil {
 		return nil, ErrStorage
 	}
 	if journalKey != nil {
@@ -279,12 +299,14 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 			return nil, ErrStorage
 		}
 	}
+	if format.recovery != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO recovery_control(id,active_boot) VALUES(1,?)`, s.boot); err != nil {
+			return nil, ErrStorage
+		}
+		s.recovery = newRecoveryConfig(*format.recovery)
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, ErrStorage
-	}
-	s, err := newStore(db, identity, key)
-	if err != nil {
-		return nil, err
 	}
 	if journalKey != nil {
 		s.journal = &journalConfig{keyID: journalKey.ID, kek: append([]byte(nil), journalKey.Key...)}
@@ -295,22 +317,20 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 
 // Open refuses absent, unrecognized, or mismatched ledgers and never migrates.
 func Open(ctx context.Context, path string, expected Identity, key []byte) (*Store, error) {
-	return openStore(ctx, path, expected, key, nil)
+	return openStore(ctx, path, expected, key, nil, storeFormat{version: 1, schema: schemaV1})
 }
 
-func openStore(ctx context.Context, path string, expected Identity, key []byte, journalKey *JournalKey) (*Store, error) {
+func openStore(ctx context.Context, path string, expected Identity, key []byte, journalKey *JournalKey, format storeFormat) (*Store, error) {
 	if err := validateIdentity(expected, true); err != nil {
 		return nil, err
 	}
 	if len(key) != 32 {
 		return nil, ErrKey
 	}
-	wantVersion, schema := 1, schemaV1
 	if journalKey != nil {
 		if err := validateJournalKey(*journalKey, key); err != nil {
 			return nil, err
 		}
-		wantVersion, schema = 2, schemaV2
 	}
 	full, err := localPath(path)
 	if err != nil {
@@ -321,16 +341,20 @@ func openStore(ctx context.Context, path string, expected Identity, key []byte, 
 		return nil, err
 	}
 	success := false
+	var s *Store
 	defer func() {
 		if !success {
 			db.Close()
+			if s != nil {
+				s.clearOwnedKeys()
+			}
 		}
 	}()
 	var version int
 	if err := db.QueryRowContext(ctx, "PRAGMA user_version").Scan(&version); err != nil {
 		return nil, ErrStorage
 	}
-	if version != wantVersion {
+	if version != format.version {
 		return nil, ErrSchema
 	}
 	var actual Identity
@@ -339,7 +363,7 @@ func openStore(ctx context.Context, path string, expected Identity, key []byte, 
 	if err := db.QueryRowContext(ctx, `SELECT node_id,ledger_id,ledger_key_id,schema_version,key_check FROM agent_meta WHERE id=1`).Scan(&actual.NodeID, &actual.LedgerID, &actual.KeyID, &schemaVersion, &check); err != nil {
 		return nil, ErrSchema
 	}
-	if schemaVersion != wantVersion {
+	if schemaVersion != format.version {
 		return nil, ErrSchema
 	}
 	if actual != expected {
@@ -348,7 +372,7 @@ func openStore(ctx context.Context, path string, expected Identity, key []byte, 
 	if !hmac.Equal(check, keyCheck(actual, key)) {
 		return nil, ErrKey
 	}
-	if err := validateSchema(ctx, db, schema); err != nil {
+	if err := validateSchema(ctx, db, format.schema); err != nil {
 		return nil, err
 	}
 	if journalKey != nil {
@@ -365,18 +389,46 @@ func openStore(ctx context.Context, path string, expected Identity, key []byte, 
 	if err := db.QueryRowContext(ctx, "PRAGMA quick_check").Scan(&integrity); err != nil || integrity != "ok" {
 		return nil, ErrStorage
 	}
-	s, err := newStore(db, actual, key)
+	s, err = newStore(db, actual, key)
 	if err != nil {
 		return nil, err
 	}
 	if journalKey != nil {
 		s.journal = &journalConfig{keyID: journalKey.ID, kek: append([]byte(nil), journalKey.Key...)}
 	}
+	if format.recovery != nil {
+		tx, err := db.BeginTx(ctx, nil)
+		if err != nil {
+			return nil, ErrStorage
+		}
+		defer tx.Rollback()
+		changed, err := tx.ExecContext(ctx, `UPDATE recovery_control SET active_boot=?,frozen=1 WHERE id=1`, s.boot)
+		if err != nil {
+			return nil, ErrStorage
+		}
+		count, err := changed.RowsAffected()
+		if err != nil || count != 1 {
+			return nil, ErrEvidence
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, ErrStorage
+		}
+		s.recovery = newRecoveryConfig(*format.recovery)
+	}
 	success = true
 	return s, nil
 }
 
 func (s *Store) Identity() Identity { return s.identity }
+
+// clearOwnedKeys requires Store.mu or an unpublished Store. Failed Create/Open
+// defers run after transaction rollback, then close DB and clear owned copies.
+func (s *Store) clearOwnedKeys() {
+	clear(s.key)
+	if s.journal != nil {
+		clear(s.journal.kek)
+	}
+}
 
 // Close prevents new registrations, invalidates gates without holding the
 // registration lock, and waits for any short Start callback before closing.
@@ -404,11 +456,16 @@ func (s *Store) Close() error {
 	if err != nil {
 		err = ErrStorage
 	}
-	s.mu.Lock()
-	clear(s.key)
-	if s.journal != nil {
-		clear(s.journal.kek)
+	if s.recovery != nil {
+		s.recovery.mu.Lock()
+		if s.recovery.snapshot != nil {
+			s.recovery.snapshot.clear()
+			s.recovery.snapshot = nil
+		}
+		s.recovery.mu.Unlock()
 	}
+	s.mu.Lock()
+	s.clearOwnedKeys()
 	s.closeErr = err
 	close(s.closeDone)
 	s.mu.Unlock()

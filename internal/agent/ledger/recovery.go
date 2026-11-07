@@ -20,15 +20,21 @@ func (s *Store) RecoveryRecord(ctx context.Context, operationID string) (json.Ra
 		return nil, ErrStorage
 	}
 	defer tx.Rollback()
-	record, err := s.readRecord(ctx, tx, operationID)
+	return s.readRecoveryRecord(ctx, tx, operationID)
+}
+
+// readRecoveryRecord uses its caller's snapshot and never opens another
+// connection. Recovery scans need every record from this same transaction.
+func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID string) (json.RawMessage, error) {
+	record, err := s.readRecord(ctx, q, operationID)
 	if err != nil {
 		return nil, err
 	}
-	state, err := readEventState(ctx, tx, operationID)
+	state, err := readEventState(ctx, q, operationID)
 	if err != nil {
 		return nil, err
 	}
-	if err := requireEventClaims(ctx, tx, record); err != nil {
+	if err := requireEventClaims(ctx, q, record); err != nil {
 		return nil, err
 	}
 	// This slice has only the initial started event and one result. A pointer
@@ -37,7 +43,7 @@ func (s *Store) RecoveryRecord(ctx context.Context, operationID string) (json.Ra
 		return nil, ErrEvidence
 	}
 	var count uint64
-	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM execution_events WHERE operation_id=?", operationID).Scan(&count); err != nil {
+	if err := q.QueryRowContext(ctx, "SELECT count(*) FROM execution_events WHERE operation_id=?", operationID).Scan(&count); err != nil {
 		return nil, ErrStorage
 	}
 	if count != state.LastSeq {
@@ -45,7 +51,7 @@ func (s *Store) RecoveryRecord(ctx context.Context, operationID string) (json.Ra
 	}
 	var latest *Event
 	for seq := uint64(1); seq <= state.LastSeq; seq++ {
-		event, err := s.readEvent(ctx, tx, operationID, seq)
+		event, err := s.readEvent(ctx, q, operationID, seq)
 		if err != nil {
 			return nil, err
 		}
