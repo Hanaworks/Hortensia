@@ -42,4 +42,6 @@ SQL约定：字段使用规格中的snake_case；operations主键operation_id，
 
 ## 明确暂缺与下一依赖
 
+2026-11-07实施中修订（M05/M10）：独立审阅按execution-recovery §4.1指出，接收匹配result还必须在同一事务将已有cancel意图置confirmed。先记录此遗漏，再补取消后成功测试对意图的断言并修正实现；没有改变公共协议或取消结局规则。
+
 真实认证与认领、配置版本仓储、HTTP权限与幂等、outbox投递、网络任务处理、完整扫描／解冻、补观察、finalized释放、密钥轮换／备份回退和真实Compose均未实现。没有线上超时调度；许可10秒窗口仍由Agent Gate负责。本轮context和5秒SQLite锁等待不等于任务超时。完成本切片不等于完成M0或产品交付。真实环境需求在进入Docker／跨机验证前单独告知用户。

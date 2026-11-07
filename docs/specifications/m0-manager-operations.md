@@ -6,7 +6,7 @@
 
 模块`internal/manager/operations`是独立SQLite协调库：把固定任务输入转换成操作、资源占用和发送意图，依据持久用户／Grant及当前会话决定开始许可，把Agent的started／首result转换成可重读证据和操作状态。它不执行Docker，不提供HTTP或网络任务处理器。
 
-共享主定义引用[数据设计](../data-design.md#7-数据库逻辑结构)、[HTTP规格](http-api.md)、[Agent协议](agent-protocol.md)、[执行与恢复](execution-recovery.md)及[Schema](../../contracts/agent-v1.schema.json)。输入使用FrozenPayload／prepare；事件使用started／ExecutionResult；不在本篇另造线上字段。
+共享主定义引用[数据设计](../data-design.md#7-m1-存储布局与物理类型提案)、[HTTP规格](http-api.md)、[Agent协议](agent-protocol.md)、[执行与恢复](execution-recovery.md)及[Schema](../../contracts/agent-v1.schema.json)。输入使用FrozenPayload／prepare；事件使用started／ExecutionResult；不在本篇另造线上字段。
 
 本轮入口带Fixture的部分代表可信测试调用者提供身份、节点登记、已冻结配置和ready事实；它们不是认证、节点认领、配置仓储、真实预检或扫描完成接口。用户enabled/auth_rev和逐项Grant真实落库，许可事务自行复核，不能由调用者提供allowed布尔值替代。尚无密码登录、HTTP幂等键／回执、配置版本外键、投递工作线程、完整恢复扫描、finalized释放和部署程序。
 
@@ -59,11 +59,17 @@ Create要求本地普通文件路径，拒绝内存库、调用者DSN、UNC、�
 
 受理先验证完整prepare、解码payload并计算摘要。对已存在operation，在事务内核对固定字段和原字节，完全相同只返回旧操作；新输入先独立预留加密额度，再加密，最后在新事务中重查身份、当前会话、未冻结、用户enabled及N/C/D三项Grant、双方目标和资源占用。操作、两项claims和prepare意图必须一起提交，任何冲突或故障全部回滚。
 
+受理入口的重复调用仍须当前有效绑定、节点未冻结、用户enabled及N/C/D权限；撤权／重开后用可信Get读取已有事实，不再调用AcceptFixture重新受理。它与HTTP回执的读取授权规则不同，也不采用已提交许可的历史重发规则。2026-11-07代码对照时明确此调用前提。
+
 RecordReadyFixture只把accepted变成ready并确认prepare意图；本轮不假装已经实现线上reply_to登记。AuthorizeStart仍自行校验完整request_start。新许可事务重查当前boot/session、节点未冻结、操作ready、用户enabled、N/C/D、两项claims、无取消／blocked／result，固定permit_id、nonce、auth_rev和当前会话，state变authorized，Commit后才返回。nonce不同的再次请求拒绝。
 
 同operation/session/nonce且当前boot仍有效时，返回同一permit_id/auth_rev及本次reply_to，不重做授权、不延长Agent的10秒窗口。已提交许可之后的撤权／取消不能撤销过去事实；没有许可时，先提交的撤权／取消阻止许可。返回已有许可前仍核验当前连接、占用及没有矛盾证据，终态／隔离后不重发。许可不放进可跨会话自动重试的outbox。
 
 取消只记录意图：新取消增加revision并写cancel/pending，重复不增；收到真实结局后按实际证据判定，不能因cancel_requested=true就把正常成功改成canceled。终态不新增取消意图。
+
+2026-11-07实施中补充：接收匹配result的事务同时确认已有cancel意图（承接执行与恢复§4.1）；started仅确认prepare，不能确认cancel。正常成功与cancel确认可以同时成立：确认表示已有结局证据，不代表取消成功。
+
+这里确认的是新result提交之前已存在的取消意图。核对中的未知结果之后才请求取消时，cancel仍pending；重复更早的同body回报保持幂等，不将过去证据当作新取消的确认，后续需要补观察／恢复模块处理。
 
 ### 4.2 事件保存、乱序与冲突
 
@@ -100,3 +106,19 @@ Keys包含不同ID且字节不同的DigestKey和EncryptionKey，各32字节；�
 故障定位顺序：确认Manager身份／库版本／密钥配对 → active_boot与节点session/frozen → 操作固定目标与两项claims → 原许可及auth_rev → 事件原文／序号／result指针 → finalize状态。ErrInput为不合法结构，ErrIdentity为身份不符，ErrPermission为持久权限不足，ErrFrozen为恢复／会话屏障，ErrConflict为固定输入或证据冲突，ErrClaimed为占用竞争，ErrEvidence为持久证据不一致，ErrKeyExhausted为包装额度用尽，ErrStorage为数据库／关闭失败；错误不包含正文。
 
 交接时补入实际源码定位与逐项证据，保留本次编码前基线和事后补充时间。
+
+## 7. 实现中的补充与接手路径
+
+2026-11-07，基线3bf8629保存后补充：SQLite中input_digest是32字节BLOB，公开Operation.Digest为base64url无填充字符串；不是两份摘要。JSON中的1.0／1e0等合法整数经共享Validator确认后转为精确安全整数，原body仍按原字节保存。字段物理约束以[Manager v1 DDL](../../internal/manager/operations/migrations/001_operations.sql)为准；不是Agent v1/v2的升级。
+
+| 维护入口 | 内部协作与不变量 |
+| --- | --- |
+| [store.go](../../internal/manager/operations/store.go)／[types.go](../../internal/manager/operations/types.go) | Create先验证路径／密钥再排他建文件并提交结构／身份；Open核验全DDL与密钥再更新active_boot；requireActive在写事务内查持久boot，Close锁外关闭DB后清理持有副本 |
+| [crypto.go](../../internal/manager/operations/crypto.go) | keyCopies隔离Close与在途密码操作；reserveKeyUse独立事务并复核active_boot；seal先预留后包装；unseal没有DB调用，可用于唯一连接上的事务内读取 |
+| [records.go](../../internal/manager/operations/records.go) | prepare→原payload→本地字段／摘要→加密输入→操作及两占用／prepare意图；先查重复再加密，业务事务重查防止预检和提交之间条件改变 |
+| [control.go](../../internal/manager/operations/control.go) | Fixture登记事实，Grant／enabled变化提升auth_rev；许可与撤权共享SQLite写事务顺序；旧permit只是历史决定，当前session／boot屏障仍须通过 |
+| [events.go](../../internal/manager/operations/events.go) | ReceiveEvent先做无新包装的重复检查，再seal并二次事务复核；readEvent解密并验证Schema；validateOperationEvents在同一快照比较事件与状态／finalize，防止坏投影伪装成无结果 |
+
+例如任务A已授权，Agent先回报seq2成功result：Manager在一个事务内存原body、把A改成succeeded/pending、记录finalize(2,succeeded)，仍保留两项claims。随后seq1 started只补原permit证据并增加revision。若相同seq2换成退出码1，首次result不被覆盖；持久冲突、节点冻结、A转核对并抑制finalize。若Manager在任一Commit后丢应答，当前会话重报同body只取得新ack；重启后需重新绑定当前会话，仍只能补事实，不能再发旧许可。故障处理者应查实际事件及意图，不按最后收到的消息猜状态。
+
+当前Get校验固定输入、claims与事件投影；可信只读接口返回的正文可能含秘密，不能直接用作未来HTTP输出。未来接线仍须完成认证、方向／reply_to关联、恢复扫描以及权限投影。新增完整恢复时必须修改当前“Open后不解冻”限制并新增验收，不能绕过节点frozen字段。
