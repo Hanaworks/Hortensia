@@ -2,7 +2,7 @@
 
 日期：2026-11-07。起点：`fac4fa6`。本规格在编码前保存；实施顺序、验收结果和交付版本见[执行计划](../implementation/m0-agent-journal.md)。
 
-读者为接入本模块的开发者及接手维护者。第1—6节给出范围、约束、接口和验收；第7—10节说明内部实现、流转、字段与维护入口，按源码版本`8ff708b`在2026-11-07交付后补充，不追记为初次编码前已具备的说明。
+读者为接入本模块的开发者及接手维护者。第1—6节给出范围、约束、接口和验收；第7—10节说明内部实现、流转、字段与维护入口，按源码版本`8ff708b`在2026-11-07交付后补充，不追记为初次编码前已具备的说明。第11节为本轮补充的完整使用实例，标明创建、事件流转、确认、关闭与重开的衔接。
 
 ## 1. 目标、来源与边界
 
@@ -146,7 +146,7 @@ flowchart TD
 | 持久确认 | 调用方先完成网络认证与关联 → AcknowledgeEvent事务内读取并验证事件／摘要 → 更新这一行ack_session → Commit | 只有最后确认session改变；结果、序号、占用及冲突状态均保留 |
 | 恢复读取 | RecoveryRecord事务内读取Record、event_state和两占用 → 核对事件数量及连续序号 → 解密各事件并核对started许可／时间与最新结果指针 → 生成元数据并原字节附加latest_result → 结束只读事务 | 输出同一快照；不持久改写phase，不作网络扫描完成或安全释放判断 |
 
-PendingEvents先关游标再查事件，是单连接下的必要调用顺序。RecoveryRecord虽只读取数据，也通过同一连接配置的事务取得一致视图，可能等待写锁。模块无后台重试；SQLite锁等待配置为5000毫秒，连接池等待及整体调用期限由调用方context控制，本模块不另设总时限。Context中止数据库操作不等于业务取消，Gate仍需显式Cancel／Invalidate。
+PendingEvents先关游标再查事件，是单连接下的必要调用顺序。RecoveryRecord虽只读取数据，也通过同一连接配置的事务取得一致视图，可能等待写锁。模块无后台重试；SQLite锁等待配置为5000毫秒，调用方context传给连接池等待及数据库操作，不是解析、密码运算、回调和关闭等全部步骤的硬性总时限。NewGate还捕获构造时ctx供后续提交使用，详见[开始账本使用生命周期](m0-agent-ledger.md#75-完整使用实例与资源生命周期)。Context中止数据库操作不等于业务取消，Gate仍需显式Cancel／Invalidate。
 
 ### 8.3 数据状态与对外阶段的区别
 
@@ -203,3 +203,23 @@ RecoveryRecord中operation_id、input_digest、stack_id、version_id和project_n
 | 查询互相等待或关闭挂起 | Store.mu、单数据库连接、Gate.Start回调 | 持Store锁不得等待DB/Gate；预留不能嵌入业务Tx；Start须短小且不能重入Gate或Close |
 
 改变事件字段或编码时，同步核对Schema校验、AAD、原文字节保留、结果幂等和恢复投影；改变状态／事务时核对not_started与开始竞争、失败后无Start及占用不释放；改变锁顺序时核对事务解密与NewGate／Close；改变DDL时同时设计版本和迁移，不能只改当前库表。关键验证入口分别为journal_crypto_test、events_test、results_test、recovery_test、journal_fault_test和journal_restart_test，完整路径与实际证据见[J01—J10验收记录](../implementation/m0-agent-journal.md)。本次维护说明按代码核对，不新增软件验收结论。
+
+## 11. 完整使用实例：首结果从写入到重开
+
+本节于2026-11-07本轮文档补充，以本轮起点`5b726aa`中的实现核对。沿用[开始账本实例](m0-agent-ledger.md#75-完整使用实例与资源生命周期)的O／S／D代号，但从**另一个全新v2实验库**开始，使用CreateJournal以及独立JournalKey；不是对该v1库追加事件。正常路径无并发、无失败、仅这一操作，因而下面的uses正好为0→1→2；实际计数还包含第3节规定的失败或竞争浪费，不能用本例反推一般数据库中的事件条数。
+
+| 调用与观察点 | 持久数据变化 | 返回值如何交给下一步 |
+| --- | --- | --- |
+| CreateJournal；随后RecordReadyFixture | 身份及KEK配对建立；O持有两占用，event_state为`(last_seq=0, latest_result_seq=NULL, blocked=0)`，uses=0 | 保存Identity、两种密钥及各自ID的对应关系；从Record建立Gate请求，输入和密钥责任沿用前文 |
+| NewGate；正常Authorize | uses先成为1；开始许可、START_COMMITTED与seq1 started同事务可见，last_seq=1，latest_result_seq仍为空 | Start回调可ReadEvent(O,1)看到已持久started；由模块生成其body，调用方不另行提交started信封 |
+| `RecordResultFixture(ctx, rawResult)` | 提供完整result信封：关联O／D及S，event_seq=2，采用受控normal_exit结局；uses先成为2，再原子写seq2=result及`last_seq=latest_result_seq=2`，开始phase仍保留 | 返回Event的Body为传入信封内的原body字节；这只证明受控报告已保存，不证明真实Compose退出或资源状态 |
+| `PendingEvents(ctx, O, S)`；可信确认seq1 | 初始返回seq1、seq2；`AcknowledgeEvent(ctx, O, D, 1, S)`只把seq1的ack_session设为S | 随后PendingEvents(O,S)只返回seq2；RecoveryRecord的report_acked仍为false，因为它只看最新result |
+| 可信确认seq2；RecoveryRecord | seq2的ack_session成为S；序号、密文、uses和占用均不变 | PendingEvents(O,S)为空；RecoveryRecord为phase=result、last_event_seq=2、result_event_seq=2、report_acked=true、claims_held=true，latest_result保持原字节 |
+| Close；以原Identity／K_ledger／JournalKey执行OpenJournal | 旧boot记录、事件、uses=2和ack_session=S仍在；新Store产生新boot | 在不同session S2调用PendingEvents会再次得到seq1、seq2；重开和换session本身不清确认，也不使O可重新开始 |
+| 通过新合法信封重放相同result body | 先识别已保存的同位原文；不新增事件、不增加uses，也不更新ack_session | 返回既有Event；调用方如需记录S2确认，仍须独立执行可信确认调用。原文不同则按第5节保留冲突并blocked |
+
+调用方提供的normal_exit例子必须满足完整[ExecutionResult Schema](../../contracts/agent-v1.schema.json)，包括结局相关字段；可阅读[results_test.go中的resultFixtureFor](../../internal/agent/ledger/results_test.go)了解受控数据如何构造，不能把表中的字段摘要当成可直接发送的JSON。若走not_started分支，不创建开始事实，首result占seq1；其余事件读取和确认过程相同，完整阶段组合见第8.3节。
+
+这条路径跨过三种不同表示：入口是完整已校验信封；写入时只将原body转成`sealedEvent`密文及包装DEK，另保存绑定与指纹；读取时由行关联重建AAD，解包并校验指纹、Schema及body绑定，再返回原body。信封的message_id／reply_to不入事件表，不能靠事件库复原当时的网络往返。readEvent为了Schema校验临时构造的信封使用本地ID占位，仅供内部验证，不能作为真实发送信封或连接认证依据。未来发送层须为当前session创建信封并原字节嵌入Body，可信确认则必须由调用方在认证与关联检查之后驱动；当前模块未接通这些网络动作。
+
+OpenJournal检查身份、实际密钥、DDL及SQLite quick_check，**不遍历解密全部历史事件**。因此“打开成功”“单条事件可读”“单操作恢复证据完整”分别由OpenJournal、ReadEvent、RecoveryRecord承担，不能互相替代；PendingEvents为空也只说明在指定session下没有待确认事件，不证明历史完整或可释放。关闭时模块尽力清零自己的密钥副本，调用方仍持有并负责管理原密钥及已取出的明文Body。与账本相同，Close不删除文件、事件或占用；模块没有自动过期、回收或释放步骤。本节仅按源码串联使用与观察点，原有软件验证证据仍以J01—J10记录为准。

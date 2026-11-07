@@ -136,7 +136,7 @@ Manager 不检查这些诊断消息是否曾有业务请求可关联。它只检
 
 | 项目 | 当前具体规则 |
 | --- | --- |
-| 消息 ID 一致性 | Manager 从 hello 开始记录消息指纹；同 ID 内容改变则关闭。指纹基于整个信封的 JSON 规范化结果，忽略空白、键顺序和等价整数表示差异；不只比较 body |
+| 消息 ID 一致性 | Manager 从 hello 开始记录消息指纹；同 ID 指纹改变则关闭。指纹基于整个信封解码再编码的结果，忽略空白、键顺序，并统一1／1.0／1e0等形式；不保证所有数学等价写法同指纹，具体编码边界见第8.3节；不只比较 body |
 | 指纹表预算 | 最多 1024 项，包含 hello。重复 ID 不增加项数；达到 1024 项后再收到任何握手后消息都会关闭，即使是同内容重试 |
 | 发送与存活 | Peer.Run 启动后每 15 秒独立发 Ping，按最后一次收到 Pong 的时刻计算 45 秒无响应期限；任何 Pong 都刷新存活时间，Ping 调用自身另按 payload 关联应答 |
 | 在途预算 | 最多 4 个尚未完成的 Ping 调用；耗尽时报内部 `heartbeat_pending_budget`，不是宣称已经 45 秒没有 Pong |
@@ -248,10 +248,108 @@ Authorize 在断线检查后依次检查 session→operation→nonce→digest→
 
 ## 8. 接手维护时的数据与协作关系
 
-本节于2026-11-07交付后补充，按现行源码核对，运行行为基线仍同页首。第1节定位职责，第3节追踪握手和连接，第5节追踪独立Gate，第6节定位对应验证；以下补充进程内数据的生命周期与修改边界。
+本节于2026-11-07交付后补充，并在同日按“相对独立模块可单独理解”的要求展开；运行行为基线仍同页首，未改写第6节及实施记录中的验收时间或结论。CLI、校验器、连接、探活和Gate合载于本篇：共享消息字段引用[Schema](../../contracts/agent-v1.schema.json)，外部约定继续查第2—5节，以下只定义各单元自己的数据、处理和维护边界。
 
-Manager的Server.current保存当前有效Peer，connections跟踪全部已Upgrade连接，包括尚未完成hello的连接；二者只存在于内存，由Server锁保护。单次连接的消息指纹表包含hello，随处理器结束丢弃，不是持久业务去重记录。[Peer.run](../../internal/channel/channel.go)同时运行消息读取和探活；探活结束会取消读循环，读循环结束则取消探活、关闭连接并等待探活退出。修改关闭路径时，应同时检查会话替换、未握手连接及在途Ping的回收，入口为ServeHTTP／Peer.run和[heartbeat.go](../../internal/channel/heartbeat.go)。
+### 8.1 CLI：把一次有界实验组织成进程
 
-Envelope.SessionID／ReplyTo用指针保留JSON null含义，Body保存原始JSON；校验后的消息指纹另对整个信封规范化计算，用于检测同一message_id的内容复用。它与Agent事件日志按原始body字节判断结果重试的规则不同，不能复用其中一种比较方法替换另一种。线上字段主定义继续引用Schema，解析入口为[validator.go](../../internal/protocol/validator.go)。
+[main.go](../../cmd/channelprobe/main.go)的输入是命令行、token／TLS／可选CA文件、父context及输出Writer；输出是第2节的JSON事件、固定诊断和退出码。`main`只建立`os.Interrupt`信号context，调用`run`，解除信号订阅后退出。`run`依赖`channel`组织网络，不直接解析协议消息、不调用Gate或账本。
 
-维护时，参数与固定诊断查channelprobe，握手／方向／会话查channel，15／45秒及在途预算查heartbeat，结构和解码预算查protocol，许可窗口及回调竞争查startgate；修改后按第6节对应验证。独立ledger的持久能力尚未接入上述网络路径，不能据此修改能力广播或解除冻结。本次只补说明，未新增软件测试结论。
+| CLI自有数据／资源 | 来源和存续范围 | 处理约束 |
+| --- | --- | --- |
+| `options` | `parse`将参数写入一次运行的值对象 | 先做通用及模式校验，再读本地材料；另一模式的参数保留但不用，不作运行时热更新 |
+| token及TLS材料 | token文件经`ParseToken`规范化；Manager加载证书对；Agent按需建立CA池 | 读取后仅供本次运行；没有身份登记、文件写回或动态轮换，固定诊断不包含原文 |
+| duration子context | 参数和token通过后才创建 | 该期限覆盖随后TLS材料处理、连接及运行，未覆盖此前的参数解析和token读取；材料读取本身没有context取消接口 |
+| Manager监听器、HTTP服务器、`served` | 监听成功后启动一个Serve goroutine，容量1的channel收其退出结果 | JSON监听事件写出失败也关闭服务器并收取Serve结果；HTTP错误日志丢弃，错误由本程序归类 |
+| Agent的Peer | Connect完整成功才交还给CLI | 先写handshake事件，再运行Peer；从得到Peer起以defer关闭，事件写出失败也走清理 |
+
+Manager退出由CLI协调两个资源层：先`handler.Close`关闭WebSocket连接，再对HTTP服务器做最多2秒Shutdown，失败则Close，最后等待Serve返回；handler本身不拥有监听器。Agent在`Peer.Run`返回时用父运行context判断是否属于主动到期／取消，其他断线归为运行失败。因此排查“同样是到期却退出码不同”应先看失败发生在Connect还是Run，不从最后一条日志推断成功。创建新进程是新实验，旧进程没有可供它恢复的CLI状态。
+
+### 8.2 protocol：从不可信字节到受约束信封
+
+[Validator](../../internal/protocol/validator.go)是可独立调用的内存校验单元，输入完整重组的消息字节，成功返回`Envelope`，失败返回零值Envelope和固定错误；不打开网络、文件或事务，也不保存校验历史。`NewValidator`从[contracts嵌入资源](../../contracts/embed.go)取私有副本，编译根消息Schema和`$defs/FrozenPayload`两个规则对象；编译后不改写，可被Server的多个连接共享。Agent每次Connect另建一个Validator，成功后由Peer继续持有；每次Validate的临时解析数据不跨调用保留。Validator无Close或后台任务，无引用后由运行时回收。
+
+| 内部数据 | 用途和边界 |
+| --- | --- |
+| `message`／`payload` | Validator持有的两份已编译规则；外部加载器始终拒绝资源请求，Schema的`.invalid`标识只作命名空间 |
+| `doc`解析树 | 每次校验独有的map／array／标量树；数字以精确规范化的`json.Number`保存，供Schema检查，调用间不共享 |
+| `Envelope` | 六字段结构映射到Go；`SessionID`／`ReplyTo`指针保留null，`Body`保留输入中body的原始JSON字节；不会替调用方解出具体任务对象 |
+| prepare的`paths`和`total` | 单次解包局部数据：已见路径集合与文件原文字节累计量；用于重复／引用核对及总预算，校验后丢弃，不创建工作区 |
+
+处理顺序必须保留，因为后层的类型断言和资源使用依赖前层已经拒绝的输入：
+
+1. 对外层字节先检查8 MiB，再由`strictJSON`检查UTF-8、单值、重复键和嵌套。数字在交给Schema前经`boundedInteger`先限token／指数预算，再用有理数精确判断整数和安全范围；不能改成float64舍入后检查。
+2. 用根Schema检查类型、形状及字段约束；格式断言启用，日期用RFC3339Nano解析验证日历，正则用ECMAScript引擎及匹配时限。只有通过后才将`doc`断言为对象、body断言为对象。
+3. `checkEncodedValues`递归检查已过Schema的body里`input_digest`、`payload_b64`和`output_b64`的规范编码及输出预算。这里的递归尚未进入payload内部的环境变量映射；变量名恰好叫`input_digest`不会被当作协议字段。
+4. 仅prepare进入`validatePrepare`：解码payload，重新走严格JSON与数字检查，验证FrozenPayload，再核对外内目标一致性；逐文件检查路径、唯一性、规范内容编码、UTF-8和累计字节，最后确认compose/env引用都指向已见文件。文件顺序和原文不被重写；通过也不计算HMAC或调用Compose。
+5. 全部通过才从原字节提取信封字段，并将已经验证为v1的`Protocol`赋值为1。这样`protocol:1.0`可按整数语义接受，同时body原文字节保持不变。
+
+第4节六种错误是Validate的数据错误分类；构造阶段另有`bundled_schema_invalid`、`bundled_schema_compile_failed`和`bundled_payload_compile_failed`，分别指嵌入资源解析／注册、根Schema编译、内层Schema编译失败。失败立即返回，不保证同一报文同时含多个错误时一定先报告哪一个字段；特别是对象遍历顺序不作为接口约定。网络层又统一将校验失败映射为`invalid_message`，不能把连接关闭码当作具体文件故障定位结果。
+
+`NewMessage`是另一条出站辅助路径：生成随机message_id、编码body和信封，空session／reply字符串编码为null；它不调用Validate。`NewID`随机源失败返回`message_id_failed`；`NewMessage`的JSON编码失败返回`message_encode_failed`。调用方仍负责出站消息校验及方向／会话约束，不能因为能构造JSON就认为消息可发。
+
+可追踪例子：将prepare外层version_id改为另一合法UUID，保持payload里的version_id不变。它可通过根Schema和Base64检查，但在第4步返回`payload_invalid`，不返回“部分已接受”的Envelope，也不产生磁盘文件；对应[解析补验](../../internal/protocol/acceptance_test.go)的`TestAcceptancePrepareTargetsMatchEnvelope`。数字等价化仅用于检查；若后续模块需要按原始payload/body字节建立持久指纹，不能从`doc`重编码代替原字节。
+
+### 8.3 channel：认证、会话归属和连接寿命
+
+[channel.go](../../internal/channel/channel.go)对外有两组入口：Manager用`NewServer(Config)`取得HTTP handler，并负责承载TLS及调用Close；Agent用`Connect(context, ClientConfig)`取得已完成握手的Peer，再调用Run／Close。Config承载固定node／ledger／token；ClientConfig另有URL、RootCAs和可选ServerName。CLI没有ServerName参数，通常由URL确定服务器名称；包级调用者提供该值时仍执行TLS名称验证。依赖是协议校验器、Go TLS／HTTP及WebSocket库，没有持久仓储。
+
+| 自有数据 | 所有者、用途和生命周期 |
+| --- | --- |
+| `Server.cfg`／`v` | 构造时检查并保存的固定身份配置及共享校验器，Server生存期间不热替换 |
+| `current` | 当前被选中的Peer；Server锁保护，`CurrentSession`只读取其session字符串或空值，不证明对端已经收到welcome |
+| `connections` | Server锁保护的已Upgrade连接集合，包含等待hello者；每个handler登记，defer删除，供整体关闭而非消息路由使用 |
+| `closed` | Close置位后不可恢复；阻止已进入handler的连接继续登记／成为current，重开需要新Server |
+| `Peer` | 一个连接的session、冻结标志、WebSocket、Validator和heartbeat；字段在构造后供运行路径读取，调用方不应改写公开会话字段 |
+| `seen` | Manager单handler拥有的`message_id → SHA-256`指纹表，从hello开始；读循环串行使用，随连接结束丢弃，没有跨连接幂等含义 |
+
+`ServeHTTP`先做第3.1节HTTP检查，再Upgrade并登记连接；`readRaw`依次处理WebSocket读取／文本类型／UTF-8／Validate。通过后才核对hello身份、生成session。Server在锁内把新Peer放入current，锁外请求旧连接关闭，然后才写welcome；welcome写失败会清理新current，**不会恢复旧连接**。各handler清理时只在`current == 自己`时清空引用，防止迟到的旧处理器误删新会话。会话替换不等于Gate失效已接通：本路径没有Gate实例。
+
+握手后的Manager回调按“仍为current且报文session匹配 → 方向允许 → 指纹冲突 → 表预算 → 保存指纹 → 写冻结诊断”串行执行；应答写入使用独立10秒context。指纹由已校验的完整信封解码再重编码后求SHA-256，忽略空白及键顺序，仍覆盖type、关联和body。这里重新解码为float64，没有复用Validator的精确数字解析树；1／1.0／1e0会统一，而负零可保留不同于零的编码，不能承诺任意数学等价写法都按同一指纹处理。它与[事件日志](m0-agent-journal.md)按原始body字节识别结果重试不同，不能互换。相同ID、相同指纹在预算未满时会再发一条新message_id的冻结诊断，不是缓存重放原应答，更不是执行幂等。
+
+Agent的Connect先验证本地连接配置，建立专用HTTP transport并禁重定向；Dial到welcome共享握手期限。失败会关闭已经建立的WebSocket，返回前关闭空闲HTTP连接；成功则将活动连接交给Peer。没有连接池复用或自动再拨号。每个Peer只应启动一个Run：它在调用goroutine中持续读消息，在另一个goroutine运行heartbeat；后者结束会取消前者，前者退出则取消、关闭连接并等待heartbeat回收。Agent的接收回调固定拒绝应用消息，Manager用上述冻结回调。库处理Pong依赖持续读取，不能只启动探活而停止读循环。
+
+`Server.Close`只置closed、清空current并关闭所跟踪连接，不等同HTTP Shutdown，也没有等待所有handler返回的接口；CLI负责外层关闭。排查退出残留应同时看等待hello、旧会话关闭、读循环及探活工作者，不能只检查current为空。所有这些内存对象在进程终止后消失，关闭连接没有操作结果可落库。
+
+### 8.4 heartbeat：发送节拍与存活期限分开维护
+
+[heartbeat.go](../../internal/channel/heartbeat.go)是`channel`私有的单连接探活单元。输入为context、WebSocket、库触发的Pong通知；输出为Ping、连接关闭和内部错误。`newHeartbeat`绑定真实时钟、`Conn.Ping`与`CloseNow`；测试可替换时钟／调用边界。一个实例只运行一次Run，握手成功后由Peer启动；Run把当前时刻记为初始lastPong，尚未收到任何Pong时也从此计算45秒。
+
+| 内部数据／资源 | 含义、同步和更新规则 |
+| --- | --- |
+| `lastPong`与`mu` | 最后收到Pong的时刻，由回调在互斥锁内写入；读取剩余期限也持锁，不以最后一次Ping发送或完成时间替代 |
+| `pongs` | 容量1的唤醒channel；Pong回调先更新时刻再非阻塞投递，满时合并通知，不是Pong计数器，真实依据仍是lastPong |
+| `inFlight` | 原子计数，发起Ping工作者前加一、其退出时减一；限制尚未退出的调用，不因收到任意Pong就直接扣减 |
+| 15秒ticker／45秒timer | Run拥有；前者触发独立发送，后者按最新lastPong重算余量；timer触发也再次核对时刻，避免已收到迟到Pong却按旧期限关闭 |
+| `results`／`workers` | Run局部的容量4错误channel及WaitGroup；前者收Ping完成结果，后者保证退出回收；不作为持久诊断历史 |
+
+收到任意Pong只刷新存活时刻；WebSocket库仍按Ping payload匹配具体等待调用，所以“不再静默”与“在途Ping已释放”是两件事。每次ticker先检查context和静默期限，再排空已排队完成结果，遇到错误按传输故障退出，最后检查4个在途预算并启动新工作者。完成成功不会额外刷新lastPong。达到存活期限、传输失败、预算耗尽或context取消均走统一清理：取消子context、关闭连接以解除I/O等待、等待全部工作者、停止ticker和timer。注入的Ping函数也须能响应取消／关闭，否则WaitGroup会等待它；Run没有另一条强制杀死goroutine的路径。
+
+可追踪例子：t=15发Ping，t=29收到迟到Pong，t=30仍按节拍发下一次Ping。t=60触发检查时距最后Pong只有31秒，剩余14秒，直到t=74且没有新Pong才按静默退出；[探活测试](../../internal/channel/heartbeat_test.go)的`TestHeartbeatLatePongRefreshesDeadline`以可控时钟核对这条时间线。另一个`TestHeartbeatInFlightBudgetIsDistinctFromSilence`让Pong持续刷新、四个Ping却仍等待，下一发送时触发预算错误。两例分别定位时间依据与资源占用，不能合并成一个“心跳超时”。Peer目前丢弃探活具体错误并取消读循环，CLI最终分类仍见第3.4节。
+
+### 8.5 startgate：一个请求窗口的许可消费
+
+[gate.go](../../internal/startgate/gate.go)不依赖网络或数据库，输入是已由调用方校验、绑定连接的Request／Permit／Denial及三个Hooks，输出是方法错误、局部State和最多一次Start调用。字段与错误优先级见第5节；此处解释Gate如何保存约束。零值不能使用，必须由New构造，构造后不可复制；它没有Close、后台计时器、持久恢复或更换session的方法。
+
+| Gate自有数据 | 来源、意义及生命周期 |
+| --- | --- |
+| `request` | New时按值保存首次请求；session／operation／digest／nonce固定为整个Gate的身份，重发不能替换 |
+| `deadline`／`hooks.Now` | 构造时以Now加10秒固定期限，后续只比较不延长；真实调用保留`time.Now`的单调时间部分，测试使用可控单调时钟 |
+| `requests` | 首次message_id及RegisterRequest成功登记的同窗口重发ID集合；为ReplyTo提供可接受关联，重复登记同ID不新增项；Gate内存释放前不删除 |
+| `chosen` | 首次通过Authorize检查时保存的Permit副本，先选定再提交；PermitID／AuthRev锁定后不被后来的许可替换，ReplyTo仍可为另一个已登记请求 |
+| `state` | 第5.2节的局部门禁状态；State只读该值，不触发到期检查，也不推导持久开始／执行结果 |
+| `disconnected` | Invalidate永久置位的独立连接失效标志；已started时仍保留state，却使旧许可重放被拒绝 |
+| `mu`／`hooks` | mutex串行保护上述状态；Hooks由调用方提供，CommitStart锁外运行，期限复核时的Now和最终Start在受保护路径调用 |
+
+调用方必须先登记重发的MessageID，才能接受对它的应答；不能靠Authorize临时加入ReplyTo。New本身既不发送request_start，也不证明请求已发送，故它应在首次发送边界调用。Now必须快速返回且不可重入Gate；Start也不可重入（包括State）或等执行结束，否则会阻塞同一mutex。CommitStart可以回调Cancel／Invalidate；它返回前，Gate已经选定许可并处于committing，并发重复Authorize不会再提交。所有调用方应持有同一`*Gate`，不能复制一个对象来制造第二套独立锁和状态。
+
+Gate取消只改变本地决定，不取消CommitStart外部副作用。外部提交已经发生、但CommitStart尚未返回时，Cancel／Invalidate仍可改变状态；提交返回后若检查发现这些变化或已到期，则不调用Start，但外部持久记录可能已存在，必须由对应存储／恢复模块解释，不能把canceled／expired直接写成“已证明未开始”。最终检查与Start持同一把锁，晚于Start的取消不能回退started事实。Start返回也仅证明回调返回，不能当作进程成功退出。提交错误通过`errors.Join`保留`ErrCommitFailed`和外部错误，调用方以`errors.Is`分类；不得直接将外部错误文本写入线上诊断。
+
+可追踪例子：首次request-1在t=0建Gate，t=9登记同nonce的request-2；t=10收到ReplyTo=request-2的有效许可，pending检查使Gate变expired，CommitStart和Start都不调用。若在期限内进入CommitStart，期间Invalidate，再等提交成功返回，则保留invalidated且不Start，已提交事实交给外部模块处理。这两条分别由[Gate测试](../../internal/startgate/gate_test.go)的`TestRequestRetryDoesNotExtendTenSecondWindow`和`TestInvalidationAndCancellationDoNotWaitForCommit`核对；[补验](../../internal/startgate/acceptance_test.go)另核对外部提交失败时保留期间发生的取消／失效。
+
+Gate到达终态后，调用方可在不再有方法／回调使用时释放引用；重连或uncertain之后重新New一个Gate并不授予同操作重试许可，必须先满足[执行与恢复](execution-recovery.md)的核对条件。独立账本已有[Gate持久提交接入](m0-agent-ledger.md)，但本篇CLI／网络仍未调用它；修改这里不能仅凭该包已存在就广播执行能力或解除冻结。
+
+### 8.6 修改与交接时保持的边界
+
+外部参数、退出与报告查8.1及第2节；接收输入与编码查8.2及第4节；握手、current归属和指纹查8.3及第3节；读循环依赖、计时和回收查8.4；许可窗口、关联和外部副作用查8.5及第5节。每项修改按第6节定位验证，新增线上字段仍先改共享Schema和通信主定义，不在本篇另建一套字段契约。
+
+本次补充依据现行代码和已有测试的具体断言，属于文档交接修订，没有新增软件测试通过结论。尤其不得把受控时钟例子写成真实网络45秒实验，把Gate状态写成数据库结局，或把Server.current／handshake事件写成节点恢复已完成。

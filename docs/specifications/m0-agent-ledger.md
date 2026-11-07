@@ -2,7 +2,7 @@
 
 日期：2026-11-07。起点：`d53de6d`。本规格在本模块编码前形成，落实用户“每个模块都需要实施规格等文档流程”的要求。状态：实施基线，验收结果由[执行计划与记录](../implementation/m0-agent-ledger.md)维护。
 
-读者包括模块实现者、后续接手开发者和维护人员。第1—6节保留v1开始账本的实施范围与验收定义；第7节按现有源码补充内部实现、流转、数据语义和定位方法。当前源码另有[事件日志v2扩展](m0-agent-journal.md)，其加密结果、确认和恢复读取不属于v1的原始交付，不能把下文“本轮没有”理解为整个代码库仍无这些能力。
+读者包括模块实现者、后续接手开发者和维护人员。第1—6节保留v1开始账本的实施范围与验收定义；第7节按现有源码补充内部实现、流转、数据语义和定位方法，第7.5节串起模块的完整使用生命周期。当前源码另有[事件日志v2扩展](m0-agent-journal.md)，其加密结果、确认和恢复读取不属于v1的原始交付，不能把下文“本轮没有”理解为整个代码库仍无这些能力。
 
 ## 1. 目标、依据与本次边界
 
@@ -185,3 +185,21 @@ v2复用同一调用链，在事务A额外初始化event_state，在事务B同�
 | 改动事务、关闭或锁顺序 | 维持两条占用原子性、开始只提交一次、提交后复查、Close等待短回调且不持Store锁等待Gate／数据库 | [fault_test.go](../../internal/agent/ledger/fault_test.go)、gate_test.go；修改共享Store/Gate时还需执行v2事件日志回归 |
 
 故障证据记录错误类别、使用的入口版本和受影响operation_id等必要元数据；固定错误不提供底层SQL文本，不能靠向诊断加入原payload或密钥补充上下文。当前模块没有修复命令、迁移或解锁入口。扩充恢复能力时，应先定义证据、状态转换和完成条件，再新增接口；不要通过改数据库phase、owner_boot_id或删除local_claims绕过既有边界。
+
+### 7.5 完整使用实例与资源生命周期
+
+本小节是2026-11-07本轮文档补充，以本轮起点`5b726aa`中的实现核对；前述实施基线与首次内部说明的形成时点保持不变。账本是由调用方显式驱动的Go包，没有主循环、任务队列或自行续期的后台工作。下面从一个独立的v1受控实验库走完生命周期；`O`、`S`、`D`、`B1/B2`分别是操作ID、准备session、输入摘要和两次Store的boot的阅读代号，实际参数仍须符合[共同类型](agent-protocol.md#3-消息信封与共同类型)。
+
+| 顺序与调用 | 调用方提供／接收什么 | 模块内留下的事实及下一步依据 |
+| --- | --- | --- |
+| 1. `Create(ctx, path, nodeID, keyID, key)`，取得`Identity()` | 调用方先准备目录及32字节K_ledger；成功后保留返回Identity，供以后Open核对。已有库则直接走Open，不以Create作失败兜底 | 新库仅有身份，Store持有B1、连接和密钥副本；Identity中的ledger_id由模块生成，boot不属于Identity |
+| 2. `RecordReadyFixture(ctx, rawPrepare)` → `r` | 提供完整prepare信封；r中的OperationID=O、PreparedSession=S、Digest=D。调用方不能把返回ready解释为文件已准备好 | 原payload经校验、提取及HMAC后仅保存固定元数据；产生一条ready记录、stack/project两占用，开始字段为空 |
+| 3. `NewGate(ctx, q, time.Now, start)` → `g` | q从r取Session／Operation／Digest，调用方生成本次Nonce及MessageID；在模拟首次request_start的时点构造，start为短小的无副作用观察回调 | 保存Gate登记与准备快照，不改数据库。构造Gate时开始10秒窗口；不能在准备完成后先建Gate，再无限等待发送 |
+| 4. `g.Authorize(p)` | p沿用q的关联值，ReplyTo对应已登记请求ID，PermitID／AuthRev来自受控许可；完整信封验证和真实连接认证并非此Go调用完成 | 正常分支先提交START_COMMITTED及许可，再调用start一次。回调内Get可读到完整开始事实；同一许可再次Authorize可返回nil，但不再提交或调用start |
+| 5. `Close()`，随后`Open(ctx, path, identity, key)` → 新Store | 调用方停止给旧Store派发工作，等待Close结果，按原身份和密钥重开；不复用旧Gate | 内存Gate／密钥副本不被恢复，新Store获得B2；Get仍得到B1记录及原许可，Claims仍为两项；重新登记O或为O创建Gate返回ErrFrozen |
+
+输入到输出的转换不是可逆序列化：`rawPrepare.body.payload_b64`解码成原payload，供Validator及元数据提取使用；数据库保留的是第7.3节列出的字段和指纹，`Get`不能还原Compose文件、环境内容或原prepare信封。`Record`也不适合作为网络报文直接发送；网络层应按共享Schema构造所需响应。调用方仍负责输入正文的来源与保管，这个v1库不是配置备份。
+
+`NewGate`的ctx还会被闭包保留，供稍后Authorize触发的CommitStart使用；不能在NewGate返回时就取消它，再期待随后许可能写库。该ctx传给数据库操作，不直接中止解析、HMAC、锁内Start回调或Close；连接初始化校验也使用独立的后台context。因此它不是整个调用的硬性总deadline，10秒许可窗口仍由Gate独立检查。业务取消／连接替换须显式调用Cancel／Invalidate，context取消本身不会替它们完成状态转换。
+
+这里正常结束的是Store的内存与连接生命周期，执行证据和占用没有清理步骤。若第4步返回提交失败或提交后失效，仍按第5节保留证据；即便Get读到ready，也不能为O重建执行机会。可对照[gateReady及开始回调断言](../../internal/agent/ledger/gate_test.go)、[重开实验](../../internal/agent/ledger/restart_test.go)阅读实际夹具；本例是源码说明，本轮未重新运行这些实验。
