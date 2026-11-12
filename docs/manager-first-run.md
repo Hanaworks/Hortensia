@@ -1,6 +1,6 @@
 # Manager与Web首次运行
 
-2026-11-12。Manager／Web支持初始化、登录、账号与节点授权、节点登记、多文件配置保存和查询。`af43699`是已验证管理切片的历史源码基线；后续v5实现已接通正式Agent与持久任务通道，正在收束固定版本回归，实际边界见[M1推进记录](implementation/m1-first-version.md)。[Agent接入说明](agent-first-run.md)列真实命令。Docker接受表仍为空，不能实际部署Compose；完整备份恢复和未知任务维护继续实施。Linux布局尚待真实验证，不把交叉构建当作安装验收。
+2026-11-12。当前源码`95d453f`。Manager／Web支持初始化、登录、账号与节点授权、节点登记、多文件配置保存和查询，v5已接通正式Agent与持久任务通道并完成本机适用验证。`af43699`是管理切片的历史基线；实际证据和限制见[M1推进记录](implementation/m1-first-version.md#7-v5源码交接切片的本机验证)。[Agent接入说明](agent-first-run.md)列真实命令。Docker接受表仍为空，不能实际部署Compose；完整备份恢复和未知任务维护继续实施。Linux布局尚待真实验证，不把交叉构建当作安装验收。
 
 ## 1. 准备程序、页面和证书
 
