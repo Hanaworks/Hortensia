@@ -62,6 +62,7 @@ type Envelope struct {
 type Validator struct {
 	message *jsonschema.Schema
 	payload *jsonschema.Schema
+	config  *jsonschema.Schema
 }
 
 type offlineLoader struct{}
@@ -102,7 +103,11 @@ func NewValidator() (*Validator, error) {
 	if err != nil {
 		return nil, errors.New("bundled_payload_compile_failed")
 	}
-	return &Validator{message: message, payload: payload}, nil
+	config, err := c.Compile(schemaID + "#/$defs/Config")
+	if err != nil {
+		return nil, errors.New("bundled_config_compile_failed")
+	}
+	return &Validator{message: message, payload: payload, config: config}, nil
 }
 
 func safeRelativePath(s string) bool {
@@ -208,7 +213,7 @@ func (v *Validator) Validate(raw []byte) (Envelope, error) {
 }
 
 func strictJSON(raw []byte) (any, error) {
-	if !utf8.Valid(raw) {
+	if !utf8.Valid(raw) || !validJSONUnicodeEscapes(raw) {
 		return nil, errJSON
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
@@ -372,6 +377,12 @@ func (v *Validator) validatePrepare(body map[string]any) error {
 		}
 	}
 	config := payload["config"].(map[string]any)
+	return validateConfigFields(config)
+}
+
+// Both callers establish Config's shape with the shared Schema before this
+// helper performs cross-field, byte-budget and canonical-encoding checks.
+func validateConfigFields(config map[string]any) error {
 	paths := make(map[string]struct{})
 	total := 0
 	for _, value := range config["files"].([]any) {
