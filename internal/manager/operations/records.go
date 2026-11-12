@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"docker-manager/internal/protocol"
@@ -43,7 +44,7 @@ func (s *Store) readOperation(ctx context.Context, q querier, id string) (Operat
 	default:
 		return Operation{}, ErrEvidence
 	}
-	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !(s.version >= 2 && o.ReleaseStatus == "released") {
+	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !((s.version == 2 || s.version == 3 || s.version == 4) && o.ReleaseStatus == "released") {
 		return Operation{}, ErrEvidence
 	}
 	if o.ReleaseStatus == "pending" && (!terminalState(o.State) || o.LatestResultSeq == 0 || o.Blocked) {
@@ -88,7 +89,7 @@ func (s *Store) requireClaims(ctx context.Context, q querier, o Operation) error
 	if o.ReleaseStatus == "released" {
 		return s.verifyRelease(ctx, q, o)
 	}
-	if s.version == 3 {
+	if s.version == 3 || s.version == 4 {
 		var receipts int
 		if err := q.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM finalization WHERE operation_id=?)+(SELECT count(*) FROM absence_releases WHERE operation_id=?)`, o.OperationID, o.OperationID).Scan(&receipts); err != nil {
 			return ErrStorage
@@ -377,6 +378,9 @@ func (s *Store) Intents(ctx context.Context, id string) ([]Intent, error) {
 // AcceptFixture validates a trusted frozen-input fixture. It is deliberately
 // separate from the future HTTP idempotency and configuration repositories.
 func (s *Store) AcceptFixture(ctx context.Context, b Binding, user string, raw []byte) (Operation, error) {
+	if s.version == 4 {
+		return Operation{}, ErrSchema
+	}
 	if !validID(user) {
 		return Operation{}, ErrInput
 	}
@@ -431,6 +435,17 @@ func (s *Store) accept(ctx context.Context, b Binding, candidate Operation, payl
 		return Operation{}, false, ErrStorage
 	}
 	defer tx.Rollback()
+	op, exists, err := s.acceptTx(ctx, tx, b, candidate, payload, sealed, "")
+	if err != nil {
+		return Operation{}, false, err
+	}
+	if err = tx.Commit(); err != nil {
+		return Operation{}, false, ErrStorage
+	}
+	return op, exists, nil
+}
+func (s *Store) acceptTx(ctx context.Context, tx *sql.Tx, b Binding, candidate Operation, payload []byte, sealed *sealedBlob, serviceKey string) (Operation, bool, error) {
+	var err error
 	if err = s.requireBinding(ctx, tx, b, false); err != nil {
 		return Operation{}, false, err
 	}
@@ -460,9 +475,6 @@ func (s *Store) accept(ctx context.Context, b Binding, candidate Operation, payl
 		if err = s.validateOperationEvents(ctx, tx, existing); err != nil {
 			return Operation{}, false, err
 		}
-		if err = tx.Commit(); err != nil {
-			return Operation{}, false, ErrStorage
-		}
 		return existing, true, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
@@ -476,7 +488,7 @@ func (s *Store) accept(ctx context.Context, b Binding, candidate Operation, payl
 			return Operation{}, false, ErrClaimed
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
-			return Operation{}, false, ErrStorage
+			return Operation{}, false, s.storageFailure(err)
 		}
 	}
 	if sealed == nil {
@@ -486,20 +498,24 @@ func (s *Store) accept(ctx context.Context, b Binding, candidate Operation, payl
 	candidate.CreatedAt = timestamp(now)
 	candidate.UpdatedAt = timestamp(now)
 	digest, _ := base64.RawURLEncoding.Strict().DecodeString(candidate.Digest)
-	_, err = tx.ExecContext(ctx, `INSERT INTO operations(operation_id,user_id,node_id,ledger_id,stack_id,version_id,project_name,endpoint_id,policy_revision,input_digest,owner_boot,prepared_session,payload_cipher,wrapped_dek,key_id,fingerprint,state,revision,cancel_requested,release_status,blocked,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,'held',0,?,?)`, candidate.OperationID, candidate.UserID, candidate.NodeID, candidate.LedgerID, candidate.StackID, candidate.VersionID, candidate.ProjectName, candidate.EndpointID, candidate.PolicyRevision, digest, candidate.OwnerBoot, candidate.PreparedSession, sealed.Cipher, sealed.WrappedDEK, sealed.KeyID, sealed.Fingerprint, candidate.State, now, now)
+	query := `INSERT INTO operations(operation_id,user_id,node_id,ledger_id,stack_id,version_id,project_name,endpoint_id,policy_revision,input_digest,owner_boot,prepared_session,payload_cipher,wrapped_dek,key_id,fingerprint,state,revision,cancel_requested,release_status,blocked,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,'held',0,?,?)`
+	args := []any{candidate.OperationID, candidate.UserID, candidate.NodeID, candidate.LedgerID, candidate.StackID, candidate.VersionID, candidate.ProjectName, candidate.EndpointID, candidate.PolicyRevision, digest, candidate.OwnerBoot, candidate.PreparedSession, sealed.Cipher, sealed.WrappedDEK, sealed.KeyID, sealed.Fingerprint, candidate.State, now, now}
+	if s.version == 4 {
+		query = strings.Replace(query, "operation_id,user_id", "idempotency_key,digest_key_id,operation_id,user_id", 1)
+		query = strings.Replace(query, "VALUES(", "VALUES(?,?,", 1)
+		args = append([]any{serviceKey, s.identity.DigestKeyID}, args...)
+	}
+	_, err = tx.ExecContext(ctx, query, args...)
 	if err != nil {
-		return Operation{}, false, ErrStorage
+		return Operation{}, false, s.storageFailure(err)
 	}
 	for _, claim := range claims {
 		if _, err = tx.ExecContext(ctx, "INSERT INTO resource_claims(node_id,resource_kind,resource_id,operation_id) VALUES(?,?,?,?)", candidate.NodeID, claim.Kind, claim.ResourceID, candidate.OperationID); err != nil {
-			return Operation{}, false, ErrStorage
+			return Operation{}, false, s.storageFailure(err)
 		}
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO outbox(operation_id,kind,generation,delivery_state) VALUES(?,'prepare',1,'pending')", candidate.OperationID); err != nil {
-		return Operation{}, false, ErrStorage
-	}
-	if err = tx.Commit(); err != nil {
-		return Operation{}, false, ErrStorage
+		return Operation{}, false, s.storageFailure(err)
 	}
 	return candidate, true, nil
 }

@@ -192,7 +192,7 @@ func (s *Store) ReceiveRecoveryPage(ctx context.Context, b Binding, raw []byte) 
 		if e != nil {
 			return RecoveryState{}, e
 		}
-		return s.RecordRecoveryFailureFixture(ctx, b, *env.ReplyTo, p.Error.Code)
+		return s.recordRecoveryFailure(ctx, b, *env.ReplyTo, p.Error.Code)
 	}
 	s.recoveryMu.Lock()
 	defer s.recoveryMu.Unlock()
@@ -268,6 +268,13 @@ func (s *Store) ReceiveRecoveryPage(ctx context.Context, b Binding, raw []byte) 
 
 // Transport fixtures report only errors tied to a currently outstanding request.
 func (s *Store) RecordRecoveryFailureFixture(ctx context.Context, b Binding, requestID, code string) (RecoveryState, error) {
+	if s.version == 4 {
+		return RecoveryState{}, ErrSchema
+	}
+	return s.recordRecoveryFailure(ctx, b, requestID, code)
+}
+
+func (s *Store) recordRecoveryFailure(ctx context.Context, b Binding, requestID, code string) (RecoveryState, error) {
 	if err := s.requireRecovery(); err != nil {
 		return RecoveryState{}, err
 	}

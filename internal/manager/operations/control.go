@@ -12,6 +12,9 @@ import (
 
 // Fixture registration supplies trusted identities, not authentication.
 func (s *Store) CreateUserFixture(ctx context.Context, id string, enabled bool) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if !validID(id) {
 		return ErrInput
 	}
@@ -41,6 +44,9 @@ func (s *Store) CreateUserFixture(ctx context.Context, id string, enabled bool) 
 }
 
 func (s *Store) SetUserEnabledFixture(ctx context.Context, id string, enabled bool) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if !validID(id) {
 		return ErrInput
 	}
@@ -80,6 +86,9 @@ func validCapability(capability string) bool {
 }
 
 func (s *Store) SetGrantFixture(ctx context.Context, user, node, capability string, granted bool) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if !validID(user) || !validID(node) || !validCapability(capability) {
 		return ErrInput
 	}
@@ -231,6 +240,9 @@ func terminalState(state string) bool {
 }
 
 func (s *Store) RecordReadyFixture(ctx context.Context, b Binding, id, digest string) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if !validID(id) || !validDigest(digest) {
 		return ErrInput
 	}
@@ -239,6 +251,16 @@ func (s *Store) RecordReadyFixture(ctx context.Context, b Binding, id, digest st
 		return ErrStorage
 	}
 	defer tx.Rollback()
+	if err = s.recordReadyTx(ctx, tx, b, id, digest); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return ErrStorage
+	}
+	return nil
+}
+func (s *Store) recordReadyTx(ctx context.Context, tx *sql.Tx, b Binding, id, digest string) error {
+	var err error
 	if err = s.requireBinding(ctx, tx, b, false); err != nil {
 		return err
 	}
@@ -270,9 +292,6 @@ func (s *Store) RecordReadyFixture(ctx context.Context, b Binding, id, digest st
 		if err != nil || n != 1 {
 			return ErrEvidence
 		}
-	}
-	if err = tx.Commit(); err != nil {
-		return ErrStorage
 	}
 	return nil
 }
@@ -352,6 +371,9 @@ func (s *Store) AuthorizeStart(ctx context.Context, b Binding, raw []byte) ([]by
 }
 
 func (s *Store) RequestCancelFixture(ctx context.Context, id string) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if !validID(id) {
 		return ErrInput
 	}
@@ -360,6 +382,16 @@ func (s *Store) RequestCancelFixture(ctx context.Context, id string) error {
 		return ErrStorage
 	}
 	defer tx.Rollback()
+	if err = s.cancelTx(ctx, tx, id); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return ErrStorage
+	}
+	return nil
+}
+func (s *Store) cancelTx(ctx context.Context, tx *sql.Tx, id string) error {
+	var err error
 	if err = s.requireActive(ctx, tx); err != nil {
 		return err
 	}
@@ -372,17 +404,14 @@ func (s *Store) RequestCancelFixture(ctx context.Context, id string) error {
 	}
 	if !op.CancelRequested && !terminalState(op.State) {
 		if _, err = tx.ExecContext(ctx, "UPDATE operations SET cancel_requested=1,revision=revision+1,updated_at=? WHERE operation_id=?", time.Now().UnixMilli(), id); err != nil {
-			return ErrStorage
+			return s.storageFailure(err)
 		}
 		if _, err = tx.ExecContext(ctx, "UPDATE outbox SET delivery_state='suppressed' WHERE operation_id=? AND kind='prepare' AND delivery_state='pending'", id); err != nil {
-			return ErrStorage
+			return s.storageFailure(err)
 		}
 		if _, err = tx.ExecContext(ctx, "INSERT INTO outbox(operation_id,kind,generation,delivery_state) VALUES(?,'cancel',1,'pending')", id); err != nil {
-			return ErrStorage
+			return s.storageFailure(err)
 		}
-	}
-	if err = tx.Commit(); err != nil {
-		return ErrStorage
 	}
 	return nil
 }

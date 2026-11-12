@@ -31,7 +31,7 @@ func OpenRecovery(ctx context.Context, path string, expected Identity, keys Keys
 	return openVersion(ctx, path, expected, keys, 2)
 }
 func (s *Store) requireRecovery() error {
-	if s.version < 2 {
+	if s.version != 2 && s.version != 3 && s.version != 4 {
 		return ErrSchema
 	}
 	return nil
@@ -40,6 +40,9 @@ func (s *Store) requireRecovery() error {
 // The trusted hello supplies Agent boot independently of the session binding.
 // Rebinding abandons completion eligibility without deleting audit evidence.
 func (s *Store) BindRecoverySessionFixture(ctx context.Context, b Binding, agentBootID string) error {
+	if s.version == 4 {
+		return ErrSchema
+	}
 	if err := s.requireRecovery(); err != nil {
 		return err
 	}

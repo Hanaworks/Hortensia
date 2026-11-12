@@ -88,7 +88,7 @@ func resultProjection(p parsedEvent) (state, release string) {
 // does not authenticate a socket or prove that the reported Docker work ran.
 // The returned ack may be sent only after this call succeeds.
 func (s *Store) ReceiveEvent(ctx context.Context, b Binding, raw []byte) ([]byte, error) {
-	if s.version >= 2 {
+	if s.version == 2 || s.version == 3 || s.version == 4 {
 		return s.ReceiveRecoveryEvent(ctx, b, raw)
 	}
 	return s.receiveNormalEvent(ctx, b, raw)
@@ -148,7 +148,7 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 		return false, err
 	}
 	if op.ReleaseStatus == "released" {
-		if s.version == 3 && op.LatestResultSeq > 0 {
+		if (s.version == 3 || s.version == 4) && op.LatestResultSeq > 0 {
 			return s.receiveReleasedEvent(ctx, tx, op, env, p, sealed)
 		}
 		return false, errRecoveryReleased
@@ -167,7 +167,7 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 	if !errors.Is(err, ErrNotFound) {
 		return false, err
 	}
-	if s.version >= 2 {
+	if s.version == 2 || s.version == 3 || s.version == 4 {
 		if err = s.validateEventAgainstRecovery(ctx, tx, op, env.Type, p, env.Body); err != nil {
 			return false, err
 		}
@@ -223,6 +223,16 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 	}
 	if state == "reconciliation_required" {
 		if _, err = tx.ExecContext(ctx, `UPDATE nodes SET frozen=1 WHERE id=?`, op.NodeID); err != nil {
+			return false, ErrStorage
+		}
+	}
+	if s.version == 4 && env.Type == "result" && state == "succeeded" {
+		if _, err = tx.ExecContext(ctx, `UPDATE stacks SET last_applied_version_id=? WHERE id=? AND node_id=?`, op.VersionID, op.StackID, op.NodeID); err != nil {
+			return false, ErrStorage
+		}
+	}
+	if s.version == 4 && env.Type == "result" && p.Observation != nil {
+		if _, err = tx.ExecContext(ctx, `UPDATE stacks SET observation_operation_id=? WHERE id=? AND node_id=?`, op.OperationID, op.StackID, op.NodeID); err != nil {
 			return false, ErrStorage
 		}
 	}
@@ -369,7 +379,7 @@ func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Opera
 			return ErrEvidence
 		}
 	} else if resultSeq > 0 {
-		if state != op.State || (release != op.ReleaseStatus && !(s.version == 3 && op.ReleaseStatus == "released" && release == "pending")) {
+		if state != op.State || (release != op.ReleaseStatus && !((s.version == 3 || s.version == 4) && op.ReleaseStatus == "released" && release == "pending")) {
 			return ErrEvidence
 		}
 	} else {
@@ -389,7 +399,7 @@ func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Opera
 	err = q.QueryRowContext(ctx, `SELECT delivery_state,result_event_seq,terminal_state FROM outbox WHERE operation_id=? AND kind='finalize' AND generation=1`, op.OperationID).Scan(&intentState, &intentSeq, &intentTerminal)
 	if release == "pending" && resultSeq > 0 {
 		want := "pending"
-		if s.version == 3 && op.ReleaseStatus == "released" {
+		if (s.version == 3 || s.version == 4) && op.ReleaseStatus == "released" {
 			want = "confirmed"
 		}
 		if op.Blocked {

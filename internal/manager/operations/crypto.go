@@ -84,7 +84,7 @@ func blobAEAD(key []byte) (cipher.AEAD, error) {
 func (s *Store) reserveKeyUse(ctx context.Context, keyID string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return ErrStorage
+		return s.storageFailure(err)
 	}
 	defer tx.Rollback()
 	if err := s.requireActive(ctx, tx); err != nil {
@@ -93,7 +93,7 @@ func (s *Store) reserveKeyUse(ctx context.Context, keyID string) error {
 	var actual string
 	var uses int64
 	if err := tx.QueryRowContext(ctx, `SELECT encryption_key_id,uses FROM keys WHERE singleton=1`).Scan(&actual, &uses); err != nil {
-		return ErrStorage
+		return s.storageFailure(err)
 	}
 	if actual != keyID || uses < 0 || uses > maxKeyUses {
 		return ErrEvidence
@@ -103,14 +103,14 @@ func (s *Store) reserveKeyUse(ctx context.Context, keyID string) error {
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE keys SET uses=uses+1 WHERE singleton=1 AND encryption_key_id=? AND uses=?`, keyID, uses)
 	if err != nil {
-		return ErrStorage
+		return s.storageFailure(err)
 	}
 	count, err := result.RowsAffected()
 	if err != nil || count != 1 {
-		return ErrStorage
+		return s.storageFailure(err)
 	}
 	if err := tx.Commit(); err != nil {
-		return ErrStorage
+		return s.storageFailure(err)
 	}
 	return nil
 }

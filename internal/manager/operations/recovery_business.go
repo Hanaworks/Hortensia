@@ -134,7 +134,7 @@ func (s *Store) ProcessRecovery(ctx context.Context, b Binding) (RecoveryState, 
 			return scan.RecoveryState, readErr
 		case op.NodeID != b.NodeID || op.LedgerID != b.LedgerID || op.Digest != r.Digest || op.StackID != r.StackID || op.VersionID != r.VersionID || op.ProjectName != r.ProjectName:
 			kind = "record_mismatch"
-		case op.ReleaseStatus == "released" && (s.version < 3 || op.LatestResultSeq == 0):
+		case op.ReleaseStatus == "released" && ((s.version != 3 && s.version != 4) || op.LatestResultSeq == 0):
 			kind = "released_record"
 		case r.Phase == "reconciliation_required":
 			kind = "agent_reconciliation_required"
@@ -159,7 +159,7 @@ func (s *Store) ProcessRecovery(ctx context.Context, b Binding) (RecoveryState, 
 				return scan.RecoveryState, err
 			}
 		} else if op.PermitID == "" && op.LatestResultSeq == 0 && !op.Blocked && (r.Phase == "ready" || r.Phase == "preparing") {
-			if err = s.RequestCancelFixture(ctx, op.OperationID); err != nil {
+			if err = s.recoveryCancel(ctx, b, scan.RoundID, op.OperationID); err != nil {
 				return scan.RecoveryState, err
 			}
 		}
@@ -184,7 +184,7 @@ func (s *Store) ProcessRecovery(ctx context.Context, b Binding) (RecoveryState, 
 		if err != nil {
 			return scan.RecoveryState, err
 		}
-		if op.ReleaseStatus == "released" && (s.version < 3 || op.LatestResultSeq == 0 || scan.Scope == "pending") {
+		if op.ReleaseStatus == "released" && ((s.version != 3 && s.version != 4) || op.LatestResultSeq == 0 || scan.Scope == "pending") {
 			continue
 		}
 		if scan.Scope == "pending" {
@@ -243,6 +243,43 @@ func (s *Store) ProcessRecovery(ctx context.Context, b Binding) (RecoveryState, 
 	}
 	scan.Status = status
 	return scan.RecoveryState, nil
+}
+
+// A scan record only suggests cancellation. Revalidate the connection, round
+// and live operation in the transaction that publishes the durable intent.
+func (s *Store) recoveryCancel(ctx context.Context, b Binding, round, id string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ErrStorage
+	}
+	defer tx.Rollback()
+	scan, err := s.loadRecoveryScan(ctx, tx, b)
+	if err != nil {
+		return err
+	}
+	if scan.RoundID != round {
+		return ErrFrozen
+	}
+	if (scan.Status != "enumerated" && scan.Status != "waiting" && scan.Status != "blocked" && scan.Status != "need_all" && scan.Status != "ready") || scan.Total < 0 || scan.Seen != scan.Total || scan.NextCursor != "" || scan.Pages == 0 {
+		return ErrRecoveryIncomplete
+	}
+	op, err := s.readOperation(ctx, tx, id)
+	if err != nil {
+		return err
+	}
+	if !bindingMatchesOperation(b, op) {
+		return ErrIdentity
+	}
+	if op.PermitID != "" || op.MaxEventSeq != 0 || op.LatestResultSeq != 0 || op.Blocked || op.ReleaseStatus != "held" || (op.State != "accepted" && op.State != "ready") {
+		return ErrConflict
+	}
+	if err = s.cancelTx(ctx, tx, id); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return ErrStorage
+	}
+	return nil
 }
 
 func (s *Store) releaseAbsent(ctx context.Context, b Binding, round, id string) error {
@@ -331,7 +368,7 @@ func (s *Store) releaseAbsent(ctx context.Context, b Binding, round, id string) 
 // A released string is never sufficient. Each read authenticates the retained
 // complete all-scan evidence and checks the exceptional local cancellation.
 func (s *Store) verifyAbsenceRelease(ctx context.Context, q querier, op Operation) error {
-	if s.version < 2 || op.ReleaseStatus != "released" || op.State != "canceled" || !op.CancelRequested || op.PermitID != "" || op.MaxEventSeq != 0 || op.LatestResultSeq != 0 || op.Blocked {
+	if (s.version != 2 && s.version != 3 && s.version != 4) || op.ReleaseStatus != "released" || op.State != "canceled" || !op.CancelRequested || op.PermitID != "" || op.MaxEventSeq != 0 || op.LatestResultSeq != 0 || op.Blocked {
 		return ErrEvidence
 	}
 	var round string
@@ -416,11 +453,11 @@ func (s *Store) recoveryBusinessReady(ctx context.Context, q querier, scan recov
 	defer clearRecoveryPages(pages)
 	// The legacy v2 format only supports absence releases. V3 additionally
 	// requires authenticated receipts and confirmation on this exact round.
-	if s.version < 3 && scan.Seen != 0 {
+	if (s.version != 3 && s.version != 4) && scan.Seen != 0 {
 		return ErrRecoveryIncomplete
 	}
 	seen := map[string]bool{}
-	if s.version == 3 {
+	if s.version == 3 || s.version == 4 {
 		records, err := recoveryRecords(pages)
 		if err != nil {
 			return err
@@ -493,7 +530,7 @@ func (s *Store) recoveryBusinessReady(ctx context.Context, q querier, scan recov
 		if op.ReleaseStatus != "released" {
 			return ErrRecoveryIncomplete
 		}
-		if s.version == 3 && scan.Scope == "all" && op.LatestResultSeq > 0 && !seen[id] {
+		if (s.version == 3 || s.version == 4) && scan.Scope == "all" && op.LatestResultSeq > 0 && !seen[id] {
 			return ErrRecoveryIncomplete
 		}
 	}
