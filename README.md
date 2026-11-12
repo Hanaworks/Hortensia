@@ -51,6 +51,8 @@
 
 ## 继续开发
 
+2026-11-12继续推进首个可试用版本，当前按M1的登录／节点接入 → Web保存配置 → 固定版本部署 → 查看结果组织工作；具体范围、模块依赖、V01—V08退出条件和文档独立阅读验证见[首版推进记录](docs/implementation/m1-first-version.md)。当前正在实现[双端释放](docs/specifications/m0-dual-release.md)，随后继续正式服务、真实执行、界面和运行交付；完成这一库模块不等于首版完成。
+
 可在仓库根运行 `go test ./... -count=1` 复验当前原型，其中包含真正两个进程的回环 TLS 握手；`pwsh -File tools/check-contracts.ps1` 和 `node tools/check-docs.mjs` 继续检查静态契约与文档。Go 版本、手工运行命令和范围见 M0 实施记录。
 
 开始账本、事件日志、Manager本地协调和Agent本地恢复扫描已有独立验收；本轮实现Manager扫描页持久接收、变化合并、业务核对及完成回执屏障，范围和证据见[恢复规格](docs/specifications/m0-manager-recovery.md)及[验收记录](docs/implementation/m0-manager-recovery.md)。只有可信all扫描证明无记录且本库从未授权／观察的任务，才走取消释放例外；有Agent记录的终态仍保留pending和占用，未知、矛盾及暂不支持的历史保持隔离。下一依赖是双端finalize／finalized释放和受控任务通道接线，网络探针仍冻结；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。

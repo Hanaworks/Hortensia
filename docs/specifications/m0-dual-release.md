@@ -36,6 +36,8 @@ Manager新finalize_requests保存operation、node/ledger/session/双方boot、me
 
 编码前审阅补充：现有Schema不允许reconciliation_required且claims_held=false，故Agent已释放后矛盾不能伪造重新占用的RecoveryRecord。v4须保存独立、跨新扫描／重开不清除的节点隔离事实（release_control.quarantined），拒绝新的变更及成功扫描完成；不能通过新scan清dirty消除隔离。历史回执可诊断读取但不得对矛盾状态返回成功finalize。隔离入口保存失败时仍保留本地拒绝屏障，且无成功响应；与既有Gate冻结锁序一致。后续人工解决模块负责清除，本轮无解锁入口。
 
+2026-11-12实施前补足F08的乱序边界：Manager可以先收到seq2结果并完成释放，随后首次收到真正started(seq1)。若已释放的是对应normal_exit(seq2)、输入／许可及历史原页一致，则持久补齐该原始started并ack，保持终态／released／原回执，不重建claims。它不是制造started，而是接收真实迟到事实。已有seq1异文、not_started之后的started、错误许可或互斥原页仍隔离。不能把所有未存位置统称为矛盾，导致合法重排永久冻结。
+
 ## 4. 扫描与业务恢复
 
 Agent v4的RecoveryRecord经认证回执投影为phase=finalized、claims_held=false、真实final_state/finalized_result_event_seq，原latest_result字节不变。pending仅省略已finalized且全部持久事件已确认的操作；all含全部历史。过滤前必须认证被省略操作的回执／结果，不能只信表存在。固定扫描的成员及原文在终结后保持原样；当前变化事件仍需当前连接ack。Finalize不是新事件，不伪造ack或修改已有result确认。
