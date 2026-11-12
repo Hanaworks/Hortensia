@@ -2,7 +2,8 @@
 // configuration data. Session, direction, authorization, filesystem containment,
 // and durable execution-state checks belong to the consuming state machine.
 //
-// Schema expressions use the ECMAScript engine with a bounded match duration.
+// Schema expressions preserve ECMAScript semantics. The fixed Base64 pattern
+// uses a linear matcher; other expressions use a bounded ECMAScript engine.
 // Runtime safe-relative-path checks are separate from the schema expression,
 // including its treatment of newlines, and do not imply filesystem containment.
 package protocol
@@ -118,6 +119,37 @@ func safeRelativePath(s string) bool {
 
 type schemaPattern struct{ re *regexp2.Regexp }
 
+const base64SchemaExpression = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$`
+
+type base64Pattern struct{}
+
+func (base64Pattern) String() string { return base64SchemaExpression }
+
+// This recognizes only the fixed Schema expression, in O(n) time and O(1)
+// extra space. In the existing ECMAScript engine '$' requires absolute end,
+// including rejection of a terminal LF (unlike its default .NET mode). Do
+// not enforce canonical pad bits here: strict decoding and re-encoding
+// perform that separate check after Schema validation.
+func (base64Pattern) MatchString(s string) bool {
+	if len(s)%4 != 0 {
+		return false
+	}
+	end := len(s)
+	if end > 0 && s[end-1] == '=' {
+		end--
+		if end > 0 && s[end-1] == '=' {
+			end--
+		}
+	}
+	for i := 0; i < end; i++ {
+		b := s[i]
+		if !(b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '+' || b == '/') {
+			return false
+		}
+	}
+	return true
+}
+
 func (p schemaPattern) String() string { return p.re.String() }
 
 func (p schemaPattern) MatchString(s string) bool {
@@ -126,6 +158,9 @@ func (p schemaPattern) MatchString(s string) bool {
 }
 
 func compilePattern(pattern string) (jsonschema.Regexp, error) {
+	if pattern == base64SchemaExpression {
+		return base64Pattern{}, nil
+	}
 	re, err := regexp2.Compile(pattern, regexp2.ECMAScript)
 	if err != nil {
 		return nil, err

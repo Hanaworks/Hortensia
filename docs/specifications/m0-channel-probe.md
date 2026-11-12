@@ -163,7 +163,7 @@ Manager 不检查这些诊断消息是否曾有业务请求可关联。它只检
 | --- | --- |
 | JSON | UTF-8、单个完整值、没有尾随第二个值、没有重复对象键；递归解析深度上限沿用 10000。未知字段、必填与 null 规则由 Schema 决定 |
 | 数字 | token ≤128 字节，显式指数绝对值≤128；精确整数且范围在 ±9007199254740991 内；再检查所属字段范围。1、1.0、1e0 等价，小数不能舍入成整数 |
-| 字符串模式与日期 | ECMAScript 正则引擎，单次匹配超时 100 ms 后不匹配；日期另用 RFC3339 解析验证真实日历值 |
+| 字符串模式与日期 | 固定Base64表达式使用语义等价的线性字节匹配，其余模式仍用ECMAScript引擎、单次匹配超时100 ms后不匹配；日期另用RFC3339解析验证真实日历值 |
 | 编码 | Base64 严格解码后重编码相同；input_digest 为规范无填充 Base64url 的32字节值；输出若非 null，解码须 UTF-8 且≤1 MiB |
 | prepare | 内层 node_id／stack_id／version_id 等于外层；FrozenPayload 满足 Schema；路径不重复，拒绝空路径段、点段、反斜杠、冒号及 NUL，路径≤240 UTF-8 字节；compose/env 引用均须在 files 中；单文件≤1 MiB、总量≤4 MiB、内容为 UTF-8，文件数≤128由 Schema 约束 |
 
@@ -241,7 +241,7 @@ Authorize 在断线检查后依次检查 session→operation→nonce→digest→
 | 最多4个未完成Ping | 限制依赖库Ping等待产生的在途goroutine；发送周期与无Pong期限独立后，需要单独的资源预算 | 实施时选定的有界工作值，未做容量调优；耗尽按budget故障关闭，不冒充silence超时 |
 | 包含hello的1024项消息指纹表 | 对同连接消息ID复用检查设置内存增长上限；满后的实际行为见第3.4节 | 实施时选定的有界工作值；不是吞吐指标，也不是持久业务去重方案 |
 | 数字token≤128字节、指数绝对值≤128、精确安全整数 | 审阅和回归复现了极端指数输入触发Schema依赖异常；先设解析预算，再精确检查整数，避免异常或浮点舍入 | 实施中发现问题后增加的限制，已同步目标通信规格；预算值可随受支持输入实验修订 |
-| ECMAScript引擎、正则100ms预算、固定依赖版本 | 已有Schema使用Go标准正则不支持的前瞻；采用Schema库官方接入方式，超时拒绝以限制匹配资源 | 实施时的库与资源选择；版本和许可证记录在实施记录及go.mod/go.sum |
+| ECMAScript引擎、正则100ms预算、固定依赖版本 | 已有Schema使用Go标准正则不支持的前瞻；其余模式继续限制匹配时长。2026-11-12修复前限定：仅固定Base64表达式改用等价线性匹配，避免合法大正文因CPU竞争超时被拒绝 | 初始库与预算选择保留；Base64例外依据见[修复验收](../implementation/m0-protocol-base64.md)，不是提高超时或扩大消息预算 |
 | 连接建立、应用握手、执行结果分别表达；重连不清空执行证据 | [Portainer源码对照](../research/portainer-agent-reference.md)提供具体调用链与故障情景，与本项目既有恢复要求共同约束实现 | 参考影响分层与验证场景；本项目字段、许可、时间参数仍按自己的规格，不宣称由Portainer直接提供 |
 
 今后实施时新增会改变可观察行为的参数、状态、错误或支持范围，应在同轮更新本篇的对应规则、来源和验证入口；需要产品裁定且现有需求与参考不能决定的取舍，按 D13 向用户确认。实施记录继续记录执行经过和测试结果，不能单独替代这些行为定义。
@@ -278,13 +278,18 @@ Manager退出由CLI协调两个资源层：先`handler.Close`关闭WebSocket连�
 处理顺序必须保留，因为后层的类型断言和资源使用依赖前层已经拒绝的输入：
 
 1. 对外层字节先检查8 MiB，再由`strictJSON`检查UTF-8、单值、重复键和嵌套。数字在交给Schema前经`boundedInteger`先限token／指数预算，再用有理数精确判断整数和安全范围；不能改成float64舍入后检查。
-2. 用根Schema检查类型、形状及字段约束；格式断言启用，日期用RFC3339Nano解析验证日历，正则用ECMAScript引擎及匹配时限。只有通过后才将`doc`断言为对象、body断言为对象。
+2. 用根Schema检查类型、形状及字段约束；格式断言启用，日期用RFC3339Nano解析验证日历，固定Base64模式走等价线性匹配，其他正则用ECMAScript引擎及匹配时限。只有通过后才将`doc`断言为对象、body断言为对象。
 3. `checkEncodedValues`递归检查已过Schema的body里`input_digest`、`payload_b64`和`output_b64`的规范编码及输出预算。这里的递归尚未进入payload内部的环境变量映射；变量名恰好叫`input_digest`不会被当作协议字段。
 4. 仅prepare进入`validatePrepare`：解码payload，重新走严格JSON与数字检查，验证FrozenPayload，再核对外内目标一致性；逐文件检查路径、唯一性、规范内容编码、UTF-8和累计字节，最后确认compose/env引用都指向已见文件。文件顺序和原文不被重写；通过也不计算HMAC或调用Compose。
 5. 全部通过才从原字节提取信封字段，并将已经验证为v1的`Protocol`赋值为1。这样`protocol:1.0`可按整数语义接受，同时body原文字节保持不变。
 
 第4节六种错误是Validate的数据错误分类；构造阶段另有`bundled_schema_invalid`、`bundled_schema_compile_failed`和`bundled_payload_compile_failed`，分别指嵌入资源解析／注册、根Schema编译、内层Schema编译失败。失败立即返回，不保证同一报文同时含多个错误时一定先报告哪一个字段；特别是对象遍历顺序不作为接口约定。网络层又统一将校验失败映射为`invalid_message`，不能把连接关闭码当作具体文件故障定位结果。
 
+2026-11-12修复前补充：`compilePattern`只对共享Schema中当前完整Base64表达式选择专用匹配器，其他表达式（包括前瞻与路径）仍由原ECMAScript引擎编译，100 ms时限不变。专用匹配器无可变状态、无需关闭；按输入字节线性检查ASCII字母／数字／加号／斜杠、四字符分组和尾部零到两个等号，额外空间为常数。它保留空串可匹配、任何末尾LF／CR均不匹配的原ECMAScript模式语义；不是用严格解码替代Schema模式，因为后者还限制规范pad bits。完整Validate随后仍由`decodeBase64`严格解码并重编码核对，故语法可匹配但pad bits非规范的值仍不能进入已验证信封。Schema、8 MiB消息、单文件1 MiB、总文件4 MiB预算和固定错误码都不变。
+
+同日实现中差分核对后的修复前更正：最初把末尾单LF描述为可匹配，混淆了.NET默认模式与本库实际ECMAScript模式；旧引擎差分及regexp2 v1.11.5的EndZ分支均证明本模式只匹配绝对字符串结尾，已在修改匹配器前纠正上述基线。以实际旧模式匹配集合为兼容依据，不因Base64最终还会被解码拒绝而扩大Schema接受范围。
+
+这项调整不引入新持久字段、线程、取消或恢复流程；边界仍是单次内存校验，调用完成前不产生业务副作用。模式变更时先核对Schema表达式与专用入口是否仍相同，使用[语义差分测试](../../internal/protocol/base64_pattern_test.go)对照原ECMAScript匹配集合，再核对容量与规范解码测试。匹配器不得因负载改判合法语法；CPU竞争下实际耗时没有硬延迟承诺。此前正则超时仍属于拒绝，新增例外只针对有线性实现和消息长度边界的固定Base64语法。[修复验收](../implementation/m0-protocol-base64.md)保留故障证据、事前条件和修复后结果。
 `NewMessage`是另一条出站辅助路径：生成随机message_id、编码body和信封，空session／reply字符串编码为null；它不调用Validate。`NewID`随机源失败返回`message_id_failed`；`NewMessage`的JSON编码失败返回`message_encode_failed`。调用方仍负责出站消息校验及方向／会话约束，不能因为能构造JSON就认为消息可发。
 
 可追踪例子：将prepare外层version_id改为另一合法UUID，保持payload里的version_id不变。它可通过根Schema和Base64检查，但在第4步返回`payload_invalid`，不返回“部分已接受”的Envelope，也不产生磁盘文件；对应[解析补验](../../internal/protocol/acceptance_test.go)的`TestAcceptancePrepareTargetsMatchEnvelope`。数字等价化仅用于检查；若后续模块需要按原始payload/body字节建立持久指纹，不能从`doc`重编码代替原字节。
