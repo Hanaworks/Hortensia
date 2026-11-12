@@ -24,6 +24,9 @@ func (s *Store) RecordResultFixture(ctx context.Context, rawResult []byte) (Even
 	if err != nil {
 		return Event{}, ErrInput
 	}
+	// Result reporting may be called by a short Start callback. Do not take
+	// recovery.mu or wait for Gate.Invalidate: a scan may hold that mutex while
+	// waiting for this callback. SQL and the local barrier order conflicts.
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()
@@ -62,15 +65,30 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 	if err != nil {
 		return Event{}, false, err
 	}
-	if record.Digest != b.Digest {
-		return Event{}, false, ErrConflict
-	}
-	if err := requireEventClaims(ctx, tx, record); err != nil {
-		return Event{}, false, err
-	}
 	state, err := readEventState(ctx, tx, b.OperationID)
 	if err != nil {
 		return Event{}, false, err
+	}
+	_, _, finalErr := s.readFinalization(ctx, tx, record, state)
+	released := finalErr == nil
+	if !released {
+		if finalErr != ErrNotFound {
+			return Event{}, false, finalErr
+		}
+		if err := requireEventClaims(ctx, tx, record); err != nil {
+			return Event{}, false, err
+		}
+	}
+	if record.Digest != b.Digest || (released && (b.Seq != state.LastSeq || !state.LatestResultSeq.Valid)) {
+		if s.release {
+			if err := s.quarantineRelease(ctx, tx); err != nil {
+				return Event{}, false, err
+			}
+			if err := tx.Commit(); err != nil {
+				return Event{}, false, ErrStorage
+			}
+		}
+		return Event{}, false, ErrConflict
 	}
 	if b.Seq <= state.LastSeq {
 		existing, err := s.readEvent(ctx, tx, b.OperationID, b.Seq)
@@ -82,6 +100,13 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 		}
 		if bytes.Equal(existing.Body, body) {
 			return existing, false, nil
+		}
+		if s.release {
+			// Freeze before even the first conflict write can fail. Gate's final
+			// start transaction rechecks this local/durable admission barrier.
+			if err := s.quarantineRelease(ctx, tx); err != nil {
+				return Event{}, false, err
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO event_conflicts(operation_id,event_seq,body_fingerprint,created_at) VALUES(?,?,?,?) ON CONFLICT DO NOTHING`, b.OperationID, b.Seq, fingerprint, time.Now().UnixMilli()); err != nil {
 			return Event{}, false, ErrStorage
@@ -96,6 +121,9 @@ func (s *Store) recordResult(ctx context.Context, b eventBinding, body []byte, s
 			return Event{}, false, ErrStorage
 		}
 		return Event{}, false, ErrConflict
+	}
+	if err := s.requireReleaseHealthy(ctx, tx); err != nil {
+		return Event{}, false, err
 	}
 	if state.Blocked || state.LatestResultSeq.Valid || b.Seq != state.LastSeq+1 {
 		return Event{}, false, ErrConflict

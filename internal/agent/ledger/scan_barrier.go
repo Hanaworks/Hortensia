@@ -42,6 +42,9 @@ func (s *Store) checkRecoveryAccess(ctx context.Context, q querier, session stri
 		return err
 	}
 	if mutation {
+		if err := s.requireReleaseHealthy(ctx, q); err != nil {
+			return err
+		}
 		// A failed durable freeze must not reopen this process's admission.
 		// Never keep this mutex while waiting for the single SQL connection.
 		s.mu.Lock()
@@ -66,7 +69,7 @@ func (s *Store) setRecoveryLocalFrozen(frozen bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.recovery != nil {
-		s.recovery.localFrozen = frozen
+		s.recovery.localFrozen = frozen || s.quarantined
 	}
 }
 

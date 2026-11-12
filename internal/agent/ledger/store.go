@@ -89,18 +89,20 @@ type Identity struct{ NodeID, LedgerID, KeyID string }
 // creates. For v3, OpenRecovery revokes an older Store's durable write access;
 // this cannot stop already-entered execution. V1/v2 retain their prior lifecycle.
 type Store struct {
-	db        *sql.DB
-	boot      string
-	identity  Identity
-	key       []byte
-	journal   *journalConfig
-	recovery  *recoveryConfig
-	validator *protocol.Validator
-	mu        sync.Mutex
-	gates     map[string]*startgate.Gate
-	closing   bool
-	closeDone chan struct{}
-	closeErr  error
+	db          *sql.DB
+	boot        string
+	identity    Identity
+	key         []byte
+	journal     *journalConfig
+	recovery    *recoveryConfig
+	release     bool
+	quarantined bool // local fail-closed barrier, protected by mu
+	validator   *protocol.Validator
+	mu          sync.Mutex
+	gates       map[string]*startgate.Gate
+	closing     bool
+	closeDone   chan struct{}
+	closeErr    error
 }
 
 func validID(value string) bool { return idPattern.MatchString(value) }
@@ -235,6 +237,7 @@ type storeFormat struct {
 	version  int
 	schema   string
 	recovery *RecoveryOptions
+	release  bool
 }
 
 func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, journalKey *JournalKey, format storeFormat) (*Store, error) {
@@ -283,6 +286,7 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 	if err != nil {
 		return nil, err
 	}
+	s.release = format.release
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, ErrStorage
@@ -304,6 +308,11 @@ func createStore(ctx context.Context, path, nodeID, keyID string, key []byte, jo
 			return nil, ErrStorage
 		}
 		s.recovery = newRecoveryConfig(*format.recovery)
+	}
+	if format.release {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO release_control(id) VALUES(1)`); err != nil {
+			return nil, ErrStorage
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, ErrStorage
@@ -392,6 +401,12 @@ func openStore(ctx context.Context, path string, expected Identity, key []byte, 
 	s, err = newStore(db, actual, key)
 	if err != nil {
 		return nil, err
+	}
+	s.release = format.release
+	if format.release {
+		if err := db.QueryRowContext(ctx, `SELECT quarantined FROM release_control WHERE id=1`).Scan(&s.quarantined); err != nil {
+			return nil, ErrEvidence
+		}
 	}
 	if journalKey != nil {
 		s.journal = &journalConfig{keyID: journalKey.ID, kek: append([]byte(nil), journalKey.Key...)}

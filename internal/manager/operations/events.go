@@ -88,7 +88,7 @@ func resultProjection(p parsedEvent) (state, release string) {
 // does not authenticate a socket or prove that the reported Docker work ran.
 // The returned ack may be sent only after this call succeeds.
 func (s *Store) ReceiveEvent(ctx context.Context, b Binding, raw []byte) ([]byte, error) {
-	if s.version == 2 {
+	if s.version >= 2 {
 		return s.ReceiveRecoveryEvent(ctx, b, raw)
 	}
 	return s.receiveNormalEvent(ctx, b, raw)
@@ -148,6 +148,9 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 		return false, err
 	}
 	if op.ReleaseStatus == "released" {
+		if s.version == 3 && op.LatestResultSeq > 0 {
+			return s.receiveReleasedEvent(ctx, tx, op, env, p, sealed)
+		}
 		return false, errRecoveryReleased
 	}
 	existing, err := s.readEvent(ctx, tx, op, p.seq)
@@ -164,7 +167,7 @@ func (s *Store) receiveEvent(ctx context.Context, b Binding, env protocol.Envelo
 	if !errors.Is(err, ErrNotFound) {
 		return false, err
 	}
-	if s.version == 2 {
+	if s.version >= 2 {
 		if err = s.validateEventAgainstRecovery(ctx, tx, op, env.Type, p, env.Body); err != nil {
 			return false, err
 		}
@@ -313,8 +316,13 @@ func (s *Store) ReadEvent(ctx context.Context, operation string, seq uint64) (Ev
 // validateOperationEvents checks the projection against authenticated evidence
 // in the caller's snapshot. A gap before seq2 is legal; an invented result is not.
 func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Operation) error {
-	if op.ReleaseStatus == "released" {
+	if op.ReleaseStatus == "released" && op.LatestResultSeq == 0 {
 		return s.verifyAbsenceRelease(ctx, q, op)
+	}
+	if op.ReleaseStatus == "released" {
+		if err := s.verifyRelease(ctx, q, op); err != nil {
+			return err
+		}
 	}
 	rows, err := q.QueryContext(ctx, `SELECT event_seq FROM operation_events WHERE operation_id=? ORDER BY event_seq`, op.OperationID)
 	if err != nil {
@@ -361,7 +369,7 @@ func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Opera
 			return ErrEvidence
 		}
 	} else if resultSeq > 0 {
-		if state != op.State || release != op.ReleaseStatus {
+		if state != op.State || (release != op.ReleaseStatus && !(s.version == 3 && op.ReleaseStatus == "released" && release == "pending")) {
 			return ErrEvidence
 		}
 	} else {
@@ -381,6 +389,9 @@ func (s *Store) validateOperationEvents(ctx context.Context, q querier, op Opera
 	err = q.QueryRowContext(ctx, `SELECT delivery_state,result_event_seq,terminal_state FROM outbox WHERE operation_id=? AND kind='finalize' AND generation=1`, op.OperationID).Scan(&intentState, &intentSeq, &intentTerminal)
 	if release == "pending" && resultSeq > 0 {
 		want := "pending"
+		if s.version == 3 && op.ReleaseStatus == "released" {
+			want = "confirmed"
+		}
 		if op.Blocked {
 			want = "suppressed"
 		}

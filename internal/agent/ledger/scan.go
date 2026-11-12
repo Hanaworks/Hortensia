@@ -41,6 +41,9 @@ func (s *Store) Reconcile(ctx context.Context, raw []byte) ([]byte, error) {
 	if err = s.requireRecoverySession(ctx, s.db, *env.SessionID); err != nil {
 		return nil, err
 	}
+	if err = s.requireReleaseHealthy(ctx, s.db); err != nil {
+		return nil, err
+	}
 	control, err := readScanControl(ctx, s.db)
 	if err != nil {
 		return nil, err
@@ -111,6 +114,9 @@ func (s *Store) scanPage(ctx context.Context, env protocol.Envelope, snapshot *s
 		return nil, ErrScanExpired
 	}
 	if err = s.requireRecoverySession(ctx, tx, *env.SessionID); err != nil {
+		return nil, err
+	}
+	if err = s.requireReleaseHealthy(ctx, tx); err != nil {
 		return nil, err
 	}
 	control, err := readScanControl(ctx, tx)
@@ -224,6 +230,9 @@ func (s *Store) CompleteReconcile(ctx context.Context, raw []byte) ([]byte, erro
 	}
 	control, err := readScanControl(ctx, tx)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.requireReleaseHealthy(ctx, tx); err != nil {
 		return nil, err
 	}
 	if req.Scan == control.completed {

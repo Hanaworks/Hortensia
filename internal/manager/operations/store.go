@@ -26,6 +26,9 @@ var schemaV1 string
 //go:embed migrations/002_recovery.sql
 var schemaV2 string
 
+//go:embed migrations/003_release.sql
+var schemaV3 string
+
 // Store owns independent copies of its keys and must not be copied. Open on
 // the same database changes the durable active boot and revokes older writers.
 type Store struct {
@@ -222,7 +225,7 @@ func createVersion(ctx context.Context, path, managerID string, keys Keys, versi
 	if _, err := tx.ExecContext(ctx, schemaForVersion(version)); err != nil {
 		return nil, ErrStorage
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode) VALUES(1,?,?,?,?)`, version, managerID, s.boot, version == 2); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode) VALUES(1,?,?,?,?)`, version, managerID, s.boot, version >= 2); err != nil {
 		return nil, ErrStorage
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO keys(singleton,digest_key_id,encryption_key_id,digest_key_check,encryption_key_check,uses) VALUES(1,?,?,?,?,0)`, keys.DigestID, keys.EncryptionID, keyCheck(managerID, "dm-manager-digest-key-v1", keys.DigestID, keys.DigestKey), keyCheck(managerID, "dm-manager-encryption-key-v1", keys.EncryptionID, keys.EncryptionKey)); err != nil {
@@ -323,7 +326,7 @@ func openVersion(ctx context.Context, path string, expected Identity, keys Keys,
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET frozen=1`); err != nil {
 		return nil, ErrStorage
 	}
-	if wantVersion == 2 {
+	if wantVersion >= 2 {
 		if _, err := tx.ExecContext(ctx, `UPDATE recovery_scans SET status='abandoned' WHERE id IN (SELECT active_round FROM recovery_nodes WHERE active_round<>'')`); err != nil {
 			return nil, ErrStorage
 		}
@@ -386,6 +389,9 @@ func (s *Store) Close() error {
 }
 
 func schemaForVersion(version int) string {
+	if version == 3 {
+		return schemaV3
+	}
 	if version == 2 {
 		return schemaV2
 	}

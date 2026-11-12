@@ -3,6 +3,7 @@ package ledger
 import (
 	"context"
 	"encoding/json"
+	"errors"
 )
 
 // RecoveryRecord projects one operation from a single database snapshot. It is
@@ -34,8 +35,13 @@ func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID s
 	if err != nil {
 		return nil, err
 	}
-	if err := requireEventClaims(ctx, q, record); err != nil {
-		return nil, err
+	_, final, finalErr := s.readFinalization(ctx, q, record, state)
+	if errors.Is(finalErr, ErrNotFound) {
+		if err := requireEventClaims(ctx, q, record); err != nil {
+			return nil, err
+		}
+	} else if finalErr != nil {
+		return nil, finalErr
 	}
 	// This slice has only the initial started event and one result. A pointer
 	// without its complete ordered history is not a coherent recovery record.
@@ -114,6 +120,9 @@ func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID s
 		FinalState  any             `json:"final_state"`
 		FinalSeq    any             `json:"finalized_result_event_seq"`
 	}{record.OperationID, record.Digest, record.StackID, record.VersionID, record.ProjectName, phase, state.LastSeq, resultSeq, result, true, acked, nil, nil}
+	if finalErr == nil {
+		view.Phase, view.ClaimsHeld, view.FinalState, view.FinalSeq = "finalized", false, final.Terminal, final.Seq
+	}
 	raw, err := json.Marshal(view)
 	if err != nil {
 		return nil, ErrEvidence

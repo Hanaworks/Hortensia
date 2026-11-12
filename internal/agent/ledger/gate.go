@@ -14,7 +14,7 @@ import (
 // The context governs database work only. Business cancellation and connection
 // loss must still be delivered explicitly to Gate.Cancel or Gate.Invalidate.
 // Start must be short and must not reenter Gate or call Store.Close, recovery
-// session/scan APIs, or NewGate; those operations can wait for Start to return.
+// session/scan/finalize APIs, or NewGate; those operations can wait for Start to return.
 // Close waits
 // for an already entered Start callback to return. Start may query Get/Claims.
 func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func() time.Time, start func(startgate.Permit)) (*startgate.Gate, error) {

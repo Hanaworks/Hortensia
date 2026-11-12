@@ -173,75 +173,99 @@ func (s *Store) buildScanSnapshot(ctx context.Context, session, scope string, li
 	if !control.frozen {
 		return nil, ErrFrozen
 	}
-	// All executions in v3's current first-result slice are unfinalized. Keep
-	// scope distinct even though pending and all currently enumerate the same IDs.
-	rows, err := tx.QueryContext(ctx, `SELECT operation_id FROM executions ORDER BY operation_id LIMIT ?`, s.recovery.maxRecords+1)
-	if err != nil {
-		return nil, ErrStorage
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, ErrStorage
-		}
-		ids = append(ids, id)
-	}
-	err = rows.Err()
-	closeErr := rows.Close()
-	if err != nil || closeErr != nil {
-		return nil, ErrStorage
-	}
-	if len(ids) > s.recovery.maxRecords {
-		return nil, ErrScanBusy
+	// V4 pending must authenticate even omitted history, without charging it
+	// against the retained snapshot. Keyset batches bound temporary identities;
+	// each cursor closes before decrypting on this Store's sole connection.
+	filteredPending := s.release && scope == "pending"
+	batchSize := s.recovery.maxRecords + 1
+	if filteredPending {
+		batchSize = 128
 	}
 	used := 0
-	for _, operation := range ids {
-		raw, err := s.readRecoveryRecord(ctx, tx, operation)
+	after := ""
+	for {
+		ids, err := scanOperationIDs(ctx, tx, after, batchSize)
 		if err != nil {
 			return nil, err
 		}
-		used += len(raw)
-		if used > s.recovery.maxBytes {
-			clear(raw)
+		if len(ids) == 0 {
+			break
+		}
+		if !filteredPending && len(ids) > s.recovery.maxRecords {
 			return nil, ErrScanBusy
 		}
-		// Validate each complete projection before publishing any members. The
-		// original body bytes are untouched by this validation-only envelope.
-		probe, err := scanWire(session, id, id, scope, s.identity.LedgerID, 1, []json.RawMessage{raw}, "", id)
-		if err != nil || len(probe) > scanWireLimit {
-			clear(raw)
-			return nil, ErrScanBusy
+		for _, operation := range ids {
+			raw, err := s.readRecoveryRecord(ctx, tx, operation)
+			if err != nil {
+				return nil, err
+			}
+			if !filteredPending {
+				used += len(raw)
+				if used > s.recovery.maxBytes {
+					clear(raw)
+					return nil, ErrScanBusy
+				}
+			}
+			// Validate each complete projection before publishing any members. The
+			// original body bytes are untouched by this validation-only envelope.
+			probe, err := scanWire(session, id, id, scope, s.identity.LedgerID, 1, []json.RawMessage{raw}, "", id)
+			if err != nil || len(probe) > scanWireLimit {
+				clear(raw)
+				return nil, ErrScanBusy
+			}
+			_, err = s.validator.Validate(probe)
+			clear(probe)
+			if err != nil {
+				clear(raw)
+				return nil, ErrEvidence
+			}
+			var view struct {
+				Operation string  `json:"operation_id"`
+				Last      uint64  `json:"last_event_seq"`
+				Result    *uint64 `json:"result_event_seq"`
+				Phase     string  `json:"phase"`
+				Ack       bool    `json:"report_acked"`
+			}
+			if err = json.Unmarshal(raw, &view); err != nil || view.Operation != operation {
+				clear(raw)
+				return nil, ErrEvidence
+			}
+			// Authenticate the entire projection before omitting history. A result
+			// acknowledgement alone does not prove that its started event was acked.
+			if filteredPending && view.Phase == "finalized" {
+				var unacked int
+				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM execution_events WHERE operation_id=? AND ack_session IS NULL`, operation).Scan(&unacked); err != nil {
+					clear(raw)
+					return nil, ErrStorage
+				}
+				if unacked == 0 {
+					clear(raw)
+					continue
+				}
+			}
+			if filteredPending {
+				used += len(raw)
+				if len(snapshot.records) >= s.recovery.maxRecords || used > s.recovery.maxBytes {
+					clear(raw)
+					return nil, ErrScanBusy
+				}
+			}
+			fingerprint, err := s.scanFingerprint(raw)
+			if err != nil {
+				clear(raw)
+				return nil, err
+			}
+			member := scanMember{OperationID: operation, LastSeq: view.Last, Phase: view.Phase, ReportAcked: view.Ack, Fingerprint: fingerprint}
+			if view.Result != nil {
+				member.ResultSeq = *view.Result
+			}
+			snapshot.records = append(snapshot.records, raw)
+			snapshot.members = append(snapshot.members, member)
 		}
-		_, err = s.validator.Validate(probe)
-		clear(probe)
-		if err != nil {
-			clear(raw)
-			return nil, ErrEvidence
+		if !filteredPending || len(ids) < batchSize {
+			break
 		}
-		var view struct {
-			Operation string  `json:"operation_id"`
-			Last      uint64  `json:"last_event_seq"`
-			Result    *uint64 `json:"result_event_seq"`
-			Phase     string  `json:"phase"`
-			Ack       bool    `json:"report_acked"`
-		}
-		if err = json.Unmarshal(raw, &view); err != nil || view.Operation != operation {
-			clear(raw)
-			return nil, ErrEvidence
-		}
-		fingerprint, err := s.scanFingerprint(raw)
-		if err != nil {
-			clear(raw)
-			return nil, err
-		}
-		member := scanMember{OperationID: operation, LastSeq: view.Last, Phase: view.Phase, ReportAcked: view.Ack, Fingerprint: fingerprint}
-		if view.Result != nil {
-			member.ResultSeq = *view.Result
-		}
-		snapshot.records = append(snapshot.records, raw)
-		snapshot.members = append(snapshot.members, member)
+		after = ids[len(ids)-1]
 	}
 	// A replacement is published only after its full coherent snapshot exists;
 	// failed upgrades retain the prior active scan and latest completed members.
@@ -261,6 +285,34 @@ func (s *Store) buildScanSnapshot(ctx context.Context, session, scope string, li
 	}
 	success = true
 	return snapshot, nil
+}
+
+func scanOperationIDs(ctx context.Context, q querier, after string, limit int) ([]string, error) {
+	query := `SELECT operation_id FROM executions ORDER BY operation_id LIMIT ?`
+	args := []any{limit}
+	if after != "" {
+		query = `SELECT operation_id FROM executions WHERE operation_id>? ORDER BY operation_id LIMIT ?`
+		args = []any{after, limit}
+	}
+	rows, err := q.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, ErrStorage
+	}
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, ErrStorage
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	closeErr := rows.Close()
+	if err != nil || closeErr != nil {
+		return nil, ErrStorage
+	}
+	return ids, nil
 }
 
 func (s *Store) verifyScanMembers(ctx context.Context, q querier, c scanControl, snapshot *scanSnapshot) error {

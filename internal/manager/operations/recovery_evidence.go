@@ -319,7 +319,7 @@ func (s *Store) ReceiveRecoveryEvent(ctx context.Context, b Binding, raw []byte)
 		return nil, err
 	} else if op.NodeID != b.NodeID || op.LedgerID != b.LedgerID || op.Digest != p.Digest || (env.Type == "started" && (op.PermitID == "" || op.PermitID != p.PermitID)) || (env.Type == "result" && p.Outcome != "not_started" && op.PermitID == "") {
 		kind, conflict = "event_mismatch", true
-	} else if op.ReleaseStatus == "released" {
+	} else if op.ReleaseStatus == "released" && (s.version < 3 || op.LatestResultSeq == 0) {
 		kind = "released_event"
 	} else if !eventPosition(env.Type, p) {
 		kind = "unsupported_event"
@@ -391,7 +391,7 @@ func (s *Store) validateEventAgainstRecovery(ctx context.Context, q querier, op 
 			if record.OperationID != op.OperationID {
 				continue
 			}
-			if record.Phase == "reconciliation_required" || unsupportedRecoveryHistory(record) {
+			if record.Phase == "reconciliation_required" || s.unsupportedRecoveryHistory(record) {
 				checkErr = ErrConflict
 				break
 			}
@@ -418,4 +418,11 @@ func (s *Store) validateEventAgainstRecovery(ctx context.Context, q querier, op 
 		}
 	}
 	return nil
+}
+
+func (s *Store) unsupportedRecoveryHistory(r recoveryRecord) bool {
+	if s.version < 3 {
+		return unsupportedRecoveryHistory(r)
+	}
+	return r.LastSeq > 2 || r.ResultSeq > 2 || (r.Result != nil && r.LastSeq != r.ResultSeq) || (r.Phase == "START_COMMITTED" && r.LastSeq != 1)
 }

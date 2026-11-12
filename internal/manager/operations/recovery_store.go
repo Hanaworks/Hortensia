@@ -31,7 +31,7 @@ func OpenRecovery(ctx context.Context, path string, expected Identity, keys Keys
 	return openVersion(ctx, path, expected, keys, 2)
 }
 func (s *Store) requireRecovery() error {
-	if s.version != 2 {
+	if s.version < 2 {
 		return ErrSchema
 	}
 	return nil

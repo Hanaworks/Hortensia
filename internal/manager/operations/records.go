@@ -43,7 +43,7 @@ func (s *Store) readOperation(ctx context.Context, q querier, id string) (Operat
 	default:
 		return Operation{}, ErrEvidence
 	}
-	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !(s.version == 2 && o.ReleaseStatus == "released") {
+	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !(s.version >= 2 && o.ReleaseStatus == "released") {
 		return Operation{}, ErrEvidence
 	}
 	if o.ReleaseStatus == "pending" && (!terminalState(o.State) || o.LatestResultSeq == 0 || o.Blocked) {
@@ -86,7 +86,16 @@ func readClaims(ctx context.Context, q querier, id string) ([]Claim, error) {
 
 func (s *Store) requireClaims(ctx context.Context, q querier, o Operation) error {
 	if o.ReleaseStatus == "released" {
-		return s.verifyAbsenceRelease(ctx, q, o)
+		return s.verifyRelease(ctx, q, o)
+	}
+	if s.version == 3 {
+		var receipts int
+		if err := q.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM finalization WHERE operation_id=?)+(SELECT count(*) FROM absence_releases WHERE operation_id=?)`, o.OperationID, o.OperationID).Scan(&receipts); err != nil {
+			return ErrStorage
+		}
+		if receipts != 0 {
+			return ErrEvidence
+		}
 	}
 	claims, err := readClaims(ctx, q, o.OperationID)
 	if err != nil {
@@ -310,10 +319,12 @@ func (s *Store) validateControlIntents(ctx context.Context, q querier, op Operat
 		return nil, ErrEvidence
 	}
 	if op.ReleaseStatus == "released" {
-		if err := s.verifyAbsenceRelease(ctx, q, op); err != nil {
+		if err := s.verifyRelease(ctx, q, op); err != nil {
 			return nil, err
 		}
-		return intents, nil
+		if op.LatestResultSeq == 0 {
+			return intents, nil
+		}
 	}
 	wantPrepare := "confirmed"
 	if op.State == "accepted" && op.MaxEventSeq == 0 {
