@@ -12,9 +12,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"docker-manager/internal/manager/agenttransport"
 	"docker-manager/internal/manager/httpapi"
 	"docker-manager/internal/manager/operations"
 	"docker-manager/internal/protocol"
@@ -49,6 +51,7 @@ func (a *activeHTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *activeHTTP) wait() { a.mu.Lock(); a.closed = true; a.mu.Unlock(); a.requests.Wait() }
 
 type Runtime struct {
+	nodes    *agenttransport.Handler
 	server   *http.Server
 	store    *operations.Store
 	lock     *fileLock
@@ -141,7 +144,30 @@ func Start(c Config) (*Runtime, error) {
 		return nil, err
 	}
 	defer clearKeys(&keys)
-	store, err := operations.OpenService(context.Background(), c.DatabaseFile, identity.StoreIdentity(), keys)
+	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
+		path := c.DatabaseFile + suffix
+		if err := rejectLinks(path); err != nil {
+			lock.Close()
+			return nil, err
+		}
+		info, err := os.Lstat(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil || !info.Mode().IsRegular() || !privateMode(info, false) {
+			lock.Close()
+			return nil, ErrFiles
+		}
+	}
+	var store *operations.Store
+	switch identity.SchemaVersion {
+	case 4:
+		store, err = operations.OpenService(context.Background(), c.DatabaseFile, identity.StoreIdentity(), keys)
+	case 5:
+		store, err = operations.OpenRuntimeService(context.Background(), c.DatabaseFile, identity.StoreIdentity(), keys)
+	default:
+		err = ErrFiles
+	}
 	if err != nil {
 		lock.Close()
 		return nil, err
@@ -152,14 +178,41 @@ func Start(c Config) (*Runtime, error) {
 		lock.Close()
 		return nil, ErrConfig
 	}
-	handler, err := newWebHandler(c.WebDir, api)
+	var nodes *agenttransport.Handler
+	var combined http.Handler = api
+	if identity.SchemaVersion == 5 {
+		nodes, err = agenttransport.New(store)
+		if err != nil {
+			store.Close()
+			lock.Close()
+			return nil, err
+		}
+		combined = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/agent/v1/connect" {
+				nodes.ServeHTTP(w, r)
+				return
+			}
+			api.ServeHTTP(w, r)
+			if r.Method != "GET" && r.Method != "HEAD" && strings.HasPrefix(r.URL.Path, "/api/v1/") {
+				nodes.WakeAll()
+			}
+		})
+	}
+	closeNodes := func() {
+		if nodes != nil {
+			_ = nodes.Close(context.Background())
+		}
+	}
+	handler, err := newWebHandler(c.WebDir, combined)
 	if err != nil {
+		closeNodes()
 		store.Close()
 		lock.Close()
 		return nil, err
 	}
 	listener, err := net.Listen("tcp", c.Listen)
 	if err != nil {
+		closeNodes()
 		store.Close()
 		lock.Close()
 		return nil, ErrServe
@@ -167,7 +220,7 @@ func Start(c Config) (*Runtime, error) {
 	base, cancel := context.WithCancel(context.Background())
 	active := &activeHTTP{handler: handler}
 	server := &http.Server{Handler: active, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{certificate}}, BaseContext: func(net.Listener) context.Context { return base }, ErrorLog: log.New(io.Discard, "", 0)}
-	r := &Runtime{server: server, store: store, lock: lock, active: active, cancel: cancel, done: make(chan struct{})}
+	r := &Runtime{nodes: nodes, server: server, store: store, lock: lock, active: active, cancel: cancel, done: make(chan struct{})}
 	go func() {
 		err := server.ServeTLS(listener, "", "")
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -183,6 +236,9 @@ func (r *Runtime) Close(ctx context.Context) error {
 		return nil
 	}
 	r.once.Do(func() {
+		if r.nodes != nil {
+			_ = r.nodes.Close(ctx)
+		}
 		if err := r.server.Shutdown(ctx); err != nil {
 			_ = r.server.Close()
 		}

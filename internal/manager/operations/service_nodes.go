@@ -31,7 +31,7 @@ func (s *Store) EnrollNode(ctx context.Context, token string, r EnrollmentReques
 	if !validID(r.NodeID) || !validID(r.LedgerID) || !validDigest(r.CredentialSecret) {
 		return ServiceReply{}, serviceError(400, "invalid_field")
 	}
-	if s.version != 4 || !validDigest(token) {
+	if s.version != 4 && s.version != 5 || !validDigest(token) {
 		return ServiceReply{}, serviceError(401, "invalid_credentials")
 	}
 	tx, e := s.db.BeginTx(ctx, nil)
@@ -93,7 +93,7 @@ func (s *Store) EnrollNode(ctx context.Context, token string, r EnrollmentReques
 	return serviceReply(200, map[string]any{"node_id": node, "ledger_id": r.LedgerID, "credential_generation": 1}), nil
 }
 func (s *Store) authenticateNodeTx(ctx context.Context, tx *sql.Tx, hash []byte) (*AuthenticatedNode, error) {
-	if s.version != 4 {
+	if s.version != 4 && s.version != 5 {
 		return nil, ErrSchema
 	}
 	if e := s.requireActive(ctx, tx); e != nil {

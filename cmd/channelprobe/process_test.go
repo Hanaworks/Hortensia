@@ -225,7 +225,7 @@ func TestManagerAndAgentProcessesUseVerifiedTLS(t *testing.T) {
 	untrusted := launchProbe(t, ctx, append(append([]string{}, base...), "-token-file", token)...)
 	untrusted.wait(t, 1)
 	if strings.TrimSpace(untrusted.diagnostic.String()) != "connection_failed" || untrusted.output.Len() != 0 {
-		t.Fatal("untrusted TLS was not rejected with a fixed diagnostic")
+		t.Fatalf("untrusted TLS was not rejected with a fixed diagnostic: diagnostic=%q output=%q", untrusted.diagnostic.String(), untrusted.output.String())
 	}
 	wrongToken := base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{1}, 32))
 	wrongFile := filepath.Join(t.TempDir(), "wrong-token")

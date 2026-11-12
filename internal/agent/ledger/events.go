@@ -33,7 +33,11 @@ func readEventState(ctx context.Context, q querier, operation string) (eventStat
 		}
 		return eventState{}, ErrStorage
 	}
-	if state.LastSeq > 2 || (state.LatestResultSeq.Valid && (state.LatestResultSeq.Int64 < 1 || uint64(state.LatestResultSeq.Int64) != state.LastSeq)) {
+	var version int
+	if err := q.QueryRowContext(ctx, "SELECT schema_version FROM agent_meta WHERE id=1").Scan(&version); err != nil {
+		return eventState{}, ErrStorage
+	}
+	if (version < 5 && state.LastSeq > 2) || (state.LatestResultSeq.Valid && (state.LatestResultSeq.Int64 < 1 || uint64(state.LatestResultSeq.Int64) != state.LastSeq)) {
 		return eventState{}, ErrEvidence
 	}
 	return state, nil
@@ -153,7 +157,7 @@ func (s *Store) PendingEvents(ctx context.Context, operationID, sessionID string
 			return nil, ErrStorage
 		}
 		seqs = append(seqs, seq)
-		if len(seqs) > 2 {
+		if s.runtime == nil && len(seqs) > 2 {
 			rows.Close()
 			return nil, ErrEvidence
 		}

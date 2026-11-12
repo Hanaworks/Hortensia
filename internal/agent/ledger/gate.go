@@ -14,10 +14,13 @@ import (
 // The context governs database work only. Business cancellation and connection
 // loss must still be delivered explicitly to Gate.Cancel or Gate.Invalidate.
 // Start must be short and must not reenter Gate or call Store.Close, recovery
-// session/scan/finalize APIs, or NewGate; those operations can wait for Start to return.
+// session/scan/finalize APIs, CancelExecution, or NewGate; those operations can wait for Start to return.
 // Close waits
 // for an already entered Start callback to return. Start may query Get/Claims.
 func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func() time.Time, start func(startgate.Permit)) (*startgate.Gate, error) {
+	if start == nil {
+		return nil, startgate.ErrRequest
+	}
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()
@@ -54,6 +57,15 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	if record.Phase != PhaseReady {
 		return nil, ErrConflict
 	}
+	if s.runtime != nil {
+		var e PreparationEvidence
+		if err := s.readDocument(ctx, s.db, record, "preparation", 0, &e); err != nil {
+			return nil, err
+		}
+		if err := s.validatePrepared(ctx, s.db, record, e); err != nil {
+			return nil, err
+		}
+	}
 	if s.journal != nil {
 		state, err := readEventState(ctx, s.db, request.Operation)
 		if err != nil {
@@ -66,9 +78,26 @@ func (s *Store) NewGate(ctx context.Context, request startgate.Request, now func
 	gate, err := startgate.New(request, startgate.Hooks{
 		Now: now,
 		CommitStart: func(permit startgate.Permit) error {
-			return s.commitStartExpected(ctx, permit, &record)
+			err := s.commitStartExpected(ctx, permit, &record)
+			if s.runtime != nil {
+				s.runtime.mu.Lock()
+				if err == nil {
+					s.runtime.committed[permit.Operation] = true
+				} else {
+					s.runtime.commitFailed[permit.Operation] = true
+				}
+				s.runtime.mu.Unlock()
+			}
+			return err
 		},
-		Start: start,
+		Start: func(p startgate.Permit) {
+			if s.runtime != nil {
+				s.runtime.mu.Lock()
+				s.runtime.entered[p.Operation] = true
+				s.runtime.mu.Unlock()
+			}
+			start(p)
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -182,6 +211,15 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 			return ErrConflict
 		}
 	}
+	if s.runtime != nil {
+		var e PreparationEvidence
+		if err := s.readDocument(ctx, tx, record, "preparation", 0, &e); err != nil {
+			return err
+		}
+		if err := s.validatePrepared(ctx, tx, record, e); err != nil {
+			return err
+		}
+	}
 	result, err := tx.ExecContext(ctx, `UPDATE executions SET phase=?,session_id=?,start_nonce=?,permit_id=?,auth_rev=?,reply_to=?,started_at=? WHERE operation_id=? AND owner_boot_id=? AND phase=?`,
 		PhaseStartCommitted, permit.Session, permit.Nonce, permit.PermitID, permit.AuthRev, permit.ReplyTo, startedAt, permit.Operation, s.boot, PhaseReady)
 	if err != nil {
@@ -199,6 +237,11 @@ func (s *Store) commitStartExpected(ctx context.Context, permit startgate.Permit
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE event_state SET last_seq=1 WHERE operation_id=?`, permit.Operation); err != nil {
+			return ErrStorage
+		}
+	}
+	if s.runtime != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO process_facts(operation_id,owner_boot,spawn_state) VALUES(?,?,'not_attempted')", permit.Operation, s.boot); err != nil {
 			return ErrStorage
 		}
 	}

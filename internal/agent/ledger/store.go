@@ -1,5 +1,5 @@
-// Package ledger is the controlled, local Agent start ledger. It records no
-// configuration bodies and does not expose a production deployment handler.
+// Package ledger owns local execution truth. Explicit v1-v4 formats preserve
+// controlled experiments; v5 records encrypted frozen input and runtime evidence.
 package ledger
 
 import (
@@ -96,6 +96,7 @@ type Store struct {
 	journal     *journalConfig
 	recovery    *recoveryConfig
 	release     bool
+	runtime     *runtimeConfig
 	quarantined bool // local fail-closed barrier, protected by mu
 	validator   *protocol.Validator
 	mu          sync.Mutex

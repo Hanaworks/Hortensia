@@ -34,7 +34,7 @@ func serviceStorageError(err error) error {
 }
 
 func (s *Store) storageFailure(err error) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return serviceStorageError(err)
 	}
 	return ErrStorage
@@ -174,7 +174,7 @@ func readServiceUser(ctx context.Context, q querier, id string) (serviceUser, er
 	return u, nil
 }
 func (s *Store) requireBrowserTx(ctx context.Context, tx *sql.Tx, b *BrowserSession) (serviceUser, error) {
-	if s.version != 4 || b == nil || b.store != s {
+	if s.version != 4 && s.version != 5 || b == nil || b.store != s {
 		return serviceUser{}, serviceError(401, "unauthenticated")
 	}
 	if e := s.requireActive(ctx, tx); e != nil {
@@ -220,7 +220,7 @@ func (s *Store) meTx(ctx context.Context, tx *sql.Tx, b *BrowserSession, u servi
 	return r, nil
 }
 func (s *Store) Login(ctx context.Context, username, password string) (BrowserLogin, error) {
-	if s.version != 4 {
+	if s.version != 4 && s.version != 5 {
 		return BrowserLogin{}, ErrSchema
 	}
 	if !usernamePattern.MatchString(username) || !validPassword(password) {
@@ -287,7 +287,7 @@ func (s *Store) Login(ctx context.Context, username, password string) (BrowserLo
 	return BrowserLogin{b, token, r}, nil
 }
 func (s *Store) AuthenticateBrowser(ctx context.Context, token string) (*BrowserSession, error) {
-	if s.version != 4 || !validDigest(token) {
+	if s.version != 4 && s.version != 5 || !validDigest(token) {
 		return nil, serviceError(401, "unauthenticated")
 	}
 	tx, e := s.db.BeginTx(ctx, nil)

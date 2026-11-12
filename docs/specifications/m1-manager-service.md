@@ -1,6 +1,6 @@
-# M1 Manager账号、节点与配置服务规格草案
+# M1 Manager账号、节点与配置服务规格
 
-日期2026-11-12；阅读起点`656e355`。状态：待审阅的编码前草案，未实施、未验收。依赖当前推进的Agent v4／Manager v3双端释放；该依赖尚不能在本文记为已交付。本模块拟新增显式Manager服务v4，先完成首版路线中的C＋D管理路径，不把网络投递、真实Compose或Web一并宣称完成。技术取舍是实施方案，不是用户逐项确认。
+日期2026-11-12；阅读起点`656e355`。初始状态为编码前草案；2026-11-12实现同Store服务内核，最终测试范围见实施记录§7。依赖Agent v4／Manager v3双端释放提交`6f92eb3`；其既有验收范围不扩大为真实网络或执行。本模块新增显式Manager服务v4，先完成首版路线中的C＋D管理路径，不把网络投递、真实Compose或Web一并宣称完成。技术取舍是实施方案，不是用户逐项确认。
 
 ## 1. 目的、主定义与终点
 
@@ -14,7 +14,7 @@
 
 已阅读[Store](../../internal/manager/operations/store.go)、[授权及取消](../../internal/manager/operations/control.go)、[操作受理](../../internal/manager/operations/records.go)、[加密](../../internal/manager/operations/crypto.go)、[恢复绑定](../../internal/manager/operations/recovery_store.go)及现行DDL。现有Store持有单连接、密钥副本、active_boot和恢复屏障；写事务为IMMEDIATE，密文包装额度单独预留。AcceptFixture自行开两次事务，现有users只有enabled／auth_rev，nodes由可信Fixture绑定创建；这些接口不满足HTTP幂等、待认领节点及账号认证。
 
-本轮拟新增完整`004_service.sql`与`CreateService／OpenService`，承接Manager v3释放结构，旧v1／v2／v3入口与DDL保持原版本，不自动升级或把已有库换为空库。v4包含原操作、许可、事件、释放、恢复和占用的同一组表，不另设业务数据库；服务和通道共享同一Store。开发初始服务库不等于已交付历史库迁移工具。版本判定按明确支持集合分派，不用任意较大版本自动取得恢复或释放资格。
+本轮新增完整`004_service.sql`与`CreateService／OpenService`，承接Manager v3释放结构，旧v1／v2／v3入口与DDL保持原版本，不自动升级或把已有库换为空库。v4包含原操作、许可、事件、释放、恢复和占用的同一组表，不另设业务数据库；服务和通道共享同一Store。开发初始服务库不等于已交付历史库迁移工具。版本判定按明确支持集合分派，不用任意较大版本自动取得恢复或释放资格。
 
 v4将users.auth_rev改为允许0以满足HTTP新用户契约。新用户无Grant；授予任何能力的变更递增修订，因此获得部署所需授权后许可记录仍可保持auth_rev大于0。v4的Fixture入口拒绝调用；旧版本测试入口保留。复用的是提取后的私有事务核心及证据检查，不是让生产handler绕过其缺失校验。
 
@@ -55,15 +55,15 @@ serve读取相同身份与密钥、核验版本和SQLite参数，打开Store使�
 | manager_meta | `initialization_complete` | v4仅在首管理员及结构完整提交后为1；常规Open不补管理员；原manager_id／active_boot／recovery_mode仍为唯一权威 |
 | users | 原id／enabled／auth_rev扩充`login_name,password_hash,system_admin,created_at` | login_name唯一；新用户修订0，无Grant；密码为带算法／成本／盐的Argon2id编码；禁用保留身份和操作外键；禁止禁用最后一个启用管理员 |
 | user_sessions | `id,token_hash,user_id,auth_rev,created_at,last_seen_at,expires_at,revoked_at,csrf_cipher,wrapped_dek,key_id,fingerprint` | id UUID唯一，token_hash为32字节主键；只存Cookie摘要；CSRF以会话id／token_hash用途绑定加密，可由GET me重读同值；失效记录可保留，不作为永久授权 |
-| nodes | 原id／ledger_id／session_id／boot_id／frozen扩充`display_name,credential_generation,revoked_at,created_at,last_seen_at,agent_capabilities_json,execution_profile_json,observation_cipher,observation_key_id,observation_wrapped_dek,observation_fingerprint` | pending时ledger/session/boot为空串、generation=0、frozen=1；认领后ledger为有效ID且不可改；连接快照不解除frozen；未观察密文组均NULL，完整组一起发布；不另建同义的节点权威表 |
+| nodes | 原id／ledger_id／session_id／boot_id／frozen扩充`display_name,credential_generation,revoked_at,created_at,last_seen_at,agent_capabilities_json,execution_profile_json` | pending时ledger/session/boot为空串、generation=0、frozen=1；认领后ledger为有效ID且不可改；连接快照不解除frozen；本服务无整节点观察写入入口，Node.observation为null；不另建同义的节点权威表 |
 | node_credentials | `node_id,generation,token_hash,enabled,created_at` | 联合主键，hash唯一；每节点仅当前代enabled；撤销／轮换与nodes代次同事务；原秘密只由Agent保管 |
 | enrollments | `id,token_hash,node_id,ledger_id,expires_at,consumed_at,candidate_hash,revoked_at,created_at` | 未消费ledger/candidate为空；消费后固定绑定；token_hash唯一；每节点最多一个未撤销未消费的有效材料，由同事务检查；保留已消费记录支持响应丢失重试 |
 | grants | 沿原`user_id,node_id,capability` | PUT整体替换目标用户在该节点的能力集合，单次变更只递增一次auth_rev，空数组撤销；服务不逐项调用SetGrantFixture |
-| stacks | `id,node_id,project_name,display_name,current_version_id,revision,last_applied_version_id,last_operation_id,observation_cipher,observation_key_id,observation_wrapped_dek,observation_fingerprint,created_at,disabled_at` | `(node_id,project_name)`唯一，停用不复用身份；display初始等于project；current必属同Stack；版本／操作指针以组合外键约束；当前没有重命名或删除API |
+| stacks | `id,node_id,project_name,display_name,current_version_id,revision,last_applied_version_id,last_operation_id,observation_operation_id,created_at,disabled_at` | `(node_id,project_name)`唯一，停用不复用身份；display初始等于project；current必属同Stack；版本／操作指针以组合外键约束；当前没有重命名或删除API |
 | config_versions | `id,stack_id,parent_id,created_by,created_at,package_cipher,key_id,wrapped_dek,fingerprint` | `(stack_id,id)`唯一；parent只指同Stack；初始版本parent=NULL；原Config规范编码发布后不变，解密恢复原文件字节和数组顺序；AAD绑定版本／节点／Stack／用途 |
 | idempotency_records | `user_id,idempotency_key,method,path,request_digest,digest_key_id,result_type,result_id,response_status,safe_response_json,response_etag,created_at` | `(user_id,key)`唯一，跨K路由共用空间；非空结果与业务同事务；只保存白名单非秘密回执；永久“处理中”行禁止发布；不自动回收 |
 | operations | v3字段扩充`idempotency_key,digest_key_id`及服务关联 | `(user_id,key)`唯一并关联idempotency_records；node等于Stack节点、version属于Stack；原operation_id不改成HTTP自选ID；已有payload、许可、事件、claims、释放仍由同一行控制 |
-| audit_events | `id,user_id,action,target_type,target_id,operation_id,created_at,outcome` | 与管理变更同事务；认证失败可用独立无秘密诊断，不能伪造成功审计；不含密码、token、CSRF、Config、原始执行输出 |
+| audit_events | `id,user_id,node_id,action,target_type,target_id,operation_id,created_at,outcome` | user_id/node_id恰一非NULL，分别指浏览器或节点主体；与管理变更、认领及轮换同事务；认证失败可用独立无秘密诊断，不能伪造成功审计；不含密码、token、CSRF、Config、原始执行输出 |
 
 列表索引采用users／nodes／stacks／operations的`(created_at,id)`对应实际主键；Grant列表用用户排序键。Stack先生成版本ID，两条循环关联可用DEFERRABLE外键在同一事务插入，提交时current_version_id必须非空且匹配，不先返回空Stack再补配置。原操作表加服务外键前须重新验证v3核心兼容；旧版本DDL和旧Fixture回归仍使用自己的结构。
 
@@ -71,7 +71,7 @@ NodeStatus按HTTP主定义派生，不将online保存为独立永久事实：无
 
 ## 6. 账号、会话、权限与秘密
 
-密码严格按HTTP的12—128 Unicode码点校验，不trim、不归一化、不截断。采用数据设计的Argon2id参数64MiB、3轮、并行度1、32字节输出，随机盐16字节；编码包含参数，验证时仅接受本版本固定成本，避免数据库损坏令认证无界分配。2026-11-12编码前选择[Go Argon2 v0.59.0](https://pkg.go.dev/golang.org/x/crypto@v0.59.0/argon2)的IDKey，许可证BSD-3-Clause；已查官方文档，尚未下载和完成本机成本实验，不称已验证依赖。本机初始同时验证上限2，不在SQLite事务中执行哈希；未知账号使用相同成本的固定伪记录路径，不区分用户名存在性。
+密码严格按HTTP的12—128 Unicode码点校验，不trim、不归一化、不截断。采用数据设计的Argon2id参数64MiB、3轮、并行度1、32字节输出，随机盐16字节；编码包含参数，验证时仅接受本版本固定成本，避免数据库损坏令认证无界分配。2026-11-12编码前选择[Go Argon2 v0.59.0](https://pkg.go.dev/golang.org/x/crypto@v0.59.0/argon2)的IDKey，许可证BSD-3-Clause；编码前已查官方文档；实施时已下载并加入依赖，本机测试创建＋验证约189ms（单次观测），不是容量承诺。本机初始同时验证上限2，不在SQLite事务中执行哈希；未知账号使用相同成本的固定伪记录路径，不区分用户名存在性。
 
 登录先执行限速及密码验证，生成32字节随机Cookie秘密、随机CSRF和会话UUID；CSRF包装额度在业务事务之外预留。最终事务重查账号启用状态、password_hash及auth_rev未变，再写session，提交后返回Me和Cookie。Cookie属性、空闲30分钟、绝对12小时及CSRF从共同API承接。每次请求重读session、当前用户及有效期；`now >= deadline`即失效。编码前审阅采用现行主规格的失效边界：密码修改、禁用和退出撤销会话；单独Grant变化不强制重新登录，但当前请求和最终写事务重读最新Grant及auth_rev，GET me返回当前修订。session.auth_rev仅记录创建时修订，不用其与当前不同作为登录失效条件；分页游标仍按当前auth_rev绑定，旧能力不能继续授权。此修订取代草案中严格修订匹配导致Grant变化也退出登录的提议。
 
@@ -156,3 +156,47 @@ CreateService先完成密码格式／哈希（无文件副作用），再独占�
 编码前必须复核：Manager v3最终释放结构及v4继承点；Grant变更不注销会话、最终事务复核当前授权及修订；新增Argon2依赖版本／成本及错误映射；规范请求算法在HTTP主定义的权威链接；服务初始化失败留下文件且初始化完成标志不存在时Open拒绝；绝不补建管理员。当前跨模块已采用的方案是同Store v4、用户修订从0、acceptTx共享核心、服务模块定义canonical算法；其余仍按草案审阅结果更新，未通过审阅不能把文字当成已实施。
 
 本模块不提供旧库迁移、自动密钥轮换、线上任务投递、真实Compose、完整Web、备份恢复或O12解除隔离工具。它们有首版依赖及退出条件，不能因管理HTTP可运行而省略。本文交付前还须依据最终代码补实际代码入口、运行版本、异常实例及维护验证；现在保留编码前草案的真实时间。
+
+2026-11-12下一运行切片编码前衔接：真实执行的preparing、当前存活未spawn证明、只读补观察的递增result及持久发送等待，需要显式Manager v5运行格式和`CreateRuntimeService/OpenRuntimeService`，继续同一Store；v4服务入口和验收保留，不原地扩大其seq≤2范围。准确生产接线及跨端规则先按[Agent／Manager运行规格](m1-agent-runtime.md#3-主动通道及manager接线)落实，再在本篇补实际API、字段与维护映射；此段是后续实施依据，不表示v5已实现或CLI已切换。
+
+2026-11-12实施中补充（H13—H16，先保存再编码）：服务结果观察复用同库operation_events加密权威，Stack以`observation_operation_id`组合外键引用最近含观察的结果，不再复制一份观察密文。读取在同一权限快照验证该操作事件后仅投影Observation；没有新观察保留原引用。Node整体容器观察尚无正式采集入口，本服务返回null，后续采集模块负责，不用Stack局部结果冒充整节点观察。正式传输可调用`ReceiveReady(ctx,*AuthenticatedNode,sessionID string,raw []byte) error`，它先严格验证ready报文、当代凭据及绑定，再进入与旧Fixture共用的私有recordReadyTx；实际预检证明由Agent执行器负责，当前只实现接收边界。
+
+2026-11-12独立审阅修订（H05/H08）：发现私有DTO解码把允许字段串用于子串判断，`PATCH user`的未知键`enabled password`可误入修改口令分支。严格键成员必须使用逐键精确集合，PATCH恰好一个`enabled`或`password`；拒绝前后口令摘要、修订、会话及审计均不变。本次应急修复先保存了回归测试和集合修复，此问题记录为紧随其后的事后补充，不回写为编码前已有规则。原HTTP主定义拒绝额外字段本身未改变。
+
+2026-11-12审阅补充、编码前修订（H07/H16）：Agent认领和凭据轮换也必须具备同事务审计。`audit_events`以互斥的`user_id`／`node_id`外键标识浏览器或节点主体，其中恰好一个非NULL；原浏览器审计保持user_id，认领／轮换用已绑定node_id和固定action。首次认领成功及每次轮换各一条，已消费token同请求重读不追加成功审计。不得把不存在的浏览器用户伪填为系统账号。
+
+2026-11-12存储映射补充（H08/H16，编码前）：服务内核捕获modernc SQLite基础错误码，BUSY/LOCKED映射503 storage_busy、FULL映射503 storage_full；其他数据库失败保留内部错误不透出SQL。旧协调API仍保留原ErrStorage语义。
+
+
+## 12. 当前源码接手索引与实现限制（2026-11-12）
+
+- `service_api.go`定义不透明会话／凭据句柄与HTTP边界；`service_auth.go`拥有Argon2、两并发预算、会话deadline和服务创建；`store.go`仍唯一拥有SQLite及密钥生命周期。
+- `service_mutations.go`把严格JSON和合法路由转成内部DTO、计算请求HMAC，先同事务检查当前身份和已发布回执，再在事务外预备哈希／密文，最终事务复查权限和条件并提交业务、回执和审计。所有字段白名单使用精确集合；未知字段不能滑入默认更新分支。
+- `service_nodes.go`维护认领／轮换和认证连接句柄。消费token重试核对原node/ledger/candidate；轮换立刻清会话和冻结，旧句柄在最终事务按最新凭据拒绝。Bind不清恢复冻结；只有既有恢复协议完成回执可打开业务。
+- `service_configs.go`冻结Config并绑定版本／Stack／Node的AEAD用途；Apply读取明确版本和当代profile/capabilities，经过`records.go:acceptTx`建立原操作权威、双claims和prepare。`control.go:cancelTx`及`recordReadyTx`保留原状态规则，Fixture入口在v4拒绝。
+- `service_queries.go`同快照检查当前能力并形成HTTP白名单；分页HMAC绑定路由、节点、用户、当前修订和过期，SQL只读limit+1，不统计不可见行。输出按统一已保存UTF-8字节流切片。Stack观察只通过已验证的加密结果事件指针读出。
+- `events.go`的成功版本／观察指针在原结果事务内更新，失败／未知不覆盖历史成功。`release.go`仅扩展显式3/4集合，没有改释放算法；v1—v3原DDL及旧入口保留。
+
+服务内核已有受控本地测试，不等于进程／TLS／Linux安装或真实Compose已通过。登录来源预算由HTTP适配器负责；内核只负责密码计算并发。`ReceiveReady`接收的是当前认证通道提交的合法预检事实，未实现Agent实际预检器。整节点观察、线上任务worker、真实执行和旧库迁移未在此模块实现。服务进程尚未接真实通道时，节点没有当前会话，Apply必须503，不能拿本地绑定测试冒充部署成功。完整逐项验收继续由实施文档、HTTP及运行模块共同给出。
+
+2026-11-12审阅补充（H14，修复前记录）：cancel不存在的合法operation_id必须与GET一样返回404 not_found，不将旧核心ErrNotFound裸透到HTTP变成500；未知操作不能产生审计或回执。
+
+
+2026-11-12存储映射审阅补充（H16，修复前）：包装额度、acceptTx/cancelTx共享核心也必须在服务v4保留SQLite BUSY/FULL类别，不能先折叠成ErrStorage而丢失HTTP语义；v1—v3仍返回原ErrStorage以保留已验契约。
+
+2026-11-12恢复路径审阅修订（H13/H15/H18，修复前保存）：`ProcessRecovery`处理Agent `preparing`／`ready`、Manager尚无许可及结果时，须通过私有`recoveryCancel`事务持久取消意图，不调用v4禁用的`RequestCancelFixture`。该事务重新加载当前恢复扫描，核验active_boot、当前node／ledger／session／Agent boot和原round，以及页面已收齐且仍处于可核对状态；重新读取操作，要求属于同节点账本、仍为accepted／ready、无permit、无事件／结果且未blocked，再复用`cancelTx`。快照读取以后出现的新许可、新结果或新轮次不能被原恢复决定撤销；状态已推进时拒绝旧决定且无写入，后续按当前证据继续核对。重复处理仅保留一份cancel outbox。该路径不写终态、不制造结果／absence证明、不删除claims或解除frozen；终结释放仍由原双端协议负责。
+
+同次生产Fixture调用审计发现`ReceiveRecoveryPage`的错误回复分支调用v4禁用的`RecordRecoveryFailureFixture`。既有错误关联、当前绑定／round、请求状态核对移入私有`recordRecoveryFailure`，合法协议接收与旧Fixture分别调用该核心；Fixture继续拒绝v4。busy仍保持原请求可重试，scan_expired／scan_changed／cursor_invalid仍将当前扫描记expired并保留冻结，随后由显式新扫描恢复；不放开测试身份入口，也不修改释放语义。
+
+
+## 13. v5运行Store接手补充（2026-11-12）
+
+本节为编码后的源码说明；保留前文v4编码前/既有验收的时间。正式运行格式现在由同一operations.Store的`CreateRuntimeService`／`OpenRuntimeService`显式创建／打开schema5，账号、认领、配置、Apply及查询仍用本篇原正式接口。`CreateService`／`OpenService`继续只接受v4，无隐式升级；全部Fixture同时拒绝4/5。具体v5字段、事务和MV验收在[v5 Store规格](m1-manager-runtime-store.md)与[实施记录](../implementation/m1-manager-runtime-store.md)维护。
+
+新增源码职责：`runtime_api.go`验证凭据归属及Schema hello，核对node/ledger后调用原认证绑定事务，生成当前Binding及关联welcome；`delivery.go`从原outbox读取固定操作意图，每次返回前保存密文请求及等待重试窗口；`runtime_events.go`扩展有界位置及认证事件链，不另建操作库或释放权威。005 DDL是独立完整新格式，001—004保持原约束。Manager启动程序切换和网络发送适配由运行模块另行接线，本节完成不代表通道已经跑通。
+
+Delivery公开字段为MessageID、Kind、OperationID、Generation、Raw；Raw可能含秘密，写队列使用后释放，不写日志。`NextNodeDelivery(ctx,Binding,now)`一次至多一条；第一次和重试均持久登记attempts/next_attempt，等待1/2/4/8/16/30秒封顶。`RecordDeliveryFailure(ctx,Binding,messageID,code,now)`只接write_failed／connection_closed／queue_full／timeout固定码，另仅observe接受cursor_expired／observation_failed并持久停止旧context查询，复核当前session及round并持久延后重试，不能传错误正文。socket写成功不修改原outbox；ready/started/result/finalized等既有业务事务才确认。当前round纳入请求AEAD和唯一键，同session新round也取得自己的PrepareFinalize请求。许可仍按request_start原nonce直接回复。
+
+新结果规则包括started1后not_started2，以及normal_exit观察不完整、未drift时的只读补观察result3+。补观察保留outcome、exit_code、interrupt_reason、finished_at、not_started、顶层error、原output_b64及截断标记。高seq先到只存最多32条加密pending，不推进latest、不产生finalize资格；前史到达后逐一认证并保留原body字节。缺前史或矛盾不能通过扫描最新快照绕过，pending阻止完成和释放。只有最新、真实认证、可终结的result关联finalize及最终MAC释放；迟到旧结果仅重报历史，不覆盖新投影。held normal_exit/incomplete由投递器生成绑定本操作的observe，同latest seq使用稳定query/请求，绝不再次启动Compose。
+
+维护从operation latest/max与双claims→认证事件（含pending）→outbox业务状态→当前boot/session/round→runtime_deliveries密文与attempts→finalize_requests及finalization MAC定位。修改序号必须同时检查Agent v5、Manager读写/恢复/释放、005 DDL与MV05/06；不能只放开数字或跳过缺失的历史。模块测试使用本机临时库、正式Manager身份API和受控Agent事实，不证明真实Docker、跨机、掉电耐久或M1发布。

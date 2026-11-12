@@ -45,7 +45,7 @@ func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID s
 	}
 	// This slice has only the initial started event and one result. A pointer
 	// without its complete ordered history is not a coherent recovery record.
-	if state.LastSeq > 2 {
+	if s.runtime == nil && state.LastSeq > 2 {
 		return nil, ErrEvidence
 	}
 	var count uint64
@@ -76,8 +76,13 @@ func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID s
 				return nil, ErrEvidence
 			}
 		} else {
-			if event.Kind != "result" || latest != nil {
+			if event.Kind != "result" || (s.runtime == nil && latest != nil) {
 				return nil, ErrEvidence
+			}
+			if s.runtime != nil {
+				if err := s.validateRuntimeHistoryEvent(ctx, q, record, event, latest); err != nil {
+					return nil, err
+				}
 			}
 			copy := event
 			latest = &copy
@@ -86,7 +91,7 @@ func (s *Store) readRecoveryRecord(ctx context.Context, q querier, operationID s
 	if record.Phase == PhaseStartCommitted && state.LastSeq == 0 {
 		return nil, ErrEvidence
 	}
-	if record.Phase == PhaseReady && state.LastSeq > 1 {
+	if record.Phase != PhaseStartCommitted && state.LastSeq > 1 {
 		return nil, ErrEvidence
 	}
 	if (latest != nil) != state.LatestResultSeq.Valid {

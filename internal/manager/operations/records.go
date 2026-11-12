@@ -29,7 +29,7 @@ func (s *Store) readOperation(ctx context.Context, q querier, id string) (Operat
 			return Operation{}, ErrEvidence
 		}
 	}
-	if len(digest) != 32 || o.Revision == 0 || o.Revision > 9007199254740991 || o.PolicyRevision > 9007199254740991 || o.LatestResultSeq > o.MaxEventSeq || o.MaxEventSeq > 2 {
+	if len(digest) != 32 || o.Revision == 0 || o.Revision > 9007199254740991 || o.PolicyRevision > 9007199254740991 || o.LatestResultSeq > o.MaxEventSeq || o.MaxEventSeq > s.maxEventSequence() {
 		return Operation{}, ErrEvidence
 	}
 	if o.PermitID != "" {
@@ -44,7 +44,7 @@ func (s *Store) readOperation(ctx context.Context, q querier, id string) (Operat
 	default:
 		return Operation{}, ErrEvidence
 	}
-	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !((s.version == 2 || s.version == 3 || s.version == 4) && o.ReleaseStatus == "released") {
+	if o.ReleaseStatus != "held" && o.ReleaseStatus != "pending" && !((s.version == 2 || s.version == 3 || (s.version == 4 || s.version == 5)) && o.ReleaseStatus == "released") {
 		return Operation{}, ErrEvidence
 	}
 	if o.ReleaseStatus == "pending" && (!terminalState(o.State) || o.LatestResultSeq == 0 || o.Blocked) {
@@ -89,7 +89,7 @@ func (s *Store) requireClaims(ctx context.Context, q querier, o Operation) error
 	if o.ReleaseStatus == "released" {
 		return s.verifyRelease(ctx, q, o)
 	}
-	if s.version == 3 || s.version == 4 {
+	if s.version == 3 || (s.version == 4 || s.version == 5) {
 		var receipts int
 		if err := q.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM finalization WHERE operation_id=?)+(SELECT count(*) FROM absence_releases WHERE operation_id=?)`, o.OperationID, o.OperationID).Scan(&receipts); err != nil {
 			return ErrStorage
@@ -378,7 +378,7 @@ func (s *Store) Intents(ctx context.Context, id string) ([]Intent, error) {
 // AcceptFixture validates a trusted frozen-input fixture. It is deliberately
 // separate from the future HTTP idempotency and configuration repositories.
 func (s *Store) AcceptFixture(ctx context.Context, b Binding, user string, raw []byte) (Operation, error) {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return Operation{}, ErrSchema
 	}
 	if !validID(user) {
@@ -500,7 +500,7 @@ func (s *Store) acceptTx(ctx context.Context, tx *sql.Tx, b Binding, candidate O
 	digest, _ := base64.RawURLEncoding.Strict().DecodeString(candidate.Digest)
 	query := `INSERT INTO operations(operation_id,user_id,node_id,ledger_id,stack_id,version_id,project_name,endpoint_id,policy_revision,input_digest,owner_boot,prepared_session,payload_cipher,wrapped_dek,key_id,fingerprint,state,revision,cancel_requested,release_status,blocked,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0,'held',0,?,?)`
 	args := []any{candidate.OperationID, candidate.UserID, candidate.NodeID, candidate.LedgerID, candidate.StackID, candidate.VersionID, candidate.ProjectName, candidate.EndpointID, candidate.PolicyRevision, digest, candidate.OwnerBoot, candidate.PreparedSession, sealed.Cipher, sealed.WrappedDEK, sealed.KeyID, sealed.Fingerprint, candidate.State, now, now}
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		query = strings.Replace(query, "operation_id,user_id", "idempotency_key,digest_key_id,operation_id,user_id", 1)
 		query = strings.Replace(query, "VALUES(", "VALUES(?,?,", 1)
 		args = append([]any{serviceKey, s.identity.DigestKeyID}, args...)

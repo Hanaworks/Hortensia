@@ -45,6 +45,15 @@ func parseFinalization(raw []byte) (finalizationBody, error) {
 	return finalizationBody{p.OperationID, p.Digest, seq, p.State}, nil
 }
 func (s *Store) expectedFinalization(ctx context.Context, q querier, op Operation) (finalizationBody, error) {
+	if s.version == 5 {
+		var pending int
+		if e := q.QueryRowContext(ctx, `SELECT count(*) FROM runtime_pending_events WHERE operation_id=?`, op.OperationID).Scan(&pending); e != nil {
+			return finalizationBody{}, ErrStorage
+		}
+		if pending > 0 {
+			return finalizationBody{}, ErrRecoveryIncomplete
+		}
+	}
 	if op.Blocked {
 		return finalizationBody{}, ErrFrozen
 	}
@@ -253,7 +262,7 @@ func (s *Store) prepareFinalize(ctx context.Context, b Binding, id string) ([]by
 	return raw, nil
 }
 func (s *Store) PrepareFinalize(ctx context.Context, b Binding, id string) ([]byte, error) {
-	if s.version != 3 && s.version != 4 {
+	if s.version != 3 && s.version != 4 && s.version != 5 {
 		return nil, ErrSchema
 	}
 	if !validID(id) {
@@ -343,7 +352,7 @@ func (s *Store) readFinalized(ctx context.Context, q querier, op Operation) (jso
 	return raw, nil
 }
 func (s *Store) verifyRelease(ctx context.Context, q querier, op Operation) error {
-	if (s.version == 3 || s.version == 4) && op.LatestResultSeq > 0 {
+	if (s.version == 3 || (s.version == 4 || s.version == 5)) && op.LatestResultSeq > 0 {
 		raw, err := s.readFinalized(ctx, q, op)
 		clear(raw)
 		if errors.Is(err, ErrNotFound) {
@@ -351,7 +360,7 @@ func (s *Store) verifyRelease(ctx context.Context, q querier, op Operation) erro
 		}
 		return err
 	}
-	if s.version == 3 || s.version == 4 {
+	if s.version == 3 || (s.version == 4 || s.version == 5) {
 		var receipts int
 		if err := q.QueryRowContext(ctx, `SELECT count(*) FROM finalization WHERE operation_id=?`, op.OperationID).Scan(&receipts); err != nil {
 			return ErrStorage
@@ -363,7 +372,7 @@ func (s *Store) verifyRelease(ctx context.Context, q querier, op Operation) erro
 	return s.verifyAbsenceRelease(ctx, q, op)
 }
 func (s *Store) ReadFinalized(ctx context.Context, id string) (json.RawMessage, error) {
-	if s.version != 3 && s.version != 4 {
+	if s.version != 3 && s.version != 4 && s.version != 5 {
 		return nil, ErrSchema
 	}
 	if !validID(id) {
@@ -476,7 +485,7 @@ func (s *Store) receiveFinalized(ctx context.Context, b Binding, env protocol.En
 	return false, op, nil
 }
 func (s *Store) ReceiveFinalized(ctx context.Context, b Binding, raw []byte) error {
-	if s.version != 3 && s.version != 4 {
+	if s.version != 3 && s.version != 4 && s.version != 5 {
 		return ErrSchema
 	}
 	env, err := s.validator.Validate(raw)
@@ -532,7 +541,7 @@ func (s *Store) receiveReleasedEvent(ctx context.Context, tx *sql.Tx, op Operati
 	if !errors.Is(err, ErrNotFound) {
 		return false, err
 	}
-	if env.Type != "started" || p.seq != 1 || op.LatestResultSeq != 2 || op.PermitID == "" || op.PermitID != p.PermitID {
+	if env.Type != "started" || p.seq != 1 || (op.LatestResultSeq != 2 && !(s.version == 5 && op.LatestResultSeq > 2)) || op.PermitID == "" || op.PermitID != p.PermitID {
 		return false, ErrConflict
 	}
 	if err = s.validateEventAgainstRecovery(ctx, tx, op, env.Type, p, env.Body); err != nil {

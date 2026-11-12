@@ -32,11 +32,15 @@ var schemaV3 string
 //go:embed migrations/004_service.sql
 var schemaV4 string
 
+//go:embed migrations/005_runtime.sql
+var schemaV5 string
+
 // Store owns independent copies of its keys and must not be copied. Open on
 // the same database changes the durable active boot and revokes older writers.
 type Store struct {
 	version         int
 	recoveryMu      sync.Mutex
+	deliveryMu      sync.Mutex
 	recoveryBlocked map[string]bool
 	db              *sql.DB
 	boot            string
@@ -186,7 +190,7 @@ func Create(ctx context.Context, path, managerID string, keys Keys) (*Store, err
 }
 
 func createVersion(ctx context.Context, path, managerID string, keys Keys, version int, bootstrap ...serviceBootstrap) (*Store, error) {
-	if version != 1 && version != 2 && version != 3 && version != 4 {
+	if version != 1 && version != 2 && version != 3 && version != 4 && version != 5 {
 		return nil, ErrSchema
 	}
 	if !validID(managerID) {
@@ -232,7 +236,7 @@ func createVersion(ctx context.Context, path, managerID string, keys Keys, versi
 		return nil, ErrStorage
 	}
 	metaSQL := `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode) VALUES(1,?,?,?,?)`
-	if version == 4 {
+	if version == 4 || version == 5 {
 		metaSQL = `INSERT INTO manager_meta(singleton,schema_version,manager_id,active_boot,recovery_mode,initialization_complete) VALUES(1,?,?,?,?,1)`
 	}
 	if _, err := tx.ExecContext(ctx, metaSQL, version, managerID, s.boot, version >= 2); err != nil {
@@ -241,7 +245,7 @@ func createVersion(ctx context.Context, path, managerID string, keys Keys, versi
 	if _, err := tx.ExecContext(ctx, `INSERT INTO keys(singleton,digest_key_id,encryption_key_id,digest_key_check,encryption_key_check,uses) VALUES(1,?,?,?,?,0)`, keys.DigestID, keys.EncryptionID, keyCheck(managerID, "dm-manager-digest-key-v1", keys.DigestID, keys.DigestKey), keyCheck(managerID, "dm-manager-encryption-key-v1", keys.EncryptionID, keys.EncryptionKey)); err != nil {
 		return nil, ErrStorage
 	}
-	if version == 4 {
+	if version == 4 || version == 5 {
 		if len(bootstrap) != 1 {
 			return nil, ErrInput
 		}
@@ -264,7 +268,7 @@ func Open(ctx context.Context, path string, expected Identity, keys Keys) (*Stor
 }
 
 func openVersion(ctx context.Context, path string, expected Identity, keys Keys, wantVersion int) (*Store, error) {
-	if wantVersion != 1 && wantVersion != 2 && wantVersion != 3 && wantVersion != 4 {
+	if wantVersion != 1 && wantVersion != 2 && wantVersion != 3 && wantVersion != 4 && wantVersion != 5 {
 		return nil, ErrSchema
 	}
 	if !validID(expected.ManagerID) || !validKeyID(expected.DigestKeyID) || !validKeyID(expected.EncryptionKeyID) {
@@ -308,7 +312,7 @@ func openVersion(ctx context.Context, path string, expected Identity, keys Keys,
 	if schemaVersion != wantVersion {
 		return nil, ErrSchema
 	}
-	if wantVersion == 4 {
+	if wantVersion == 4 || wantVersion == 5 {
 		var complete, admins int
 		if err := db.QueryRowContext(ctx, `SELECT initialization_complete,(SELECT count(*) FROM users WHERE system_admin=1 AND enabled=1) FROM manager_meta WHERE singleton=1`).Scan(&complete, &admins); err != nil || complete != 1 || admins < 1 {
 			return nil, ErrSchema
@@ -353,7 +357,7 @@ func openVersion(ctx context.Context, path string, expected Identity, keys Keys,
 	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET frozen=1`); err != nil {
 		return nil, ErrStorage
 	}
-	if wantVersion == 2 || wantVersion == 3 || wantVersion == 4 {
+	if wantVersion == 2 || wantVersion == 3 || wantVersion == 4 || wantVersion == 5 {
 		if _, err := tx.ExecContext(ctx, `UPDATE recovery_scans SET status='abandoned' WHERE id IN (SELECT active_round FROM recovery_nodes WHERE active_round<>'')`); err != nil {
 			return nil, ErrStorage
 		}
@@ -416,7 +420,10 @@ func (s *Store) Close() error {
 }
 
 func schemaForVersion(version int) string {
-	if version == 4 {
+	if version == 5 {
+		return schemaV5
+	}
+	if version == 4 || version == 5 {
 		return schemaV4
 	}
 	if version == 3 {

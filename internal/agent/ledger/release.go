@@ -310,6 +310,11 @@ func (s *Store) finalize(ctx context.Context, session string, req finalizedBody,
 	if sealed == nil {
 		return body, true, nil
 	}
+	if s.runtime != nil {
+		if err = s.publishOwnership(ctx, tx, r, req.Seq, v.Latest); err != nil {
+			return nil, false, err
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO finalizations(operation_id,result_event_seq,terminal_state,body_cipher,wrapped_dek,key_id,body_fingerprint) VALUES(?,?,?,?,?,?,?)`, r.OperationID, req.Seq, terminal, sealed.Cipher, sealed.WrappedDEK, sealed.KeyID, sealed.Fingerprint); err != nil {
 		return nil, false, ErrStorage
 	}

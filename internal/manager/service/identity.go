@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"unicode/utf8"
 
 	"docker-manager/internal/manager/operations"
@@ -61,16 +63,20 @@ func Initialize(ctx context.Context, c Config, username, password string) (Ident
 		return IdentityManifest{}, err
 	}
 	defer lock.Close()
-	paths := []string{c.DatabaseFile, filepath.Join(dataDir, "identity.json"), filepath.Join(c.KeysDir, "digest.key"), filepath.Join(c.KeysDir, "encryption.key")}
+	paths := []string{c.DatabaseFile, filepath.Join(dataDir, "identity.json"), filepath.Join(c.KeysDir, "digest.key"), filepath.Join(c.KeysDir, "encryption.key"), c.DatabaseFile + "-wal", c.DatabaseFile + "-shm", c.DatabaseFile + "-journal"}
 	unique := map[string]bool{}
 	for _, path := range paths {
 		if err := rejectLinks(path); err != nil {
 			return IdentityManifest{}, err
 		}
-		if unique[filepath.Clean(path)] {
+		key := filepath.Clean(path)
+		if runtime.GOOS == "windows" {
+			key = strings.ToLower(key)
+		}
+		if unique[key] {
 			return IdentityManifest{}, ErrConfig
 		}
-		unique[filepath.Clean(path)] = true
+		unique[key] = true
 		if _, err := os.Lstat(path); err == nil {
 			return IdentityManifest{}, ErrInitialized
 		} else if !os.IsNotExist(err) {
@@ -89,7 +95,7 @@ func Initialize(ctx context.Context, c Config, username, password string) (Ident
 	if err != nil {
 		return IdentityManifest{}, ErrFiles
 	}
-	identity := IdentityManifest{1, manager, 4, digestID, encryptionID}
+	identity := IdentityManifest{FormatVersion: 1, ManagerID: manager, SchemaVersion: 5, DigestKeyID: digestID, EncryptionKeyID: encryptionID}
 	keys := operations.Keys{DigestID: digestID, EncryptionID: encryptionID, DigestKey: make([]byte, 32), EncryptionKey: make([]byte, 32)}
 	defer clearKeys(&keys)
 	if _, err := rand.Read(keys.DigestKey); err != nil {
@@ -111,7 +117,7 @@ func Initialize(ctx context.Context, c Config, username, password string) (Ident
 	if err := writeExclusive(paths[1], raw); err != nil {
 		return IdentityManifest{}, err
 	}
-	store, err := operations.CreateService(ctx, c.DatabaseFile, manager, keys, operations.Bootstrap{Username: username, Password: password})
+	store, err := operations.CreateRuntimeService(ctx, c.DatabaseFile, manager, keys, operations.Bootstrap{Username: username, Password: password})
 	if err != nil {
 		return IdentityManifest{}, err
 	}
@@ -135,7 +141,7 @@ func loadIdentity(c Config) (IdentityManifest, operations.Keys, error) {
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
-	if err := d.Decode(&identity); err != nil || identity.FormatVersion != 1 || identity.SchemaVersion != 4 {
+	if err := d.Decode(&identity); err != nil || identity.FormatVersion != 1 || (identity.SchemaVersion != 4 && identity.SchemaVersion != 5) {
 		return IdentityManifest{}, operations.Keys{}, ErrFiles
 	}
 	// Store verifies UUIDs, key identifiers and their checks against the DB.

@@ -99,6 +99,9 @@ func (s *Store) Claims(ctx context.Context, operationID string) ([]Claim, error)
 // records its stable input and claims. It performs no materialization, preflight,
 // or ready notification, and must not be used as a real deployment handler.
 func (s *Store) RecordReadyFixture(ctx context.Context, rawPrepare []byte) (Record, error) {
+	if s.runtime != nil {
+		return Record{}, ErrSchema
+	}
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()

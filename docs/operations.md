@@ -102,11 +102,11 @@ Agent 账本、身份和本地密钥有独立备份责任，但它们与 Manager
 | Manager 正常进程重启，数据库／密钥未回退 | 打开数据库，恢复占用；Agent 重连报告账本；先查询，不自动重放已授权许可 | 当前身份、会话与操作事实一致；未核清目标继续阻塞 |
 | Manager 从旧备份恢复 | 在隔离环境检查 backup_id、版本、密钥及全部密文；启动 recovery_mode，禁止新受理和开始许可 | 撤销旧浏览器会话，核对备份后的账号／授权／节点撤销变化；按协议 scope=all 分页对照 Agent 全部账本（含终结已 ack 历史），处理本库缺失项后显式解除受影响目标隔离 |
 | Agent 正常进程重启，账本／身份未回退 | 回报 ledger_id、未决操作、工作区和实际资源；不因 PID 消失判定未执行 | 与 Manager 核对许可及结果；疑似执行过的操作不重跑 |
-| Agent 账本从旧备份恢复、缺失或损坏 | 停止新开始，保留现有工作区；作为恢复事件重新核对；必要时认领新账本身份 | Manager 明确接受恢复身份并核清未知任务；不能默默生成空账本继续 |
+| Agent 账本从旧备份恢复、缺失或损坏 | 停止新开始，保留现有材料与工作区；保持原node／ledger身份，作为恢复事件重新核对 | 核清未知任务及端点副作用；不能用新身份、空账本或删除占用绕过；实际隔离恢复工具仍待实现 |
 | 密钥缺失、错配或密文认证失败 | 阻止读取敏感内容及新部署，报告 key_id／对象 ID 的受控错误 | 找回匹配备份并验证；生成新钥无法解密旧内容，禁止覆盖原材料 |
 | 磁盘满或 fsync／事务提交失败 | 拒绝新受理和新开始；正在执行的任务尽力保留结果并报告记录失败 | 恢复存储可写后核对实际执行；不能为了续跑先清账本或操作记录 |
 
-旧 Manager 备份可能恢复已经撤销的凭据。恢复模式下不因旧 token 仍可匹配就直接接受变更；管理员须核对当前节点身份、撤销列表和用户授权，受影响凭据先撤销／轮换。恢复环境只开放维护入口，完成核对前不接入原公开入口。旧密钥用于读取备份内容；恢复后新写入先生成并备份新的加密 key_id，避免把已回退的密钥使用计数当成可靠额度，HMAC 旧钥仍按引用保留。
+旧 Manager 备份可能恢复已经撤销的凭据。恢复设计要求先隔离入口、撤销旧会话及凭据、复核当前授权，再经真实Agent全量核对；当前普通serve尚不是隔离恢复入口。现行两端只有单KEK，密文AAD含key_id，不能只换钥或重置使用计数；计划保留HMAC／K_ledger，对完整副本用全新KEK逐记录重新加密。具体[维护／备份设计](specifications/m1-maintenance-backup.md)和MB记录尚未完成软件交付，不将设计中的恢复命令当作现有功能。
 
 真正 unknown／interrupted 的维护边界详见[执行与恢复](specifications/execution-recovery.md#6-人工恢复的边界与维护要求)。当前规格允许保存证据并持续隔离，没有可直接解除该隔离的现成命令；重新认领、改 node_id 或清空账本均不能绕过旧占用。O12 的维护入口和端点终止屏障必须在可交付安装包前完成设计与实测。
 
@@ -122,6 +122,7 @@ Agent 账本、身份和本地密钥有独立备份责任，但它们与 Manager
 | Manager `database_file` | string，默认 `/var/lib/docker-manager/manager.db` | 本地可靠文件系统；打开已有库时必须匹配 manager_id、schema 及密钥 |
 | Manager `keys_dir` | string，默认 `/etc/docker-manager/keys` | 私有密钥目录；权限和备份按第7—8节 |
 | Manager `log_level` | `info|warn|error`，默认 info | 禁止凭日志级别开启配置／密码／原始执行输出打印 |
+| Manager `web_dir` | 绝对目录，默认 `/usr/share/docker-manager/web` | 2026-11-12实施选择：Manager同源提供已构建的Web目录；与服务二进制一起交付，启动检查index.html。不从网络/CDN下载、不把未知API回退成HTML |
 | Agent `manager_origin` | 必填 string | HTTPS origin；认领和轮换附加既定路径，WebSocket使用同一主机端口及 `/agent/v1/connect`，不接受任意重定向转发凭据 |
 | Agent `ca_file` | 可省略绝对文件路径 | 省略使用系统 CA；提供则加入明确的附加信任，仍验证主机名；没有 insecure 开关 |
 | Agent `state_dir` | string，默认 `/var/lib/docker-manager-agent` | 内含 agent.db、workspaces 和操作目录；单实例锁覆盖该目录 |

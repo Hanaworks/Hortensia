@@ -184,7 +184,7 @@ func TestRuntimeRejectsDamagedIdentityWithoutRepair(t *testing.T) {
 			case "wrong_key":
 				damaged = bytes.Repeat([]byte{7}, 32)
 			case "future_manifest":
-				damaged = bytes.Replace(original, []byte(`"schema_version":4`), []byte(`"schema_version":99`), 1)
+				damaged = bytes.Replace(original, []byte(`"schema_version":5`), []byte(`"schema_version":99`), 1)
 			}
 			if kind != "missing_identity" {
 				if err := os.WriteFile(file, damaged, 0600); err != nil {

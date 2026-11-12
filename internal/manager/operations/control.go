@@ -12,7 +12,7 @@ import (
 
 // Fixture registration supplies trusted identities, not authentication.
 func (s *Store) CreateUserFixture(ctx context.Context, id string, enabled bool) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return ErrSchema
 	}
 	if !validID(id) {
@@ -44,7 +44,7 @@ func (s *Store) CreateUserFixture(ctx context.Context, id string, enabled bool) 
 }
 
 func (s *Store) SetUserEnabledFixture(ctx context.Context, id string, enabled bool) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return ErrSchema
 	}
 	if !validID(id) {
@@ -86,7 +86,7 @@ func validCapability(capability string) bool {
 }
 
 func (s *Store) SetGrantFixture(ctx context.Context, user, node, capability string, granted bool) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return ErrSchema
 	}
 	if !validID(user) || !validID(node) || !validCapability(capability) {
@@ -240,7 +240,7 @@ func terminalState(state string) bool {
 }
 
 func (s *Store) RecordReadyFixture(ctx context.Context, b Binding, id, digest string) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return ErrSchema
 	}
 	if !validID(id) || !validDigest(digest) {
@@ -371,7 +371,7 @@ func (s *Store) AuthorizeStart(ctx context.Context, b Binding, raw []byte) ([]by
 }
 
 func (s *Store) RequestCancelFixture(ctx context.Context, id string) error {
-	if s.version == 4 {
+	if s.version == 4 || s.version == 5 {
 		return ErrSchema
 	}
 	if !validID(id) {

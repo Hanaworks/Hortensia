@@ -13,14 +13,15 @@ import (
 	"strconv"
 	"strings"
 
+	"docker-manager/internal/localstate"
 	"docker-manager/internal/protocol"
 )
 
 var (
 	ErrConfig      = errors.New("manager configuration invalid")
-	ErrFiles       = errors.New("manager private files invalid")
-	ErrLocked      = errors.New("manager already running")
-	ErrInitialized = errors.New("manager initialization materials already exist")
+	ErrFiles       = localstate.ErrFiles
+	ErrLocked      = localstate.ErrLocked
+	ErrInitialized = localstate.ErrInitialized
 	ErrTLS         = errors.New("manager TLS configuration invalid")
 )
 

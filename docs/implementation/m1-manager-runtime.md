@@ -22,4 +22,37 @@
 
 ## 当前证据与依赖
 
-尚无本模块执行结果。服务内核、HTTP和Web仍在并行实现；真实Agent／Docker、备份恢复与整套首版验收另属首版计划。测试环境和操作方法等待用户稍后说明，不重复索要连接信息。
+2026-11-12对应Agent独立审阅的Manager修订基线（编码前）：RT02增加孤立`-wal`／`-shm`／`-journal`三种半集合输入，逐项断言init拒绝、原目录项及字节保持、数据库／identity／两钥均未产生。原RT02本机通过仅覆盖当时已有的主库／身份／密钥集合，不涵盖此次发现的旁文件缺口。新项当前未验证，后续如实记RED／GREEN。
+
+同日修复后：`TestInitializePreservesOrphanSQLiteSidecars`三种输入均先RED，实际复现init成功并删除原旁文件；前置集合补齐后GREEN，并与正常初始化、重复／部分材料、非法首管理员输入组一起通过（本机1.136秒）。修复前不把SQLite打开当检测；修复后在生成钥和建库之前拒绝。链接的实际平台验证仍按RT08单列。
+
+对应RT03／RT08进一步在serve的Store打开前增加三个旁文件的无链接／普通私有文件检查；不存在不阻止启动，有效恢复材料交由SQLite正常处理。此检查沿已有localstate实现，未把代码已加写成Linux权限／链接实际验证通过；最终Windows完整回归及Linux环境实验分别记录。
+
+同轮RT02 Windows大小写别名正式测试先RED：database_file为`IDENTITY.JSON`时虽然最终返回错误，却已发布identity和两钥。保留路径比较按平台补齐casefold后，正常／部分／旁文件／大小写组一起GREEN（1.214秒），拒绝发生在钥发布之前。该结果不推导任意文件系统别名兼容。
+
+初始基线保存时尚无本模块执行结果；最终本机结果见下。真实Agent／Docker、备份恢复与整套首版验收另属首版计划。测试环境和操作方法等待用户稍后说明，不重复索要连接信息。
+
+2026-11-12实施中记录：配置、私有文件、真实子进程锁、初始化及TLS服务已实现并定向验证；完整RT结果仍待独立审阅及最终回归。Windows不能创建符号链接的测试已明确跳过，不视作链接防护跨平台已验收。Linux amd64已成功交叉构建，尚未在Linux运行。当前真实服务使用web_dir提供构建产物，后续交付必须同时包含Web与二进制。
+
+HTTP实施者的中途全仓回归出现一次旧`TestManagerAndAgentProcessesUseVerifiedTLS`固定诊断断言失败；该断言没有保留子进程输出，定向复验通过不足以确定原次根因。最终回归前先改进这条既有测试的失败诊断，保留受控子进程的固定错误及非秘密报告，行为断言和2秒预算不变。全量最终结果另记，不把未知原因写成已确认的并行负荷问题。
+
+## 2026-11-12本机实现与验收
+
+源码提交`af43699`。配置、私有材料与操作系统锁、初始化／打开、HTTPS及静态Web、隐藏／显式stdin口令与取消、命令入口均已有实现。正常读入与错误路径在`internal/manager/service`说明，`cmd/manager`只组织命令与信号。运行入口及当前边界见[首次运行说明](../manager-first-run.md)。
+
+| 编号 | 当前结果与证据 | 仍未验证 |
+| --- | --- | --- |
+| RT01 | 本机通过：严格JSON／64KiB／默认值／路径；非规范端口、IPv4及IPv6拒绝，7种规范地址接受；独立Node WHATWG 2995项对照通过 | 本轮明确采用ASCII DNS及规范IP，不称完整任意URL实现 |
+| RT02 | 本机通过：独占密钥／identity／数据库、首管理员登录、口令空白保持、重复init和部分材料原字节不变 | 初始化各文件系统故障位置强杀尚未穷尽；Linux目录同步待实测 |
+| RT03 | 本机通过：短钥、错钥、缺identity、未来manifest拒绝且不补造，恢复原材料后可继续；DB格式／身份／密钥互拒由内核回归承接 | 旧库迁移不在本切片 |
+| RT04 | 本机通过：真实第二进程拒绝已持锁路径，持锁子进程Kill后可重取；锁文件保留不代表实例存活 | Linux flock真实进程验证待环境 |
+| RT05 | 本机通过：TLS真实登录、安全Cookie、静态页面边界、错误证书名称、端口占用不留Store／锁；实际Windows可执行程序验证构建页面及登录 | Linux安装及跨机证书部署 |
+| RT06 | 本机通过适用项：关闭后重开、阻塞正文强制关闭后重开、API及静态早拒绝不排空慢正文、正常keepalive不继承旧deadline | 真实控制台SIGTERM／全部提交点进程中止及掉电耐久未验证 |
+| RT07 | 本机通过适用项：显式stdin、无保护管道不冒充隐藏输入、参数错误不回显、开放管道取消及时退出；50次取消后晚到输入实验通过 | 实际控制台echo与信号恢复未动态验证；阻塞控制台读协程按规格随CLI退出终止 |
+| RT08 | Linux amd64交叉构建通过；Windows配置／文件／锁／TLS测试通过 | Linux私有mode、链接拒绝、目录同步实际运行未验证；Windows链接创建权限不足导致1项跳过，不当作Windows ACL证明 |
+
+独立审阅发现并关闭四类缺陷：未读正文早拒绝、静态正文、非规范origin和等口令期间取消；规格修订及真实RED记录保留，复核报告在本机缓存。正式回归入口为`service/review_test.go`、`config_test.go`、`files_test.go`、`identity_test.go`、`server_test.go`、`password_test.go`和`cmd/manager/main_test.go`。不是所有补充测试都经历独立事前RED，不补写该声明。
+
+根从Git导出精确`af43699`到`.cache/m1-management-baseline`，运行`go test -p 1 ./... -count=1 -json`：1347条测试／子测试通过、0失败，9个测试包通过，1个Windows链接权限跳过。完整JSON在`.cache/m1-management-af43699-tests.jsonl`。vet、build、mod verify及Linux amd64 Manager交叉构建通过。Web另39项正式测试与6项原审阅探针通过，类型检查及生产构建通过。这些是管理切片证据，不是整个M1通过。
+
+中途并行失败的定位：临时Go overlay直接观察旧探针`cmd.Start`阻塞30.683秒，返回时其20秒测试context已到期，业务握手尚未开始；相同目标单包及不含运行模块的组合约2.3秒通过。最小组合又观察到0.7／6.3秒启动波动。未认定某个Windows组件是最终根因，使用单包顺序验收保留全部断言和2秒探针业务期限，没有放宽为接受无诊断退出。缓存日志为`.cache/probe-with-runtime.log`及`.cache/probe-symlink-isolation.log`。后续Agent中间态修改不属于此固定版本验收。

@@ -13,6 +13,9 @@ import (
 // RecordResultFixture stores a controlled result supplied by its caller. It
 // validates ledger prerequisites, not a real process exit or Docker ownership.
 func (s *Store) RecordResultFixture(ctx context.Context, rawResult []byte) (Event, error) {
+	if s.runtime != nil {
+		return Event{}, ErrSchema
+	}
 	if err := s.requireJournal(); err != nil {
 		return Event{}, err
 	}

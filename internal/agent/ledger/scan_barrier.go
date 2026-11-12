@@ -95,6 +95,9 @@ func (s *Store) freezeRecoveryGates() {
 // BindRecoverySessionFixture trusts its caller to have authenticated the new
 // session. It cannot prove a real network connection's identity or lifetime.
 func (s *Store) BindRecoverySessionFixture(ctx context.Context, session string) error {
+	if s.runtime != nil {
+		return ErrSchema
+	}
 	if err := s.requireRecovery(); err != nil {
 		return err
 	}

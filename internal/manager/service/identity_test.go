@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"docker-manager/internal/manager/operations"
@@ -46,7 +47,7 @@ func TestInitializePublishesOneIdentityAndAdmin(t *testing.T) {
 	if identity != loaded || identity.ManagerID == "" || string(keys.DigestKey) == string(keys.EncryptionKey) {
 		t.Fatal("identity not stable or keys not independent")
 	}
-	s, err := operations.OpenService(ctx, c.DatabaseFile, identity.StoreIdentity(), keys)
+	s, err := operations.OpenRuntimeService(ctx, c.DatabaseFile, identity.StoreIdentity(), keys)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,5 +103,49 @@ func TestInvalidBootstrapDoesNotPublishMaterial(t *testing.T) {
 				t.Fatal("invalid input created material")
 			}
 		})
+	}
+}
+
+func TestInitializePreservesOrphanSQLiteSidecars(t *testing.T) {
+	for _, suffix := range []string{"-wal", "-shm", "-journal"} {
+		t.Run(suffix, func(t *testing.T) {
+			c := runtimeConfig(t)
+			if err := ensurePrivateDir(filepath.Dir(c.DatabaseFile)); err != nil {
+				t.Fatal(err)
+			}
+			path := c.DatabaseFile + suffix
+			original := []byte("original incomplete SQLite material\x00\xff")
+			if err := writeExclusive(path, original); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Initialize(context.Background(), c, "admin", "example password"); err == nil {
+				t.Error("orphan SQLite material accepted for initialization")
+			}
+			got, err := os.ReadFile(path)
+			if err != nil || string(got) != string(original) {
+				t.Errorf("original sidecar changed: %v", err)
+			}
+			for _, newPath := range []string{c.DatabaseFile, filepath.Join(filepath.Dir(c.DatabaseFile), "identity.json"), filepath.Join(c.KeysDir, "digest.key"), filepath.Join(c.KeysDir, "encryption.key")} {
+				if _, err := os.Lstat(newPath); !os.IsNotExist(err) {
+					t.Errorf("material created beside orphan sidecar: %s", filepath.Base(newPath))
+				}
+			}
+		})
+	}
+}
+
+func TestInitializeRejectsWindowsMaterialCaseAliasBeforePublication(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows case-insensitive path contract")
+	}
+	c := runtimeConfig(t)
+	c.DatabaseFile = filepath.Join(filepath.Dir(c.DatabaseFile), "IDENTITY.JSON")
+	if _, err := Initialize(context.Background(), c, "admin", "example password"); err == nil {
+		t.Error("material path alias accepted")
+	}
+	for _, path := range []string{c.DatabaseFile, filepath.Join(c.KeysDir, "digest.key"), filepath.Join(c.KeysDir, "encryption.key")} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Errorf("material published for invalid alias: %s", filepath.Base(path))
+		}
 	}
 }

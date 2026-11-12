@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager`是暂名。当前从M0技术原型继续推进M1首个完整流程：已完成本机TLS通信、许可门禁、两端持久任务与恢复扫描，并完成[双端终结释放的本地验收](docs/implementation/m0-dual-release.md)。账号／配置服务、HTTP入口、启动流程和Web正在实施，真实Agent执行及整套联调仍未完成，尚无可安装验收的Docker管理产品。首版范围、依赖和退出条件见[M1推进记录](docs/implementation/m1-first-version.md)。
+`docker-manager`是暂名。当前推进M1首个完整流程：Manager／Web管理切片已有可运行版本（af43699），正式Agent接入、持久任务通道及Compose执行程序已在后续工作树实现，正在收束审阅与固定版本回归。[Manager运行](docs/manager-first-run.md)和[Agent接入](docs/agent-first-run.md)分别说明入口。真实Docker接受表仍为空，生产部署能力尚未开放；备份恢复及受控维护继续实施，完整首版未交付。范围及退出条件见[M1推进记录](docs/implementation/m1-first-version.md)。
 
 ## 主要能力与边界
 
@@ -52,15 +52,15 @@
 
 ## 继续开发
 
-2026-11-12继续推进首个可试用版本，当前按M1的登录／节点接入 → Web保存配置 → 固定版本部署 → 查看结果组织工作；具体范围、模块依赖、V01—V08退出条件和文档独立阅读验证见[首版推进记录](docs/implementation/m1-first-version.md)。当前正在实现[双端释放](docs/specifications/m0-dual-release.md)，随后继续正式服务、真实执行、界面和运行交付；完成这一库模块不等于首版完成。
+2026-11-12按登录／节点接入 → Web保存配置 → 固定版本部署 → 查看结果推进。正式身份、HTTPS管理服务和Web已实现；[Agent服务](docs/specifications/m1-agent-service.md)、[工作区／Compose](docs/specifications/m1-compose-engine.md)和[Manager任务通道](docs/specifications/m1-manager-agenttransport.md)已有实现与本机组合证据。实际Agent可认领、连接及完成空恢复；受控启动失败任务已通过许可、结果ACK、双端释放及重连核对。受控失败验证不代表真实Docker部署成功。
 
-可在仓库根运行 `go test ./... -count=1` 复验当前原型，其中包含真正两个进程的回环 TLS 握手；`pwsh -File tools/check-contracts.ps1` 和 `node tools/check-docs.mjs` 继续检查静态契约与文档。Go 版本、手工运行命令和范围见 M0 实施记录。
+复验使用`go test -p 1 ./... -count=1`，其中包含真实TLS及辅助进程；Windows本机曾有进程启动阻塞，顺序验收保留原断言和业务时限，诊断见[运行验收](docs/implementation/m1-manager-runtime.md)。`pwsh -File tools/check-contracts.ps1`和`node tools/check-docs.mjs`只检查静态契约与文档。Web在其目录运行`npm test`、`npm run typecheck`和`npm run build`。
 
-开始账本、事件日志、Manager本地协调和Agent本地恢复扫描已有独立验收；本轮实现Manager扫描页持久接收、变化合并、业务核对及完成回执屏障，范围和证据见[恢复规格](docs/specifications/m0-manager-recovery.md)及[验收记录](docs/implementation/m0-manager-recovery.md)。只有可信all扫描证明无记录且本库从未授权／观察的任务，才走取消释放例外；有Agent记录的终态仍保留pending和占用，未知、矛盾及暂不支持的历史保持隔离。下一依赖是双端finalize／finalized释放和受控任务通道接线，网络探针仍冻结；认领／轮换、原生Compose及节点接入 → Web保存配置 → 部署 → 查看结果仍需后续落实。
+旧M0入口保持各自格式与证据；正式运行使用显式Agent5／Manager5和protocol1，没有隐式迁移。ACK不释放占用，正常双端finalize／finalized才释放并发布归属；观察不完整只补观察，真正未知、矛盾继续隔离。已知耐久退出但尚无结果时，恢复原结局而不重跑命令。
 
-Agent保留v1开始账本／v2日志，扫描使用显式新v3库；Manager保留v1协调入口，恢复使用显式新v2库，均无旧库升级工具。身份、会话和执行结果仍有受控夹具边界；页面收齐、Agent扫描完成、Manager业务就绪与当前回执提交是不同事实，不能据此宣称整个节点恢复或产品可发布。本轮使用本机临时数据库与辅助进程，无需用户提供真实部署环境；进入真实Docker或跨机验证前会先明确联调环境需求。首个增量交接见[实施计划](docs/development-plan.md#4-m1-工程落实与任务依赖)。每个模块执行[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)，仓库工作约定同时保存在AGENTS.md。
+[维护与完整备份恢复](docs/specifications/m1-maintenance-backup.md)已有事前基线，软件尚未完整实现；[SQLite一致快照](docs/specifications/m1-backup-snapshot.md)只是底层切片。未来schema6／protocol2方案与现行v5分开，不能用规划中的命令操作当前程序。Linux、真实Docker版本矩阵、两节点隔离及最终独立阅读仍未验证。用户稍后安排环境，本地独立工作继续，不连接未知节点。
 
-新决定记录于 decisions，再同步需求、设计、接口和测试。已有历史材料中的助手建议不会因为再次引用而变成用户已确认决定。正式名称、许可证、发布方式及首版完整范围仍需确定。
+每模块遵守[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)及AGENTS.md：先规格／验收，再实现，最后记录证据与限制。首版范围已确认按M1完整流程；正式名称、许可证及公开发布方式仍未决定。技术选择和参考产品行为不表述成用户逐项确认。
 
 ## 历史资料
 
