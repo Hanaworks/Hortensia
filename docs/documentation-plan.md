@@ -258,6 +258,7 @@ J01—J10逐项通过，实施记录保存故障观察、修正、运行环境�
 | Manager本地持久协调 | [Manager模块规格](specifications/m0-manager-operations.md) | 固定输入与双占用、持久授权、事件原文到操作状态／意图、重开冻结及维护入口 |
 | Agent本地恢复扫描 | [扫描模块规格](specifications/m0-agent-scan.md)与[实施／验收](implementation/m0-agent-scan.md) | 持久冻结／成员／变化与内存原文的职责、分页和会话期限、完成回执、事务与Gate锁序、故障定位及恢复边界 |
 | Manager扫描接收与业务恢复 | [恢复模块规格](specifications/m0-manager-recovery.md)与[实施／验收](implementation/m0-manager-recovery.md) | 请求链与加密页面、旧快照与新事件合并、业务核对与持久隔离、无记录取消释放依据、当前完成回执屏障及下一模块边界 |
+| 双端终结释放 | [释放规格](specifications/m0-dual-release.md)与[F01—F10验收](implementation/m0-dual-release.md) | 两端真实回执及claims事务、结果迟到、当前轮认证、过滤预算、重开隔离与接手维护；不代替真实Compose归属发布 |
 | Manager整体业务设计 | [Manager设计§8](components/manager.md#8-内外数据处理与维护) | HTTP输入到固定操作及投递意图、回报到结果、进程生命周期与维护分工 |
 | Agent整体业务设计 | [Agent设计§11](components/agent.md#11-内外对象衔接与接手维护) | 协议输入到工作区／执行／账本及输出、各内部单元责任、实测子集界限 |
 | Web设计 | [Web设计§9](components/web.md#9-内部状态数据转换与维护接入) | 服务器对象到编辑／提交／结果状态、用户动作到固定请求、恢复与清理 |

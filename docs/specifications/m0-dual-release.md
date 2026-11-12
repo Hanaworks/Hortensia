@@ -1,6 +1,6 @@
 # M0 双端终结释放规格
 
-2026-11-12编码前基线，代码起点656e355。状态：待实施。本模块承接[恢复矩阵及双端释放](execution-recovery.md#53-双端释放握手)、[Agent协议第6—7节](agent-protocol.md)、[共享Schema](../../contracts/agent-v1.schema.json)、[Manager恢复](m0-manager-recovery.md)及[Agent扫描](m0-agent-scan.md)。它是推进M1首个完整版本的基础，不单独称为首个版本。
+2026-11-12编码前基线，代码起点656e355；实现及本地F01—F10验收已完成，源码6f92eb3，最终回归374016e，证据见[验收记录](../implementation/m0-dual-release.md)。本模块承接[恢复矩阵及双端释放](execution-recovery.md#53-双端释放握手)、[Agent协议第6—7节](agent-protocol.md)、[共享Schema](../../contracts/agent-v1.schema.json)、[Manager恢复](m0-manager-recovery.md)及[Agent扫描](m0-agent-scan.md)。它是推进M1首个完整版本的基础，不单独称为首个版本。
 
 ## 1. 目的与选择
 
@@ -70,7 +70,7 @@ Agent提交后回执丢失：Manager仍pending并持有claims；重投finalize�
 
 ## 7. 实施中的接手补充
 
-以下于2026-11-12实现过程中补充，初始基线02d15c7，迟到started规则另在e4bd42d保存；最终代码与验收版本待实施记录回填。两端释放入口不会创建后台投递线程。Open仍按原机制换boot并冻结；Close只关闭持有资源并清理密钥副本，不自动终结操作、清除隔离或删除claims。恢复时先绑定当前会话，再从原持久事实核对，不续用旧实例写资格。
+以下于2026-11-12实现过程中补充，初始基线02d15c7，迟到started规则另在e4bd42d保存；最终代码与验收版本见实施记录。两端释放入口不会创建后台投递线程。Open仍按原机制换boot并冻结；Close只关闭持有资源并清理密钥副本，不自动终结操作、清除隔离或删除claims。恢复时先绑定当前会话，再从原持久事实核对，不续用旧实例写资格。
 
 | 内部数据 | 实际来源与约束 | 生命周期及维护用途 |
 | --- | --- | --- |

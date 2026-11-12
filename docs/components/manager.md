@@ -1,6 +1,6 @@
 # Manager 模块设计
 
-更新日期：2026-11-07。状态：M1内部设计及v1工作规格；现有Manager命令模式仍是M0冻结通信探针，另有独立的[本地持久协调库](../specifications/m0-manager-operations.md)和本轮实现的[v2扫描接收与业务恢复](../specifications/m0-manager-recovery.md)，尚无用户HTTP服务、配置仓储或完整Manager进程。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中Manager的内部展开，承接R01—R07、R11—R17及Q02—Q05、Q07—Q10。第7节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以各M0模块规格为准。第8节说明内部数据处理与维护入口，不追记为已有完整实现。
+更新日期：2026-11-07。状态：M1内部设计及v1工作规格；现有Manager命令模式仍是M0冻结通信探针，另有[本地持久协调库](../specifications/m0-manager-operations.md)、[v2业务恢复](../specifications/m0-manager-recovery.md)及已本地验收的[v3双端释放](../specifications/m0-dual-release.md)。2026-11-12正在实施v4账号／配置服务、HTTP及完整进程，尚未交付整套Manager。本文是[整体构件视图](../architecture.md#5-构件视图与逐层展开)中Manager的内部展开，承接R01—R07、R11—R17及Q02—Q05、Q07—Q10。第7节和[执行与恢复规格](../specifications/execution-recovery.md)说明目标实现的投递、证据和释放顺序；实际子集以各M0模块规格为准。第8节说明内部数据处理与维护入口，不追记为已有完整实现。
 
 ## 1. 内部组成与依赖
 

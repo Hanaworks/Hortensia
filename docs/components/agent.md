@@ -1,6 +1,6 @@
 # Agent 模块设计
 
-更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本、事件／首结果及[本地恢复扫描](../specifications/m0-agent-scan.md)的受控切片已完成，尚无完整Agent；扫描完成边界与证据见[验收记录](../implementation/m0-agent-scan.md)。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
+更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本、事件／首结果及[本地恢复扫描](../specifications/m0-agent-scan.md)的受控切片已完成；2026-11-12又完成[v4双端释放](../specifications/m0-dual-release.md)本地验收，尚无真实执行的完整Agent；扫描完成边界与证据见[验收记录](../implementation/m0-agent-scan.md)。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
 
 ## 1. 内部组成
 

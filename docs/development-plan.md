@@ -1,6 +1,6 @@
 # Docker Manager 开发实施计划
 
-更新日期：2026-11-07。状态：M0通信／独立许可门禁、Agent持久开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成；本轮实现Manager扫描接收与业务恢复，具体范围与证据见[本轮验收记录](implementation/m0-manager-recovery.md)。整个M0仍未完成，M1尚未实现，无工期承诺。面向用户与实现者，承接req42的[范围、需求和风险](requirements.md)，以及arc42的[模块、运行、决策及质量](architecture.md)。文档编写安排另见[文档规划](documentation-plan.md)。
+更新日期：2026-11-07。状态：M0通信／独立许可门禁、Agent持久开始账本、事件／首结果日志、Manager本地持久协调及Agent本地恢复扫描切片已完成；Manager扫描接收与业务恢复及2026-11-12的[双端释放](implementation/m0-dual-release.md)已完成本地库验收。整个M0仍未完成，M1首版服务与Web实施中，无工期承诺。面向用户与实现者，承接req42的[范围、需求和风险](requirements.md)，以及arc42的[模块、运行、决策及质量](architecture.md)。文档编写安排另见[文档规划](documentation-plan.md)。
 
 ## 1. 已有基础与开工条件
 

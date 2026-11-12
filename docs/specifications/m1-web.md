@@ -1,0 +1,45 @@
+# M1 Web 实施规格
+
+事前基线：2026-11-12，先于本轮 Web 实现保存。范围是[首版工作包F](../implementation/m1-first-version.md)，承接[Web组件设计](../components/web.md)、[功能设计](../functional-design.md)及[HTTP权威规格](http-api.md)。本篇定义浏览器内部责任，不复制服务端字段定义。实现与真实贯通结论分别记录于[验收记录](../implementation/m1-web.md)。
+
+## 1. 目的、依赖与交付
+
+登录后在明确节点中管理多文件配置，保存生成版本，再明确部署该版本，查看操作、观察和释放状态。管理员可创建／禁用账号、改密、登记／撤销节点、签发一次性认领材料和设置节点动作授权。首位管理员由服务端本机初始化，不提供未定义的浏览器初始化API。真实执行依赖Manager/Agent，界面不生成模拟运行成功。
+
+采用既定Vue 3和TypeScript，Vite构建自托管静态产物，Manager同源提供`web/dist`；运行期只请求相对`/api/v1`，不使用CDN或浏览器bearer。轻量原生表单和CSS适合本期有限工作流，无UI组件库、编辑器大依赖、前端持久数据库。导航采用单页节点与对象选择，保留操作历史入口；不需要给未定义服务端路由增加回退契约。版本、许可证、实际Node组合在验收页记录，锁文件保证可复现。
+
+## 2. 独立职责与数据流
+
+| 单元／入口 | 输入、转换和输出 | 生命周期／约束 |
+| --- | --- | --- |
+| `src/api.ts` HTTP客户端 | 相对API路径、结构化正文、key及If-Match→fetch→JSON对象／带status和code的错误 | Cookie same-origin，变更加CSRF；默认15秒超时，超时不表示撤销服务端变更；不输出正文到日志 |
+| `src/model.ts` 页面状态 | Me、Node、Stack、Version和Operation→可见权限、编辑会话、独立操作快照 | 身份／节点切换或失权递增generation；所有异步响应及错误先核对代次，旧响应不能覆盖新上下文 |
+| `src/config.ts` 配置运输适配 | content_b64↔严格UTF-8文本；文件集合、Compose及环境文件顺序、显式插值变量、profiles | 不格式化YAML、不trim正文、不使用宿主机环境；仅内存；无效UTF-8拒绝整包编辑 |
+| `src/submissions.ts` 提交记录 | 原key、用户ID、节点／Stack／版本ID及操作ID→sessionStorage最小恢复记录 | 不含正文、环境、密码、输出、Cookie、CSRF或认领token；登出删除；存储不可用时阻止变更，避免无法恢复的未知提交 |
+| `App.vue`及组件 | 只把模型中的获准数据作为文本显示，将动作交给模型 | 不使用v-html；切换脏草稿／关闭页面前提醒；卸载停止轮询；离开页面不会取消服务端操作 |
+
+共享API对象依据HTTP规格，Config／Observation及枚举依据[Schema](../../contracts/agent-v1.schema.json)。本地Draft含`files[{path,text}]`、有序`compose_files`／`interpolation_env_files`、插值变量对象、profiles；Draft由Version完整解码生成。编辑`editRevision`只标识本地输入变化；`baseVersion`仅来自指定已保存Version。`generation`区分权限和导航上下文，不能与服务端revision排序。操作仅按同一operation_id的revision合并。
+
+## 3. 保存、冲突和恢复
+
+保存点击先复制完整Draft，生成UUID key，捕获node、stack、baseVersion、editRevision及generation；先写非秘密恢复身份，再发固定请求。一次仅一份保存在途，继续输入修改下一份草稿。成功只更新baseVersion；本地editRevision未变才清dirty。初次创建同样允许在途后续编辑，返回stack_id后建立已保存上下文。
+
+网络失败、超时、500／503／429保留原key和冻结请求，显示待核对；先查询submissions。404只是尚无回执，保留未知状态，用户可在同页重发完全相同的原输入／key／If-Match。重开仅保留身份且丢失正文，不能自动重造输入或自动提交。Receipt得到version时以原保存快照确认基准，不读取当前Stack冒充原版本；重开后按明确版本读取。管理变更也通过同一提交核对入口，密码只在请求在途内存中保留，一次认领token仅首次响应内存展示，丢失时显式新key且replace_pending重新签发。
+
+412保留本地草稿，单独读取服务端最新配置供文件级比对。用户明确选择“以新版为基准保留我的编辑”后才能新key保存；不自动合并，不设置If-Match=*。可选择放弃草稿重新读取。其他确定拒绝结束本次提交，保留安全草稿；401清身份及敏感内容，403和受限对象404清当前敏感上下文、递增generation。权限恢复须重新读取，不能回填先前缓存。
+
+## 4. 部署、权限与观察
+
+部署确认显示节点、项目和已保存version_id；存在草稿时明确提示此次不包含未保存内容。Apply只发送固定version_id，保存新版本不改变已提交操作。操作权限和输出权限分别裁剪；有部署权无operation.read只显示受理身份，不轮询403。
+
+结果分开展示state、命令outcome／exit_code／interrupt_reason、ownership、observation采集时间及每个容器运行／健康状态、release_status。pending显示“结果已确认，释放待确认”；reconciliation_required／unknown／interrupted显示“需核对”，没有强制解锁或自动重跑。取消只提交请求，使用返回快照，不自行改成canceled。
+
+活动操作前台约2秒、后台10秒轮询；请求不重叠，失败保留最后快照和更新时间，延迟退避至30秒；只有终态且released才停止。节点和身份约15秒复核，auth_rev变化立即清除旧权限和敏感内容。输出按服务端next_cursor追加，不能以JS字符数计算字节位置；配置／输出只存内存。列表顺序及next_cursor遵从服务端，提供加载更多，不把一页当全集。
+
+## 5. 初始化、关闭与维护
+
+实施中补充（2026-11-12，影响W04／W06／W07）：刷新或离开编辑器保留的未知提交身份必须阻止同节点冲突变更；管理未知提交阻止后续管理变更，只有回执确认后解除。同账号会话过期后重新登录保留非秘密待核对记录，显式登出删除。组件以权限／导航代次为key卸载，连尚未形成合法Draft的表单输入也清除。操作查询在同一操作视图内只允许一个在途请求；清除和切换使旧响应无效。
+
+启动先GET me，无会话显示登录；取得身份后加载节点和本用户恢复记录。每次导航先清旧敏感内容，再查询新上下文；晚到读取和变更回执不得污染当前页面，但非秘密原提交身份保留用于恢复。登录账号改变删除旧用户提交记录。单页关闭清内存与计时器，服务端事实保持。
+
+排查保存覆盖先看editRevision和冻结快照；错节点看generation和归属检查；重复操作看恢复记录是否先于请求保存；撤权泄漏检查失败和迟到成功是否都经过generation；假成功看结果分层和释放轮询。修改Config字段须同步运输测试；修改HTTP需对照权威规格及正式后端测试。单元／组件测试仅证明前端状态，真实Cookie／TLS／权限／部署仍须首版V01—V08真实环境验证。

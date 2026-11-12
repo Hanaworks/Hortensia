@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager`是暂名。当前处于M0技术原型阶段：本目录有现行文档、历史归档、协议Schema／示例、Go通信原型、Agent开始账本、加密事件／结果日志和本地恢复扫描，以及Manager本地持久协调、扫描接收与业务恢复模块，已建立本地Git仓库。原型覆盖本机TLS连接、许可门禁、持久任务／许可／事件、结果重读和本地双端扫描核对；本轮实现与证据见[Manager恢复验收记录](docs/implementation/m0-manager-recovery.md)，尚无可安装的Docker管理产品。
+`docker-manager`是暂名。当前从M0技术原型继续推进M1首个完整流程：已完成本机TLS通信、许可门禁、两端持久任务与恢复扫描，并完成[双端终结释放的本地验收](docs/implementation/m0-dual-release.md)。账号／配置服务、HTTP入口、启动流程和Web正在实施，真实Agent执行及整套联调仍未完成，尚无可安装验收的Docker管理产品。首版范围、依赖和退出条件见[M1推进记录](docs/implementation/m1-first-version.md)。
 
 ## 主要能力与边界
 
@@ -39,6 +39,7 @@
 | 跟进Manager持久协调 | [Manager实施规格](docs/specifications/m0-manager-operations.md)与[实施计划／验收记录](docs/implementation/m0-manager-operations.md)：固定输入、双占用、事务许可、回报幂等和乱序、结果／释放意图；M01—M10已验收，未接网络任务 |
 | 跟进Agent完整账本扫描 | [扫描实施规格](docs/specifications/m0-agent-scan.md)与[实施计划／验收记录](docs/implementation/m0-agent-scan.md)：本地v3扫描切片已完成，覆盖持久冻结、固定成员／原文快照、分页、当前连接确认和完成回执；Agent扫描完成与Manager业务恢复分开 |
 | 跟进Manager扫描接收与业务恢复 | [恢复实施规格](docs/specifications/m0-manager-recovery.md)与[实施计划／验收记录](docs/implementation/m0-manager-recovery.md)：显式新v2库、加密页面与case、无记录释放的历史依据、旧快照与新事件合并和当前完成回执屏障；R01—R12结果与限制在验收页维护 |
+| 跟进双端终结释放 | [双端释放规格](docs/specifications/m0-dual-release.md)与[F01—F10验收](docs/implementation/m0-dual-release.md)：Agent v4／Manager v3真实持久回执、原子释放、迟到事件、当前轮认证及跨端进程恢复；执行结果仍为受控夹具 |
 | 接手账本与事件模块维护 | [开始账本内部说明](docs/specifications/m0-agent-ledger.md)、[事件日志内部结构与流转](docs/specifications/m0-agent-journal.md#7-内部结构与职责)：职责、调用流程、字段来源和生命周期、异常定位及修改约束 |
 | 按独立模块接手阅读 | [模块阅读与补全范围](docs/documentation-plan.md#131-模块阅读与补全范围)：通信各内部单元、账本／事件及Manager／Agent／Web的说明入口；共同定义、本地定义和转换处理分别落实 |
 | 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |

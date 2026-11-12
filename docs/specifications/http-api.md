@@ -55,7 +55,7 @@
 
 所有表中标记 K 的变更必须有 `Idempotency-Key: <Id>`，同一用户跨这些路由共用 key 空间。先查询 key，再检查 If-Match；同 key、相同方法／规范路径／If-Match／正文返回同一逻辑结果，不重新生成身份或重做变更。并发同 key 通过唯一约束合并；未提交的处理不产生回执。原 key 请求已受理但客户端丢响应，先查询 submissions，再决定同 key 重发。401、403 和对象不可见优先保护信息，旧回执不绕过当前读取权限。
 
-业务请求摘要沿原接口篇 HMAC 规范。密码等敏感输入只保留带密钥摘要，不进入幂等表明文。受理事务同时保存不可变的安全响应正文、HTTP 状态及 ETag：例如新建 Stack 的原 stack_id/version_id、修改 User／Grant 的原 auth_rev 及当时响应字段。重放先检查当前权限，仍获准才返回原响应；不得查询当前可变对象重新拼出不同 ETag 或版本。安全响应仅允许本篇 K 路由定义的非秘密字段，禁止口令、配置、CSRF、长期秘密和认领 token。涉及秘密的一次展示采用第 5 节的明确例外，不承诺重放秘密正文。
+业务请求摘要采用HMAC；2026-11-12编码前补足的准确算法见[Manager服务§7](m1-manager-service.md#7-http请求规范化与幂等主定义)，其类型化输入、默认值、方法／路径／条件头和canonical编码共同确定重试身份。密码等敏感输入只保留带密钥摘要，不进入幂等表明文。受理事务同时保存不可变的安全响应正文、HTTP 状态及 ETag：例如新建 Stack 的原 stack_id/version_id、修改 User／Grant 的原 auth_rev 及当时响应字段。重放先检查当前权限，仍获准才返回原响应；不得查询当前可变对象重新拼出不同 ETag 或版本。安全响应仅允许本篇 K 路由定义的非秘密字段，禁止口令、配置、CSRF、长期秘密和认领 token。涉及秘密的一次展示采用第 5 节的明确例外，不承诺重放秘密正文。
 
 标记 U 的用户／Grant 更新使用 `If-Match: "<auth_rev>"`；标记 V 的配置保存使用 `If-Match: "<current_version_id>"`，均拒绝弱 ETag 和 `*`。ETag 只用于对应对象的条件写入，不跨账号或 Stack 比较。GET user、GET me、PATCH user 的 ETag 为 auth_rev；Grant 行自带 auth_rev，GET grants 集合不发送一个代表所有用户的 ETag。
 
