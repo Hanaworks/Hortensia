@@ -33,7 +33,7 @@ func Snapshot(ctx context.Context, sourceFile, targetFile string) error
 
 ## 4. 状态、故障与维护规则
 
-状态只有未创建 → staging/partial → SQLite快照完成；这个状态不写入业务库，也不是备份组状态。调用错误后，即使目标可以打开也仍是 partial，不能恢复；调用成功后也仍待整组验证。完整清单和 READY 由未来上层单独负责。
+状态只有未创建 → staging/partial → SQLite快照完成；这个状态不写入业务库，也不是备份组状态。调用错误后，即使目标可以打开也仍是 partial，不能恢复；调用成功后也仍待整组验证。完整清单由上层[备份组](m1-backup-group.md)负责；READY属于尚未实现的恢复发布，均不是Snapshot的完成标志。
 
 源丢失/非普通文件/链接、目标存在、并发抢占 staging 均零覆盖拒绝。busy/locked 可以同一次尝试等待，取消、坏数据库、不可写目标和 Finish/Sync 错误则结束。原有效备份从不作为目标，整个模块无删除 API。普通在线读可能接触 SQLite SHM；不能把文件字节哈希要求扩展到共享内存读锁元数据。
 
@@ -41,4 +41,4 @@ func Snapshot(ctx context.Context, sourceFile, targetFile string) error
 
 ## 5. 验证与未实施内容
 
-稳定 BS 条件和证据在[实施记录](../implementation/m1-backup-snapshot.md)。全部测试使用本机真实 SQLite/临时文件，不连接现有节点或 Docker。仅覆盖 Windows 实际运行；Linux 路径/私有权限代码需后续真实 Linux 复验。掉电耐久、满盘和实际 Finish 错误仍需专门故障环境，不能从普通进程测试推断。
+稳定 BS 条件和证据在[实施记录](../implementation/m1-backup-snapshot.md)。2026-11-12原批次使用Windows真实SQLite／临时文件；2026-11-13在InstaBox专用Linux VM的[全仓回归](../implementation/m1-instabox-debug.md#6-第一轮-linux-源码回归)补上原生路径和真实链接／硬链接断言，没有把已有业务节点或Docker作为Snapshot目标。跨UID权限否定、掉电耐久、满盘和实际Finish错误仍需专门刺激，不能从普通进程测试或Sync成功推断。旧批次中的Linux待验说明只适用于当时结果，后续以本节及BS追加记录的具体范围承接。

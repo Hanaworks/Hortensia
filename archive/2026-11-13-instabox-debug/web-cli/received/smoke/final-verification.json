@@ -1,0 +1,33 @@
+{
+  "source_head": "4d46a60e38ff3092fe1fd5b5dcac55a35fb24303",
+  "frozen_source_files_unchanged": 255,
+  "owned_cli_or_supervisor_process_count": 0,
+  "all_runs": [
+    {
+      "run": "run-01",
+      "service_lock_files_reacquired": 2,
+      "private_files_checked": 5,
+      "all_private_leaf_directories_0700": true,
+      "listener_closed": true,
+      "overall_exit": 1
+    },
+    {
+      "run": "run-02",
+      "service_lock_files_reacquired": 2,
+      "private_files_checked": 5,
+      "all_private_leaf_directories_0700": true,
+      "listener_closed": true,
+      "overall_exit": 1
+    },
+    {
+      "run": "run-03",
+      "service_lock_files_reacquired": 2,
+      "private_files_checked": 8,
+      "all_private_leaf_directories_0700": true,
+      "listener_closed": true,
+      "overall_exit": 0
+    }
+  ],
+  "docker_socket_endpoint": "unix:///var/run/docker.sock",
+  "public_port_created": false
+}

@@ -1,0 +1,2 @@
+WC02 fixture correction recorded before run-02: run-01 used an OpenSSL default CA without keyUsage. A Python3.13.5 strict verification correctly rejected it with code92. Add critical basicConstraints CA:TRUE and critical keyUsage keyCertSign,cRLSign to the newly generated private test CA. Do not weaken TLS flags. All production source and original run-01 evidence remain unchanged. Grant changes do not revoke browser sessions; a fresh login in the script is only test setup.
+

@@ -1,6 +1,6 @@
 # M1 固定工作区、Compose适配与进程监督
 
-现行阅读提示（2026-11-12，实施后追加）：下文事前设计和随后修订均保留。三个源码模块已有本机实现与独立复核，结果及原生验证缺口见[CE记录](../implementation/m1-compose-engine.md)；精确Docker／Compose接受表为空，Linux进程组及真实端点仍待环境验证。
+现行阅读提示（更新至2026-11-13，实施后追加）：下文2026-11-12事前设计和随后修订按其时间保留。三个源码模块已有实现与独立复核，指定Linux进程组／链接／锁断言已在InstaBox实际通过，见[IB平台结果](../implementation/m1-instabox-debug.md#6-第一轮-linux-源码回归)和[CE记录](../implementation/m1-compose-engine.md)。原生Docker／Compose对照与产品集成分别验收；精确生产接受表仍为空，不能据Probe或原生CLI脚本直接开放能力。
 
 2026-11-12事前基线，先于本模块实现保存。范围承接[Agent运行§5—6](m1-agent-runtime.md#5-安全工作区与原生预检小程序)、[执行恢复§2—3](execution-recovery.md#2-配置预检与原生执行)。本模块没有账本事务、网络发送、event_seq分配、claims释放或active归属发布权限。真实Linux/Docker矩阵待环境安排。
 

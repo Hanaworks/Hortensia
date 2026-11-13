@@ -1,0 +1,11 @@
+{
+  "verifiedFiles": 119,
+  "verifiedBytes": 77630,
+  "smokeAssertions": 18,
+  "webExit": 0,
+  "smokeExit": 0,
+  "webStarted": "2026-11-13T10:52:55Z",
+  "webFinished": "2026-11-13T10:53:02Z",
+  "smokeStarted": "2026-11-13T11:02:23Z",
+  "smokeFinished": "2026-11-13T11:02:30Z"
+}

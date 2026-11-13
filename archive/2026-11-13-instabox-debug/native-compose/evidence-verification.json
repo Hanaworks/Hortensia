@@ -1,0 +1,100 @@
+{
+  "remote_local_sha256": {
+    "run-native.py": {
+      "sha256": "9358978c5ea7d96b8eb01ac3a0a7bd665e4051eceb6e623e6f9d92c8a6c2b7df",
+      "match": true
+    },
+    "run-addendum.py": {
+      "sha256": "d75f13df592da0a1ae54b49ac253158793267aba0ac2db51ae53c57d5cd743e1",
+      "match": true
+    },
+    "results.json": {
+      "sha256": "1412c134eca2335e8b128063b3036e9cfef1f9a3aa7b7db761e32319fe8eb819",
+      "match": true
+    },
+    "commands.jsonl": {
+      "sha256": "307199f372ac03b9b29b47e0cb11ce474333477599f2747a108cde055312bb90",
+      "match": true
+    },
+    "addendum-results.json": {
+      "sha256": "d8cc0bd48667d08ca6e892b2aec72b103674d58232d22fafcd0b82347fee2a29",
+      "match": true
+    },
+    "addendum-commands.jsonl": {
+      "sha256": "b435cbe4cd88fce19e92314a853865b17a94f4222d7d6b4dd0e0efa6c003f59c",
+      "match": true
+    }
+  },
+  "all_resource_kinds_empty": true,
+  "command_counts": {
+    "commands.jsonl": 121,
+    "addendum-commands.jsonl": 35
+  },
+  "case_statuses": {
+    "results.json": [
+      {
+        "id": "NC01",
+        "status": "PASS"
+      },
+      {
+        "id": "NC02",
+        "status": "PASS"
+      },
+      {
+        "id": "NC03",
+        "status": "PASS"
+      },
+      {
+        "id": "NC04",
+        "status": "PASS"
+      },
+      {
+        "id": "NC05",
+        "status": "PASS"
+      },
+      {
+        "id": "NC06",
+        "status": "PASS"
+      },
+      {
+        "id": "NC07",
+        "status": "PASS"
+      },
+      {
+        "id": "NC08",
+        "status": "PASS"
+      },
+      {
+        "id": "NC09",
+        "status": "PASS"
+      },
+      {
+        "id": "NC10",
+        "status": "PASS"
+      },
+      {
+        "id": "NC11",
+        "status": "PASS"
+      }
+    ],
+    "addendum-results.json": [
+      {
+        "id": "NC05b",
+        "status": "PASS"
+      },
+      {
+        "id": "NC06b",
+        "status": "PASS"
+      },
+      {
+        "id": "NC12",
+        "status": "PASS"
+      },
+      {
+        "id": "NC11b",
+        "status": "PASS"
+      }
+    ]
+  },
+  "invalid_original_noimage_excluded": true
+}

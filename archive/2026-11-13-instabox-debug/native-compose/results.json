@@ -1,0 +1,460 @@
+{
+  "namespace": "dmnc_b_20261113a",
+  "root": "/data/docker-manager-native/run-20261113-nc1",
+  "started": "2026-11-13T10:50:01.076263+00:00",
+  "environment": {
+    "uname": "Linux instabox-dm-m1-b-20261113 6.18.60-instabox #1 SMP PREEMPT_DYNAMIC 2026-10-30 00:00:00 UTC x86_64 GNU/Linux",
+    "os_release": "PRETTY_NAME=\"Debian GNU/Linux 13 (trixie)\"\nNAME=\"Debian GNU/Linux\"\nVERSION_ID=\"13\"\nVERSION=\"13 (trixie)\"\nVERSION_CODENAME=trixie\nDEBIAN_VERSION_FULL=13.7\nID=debian\nHOME_URL=\"https://www.debian.org/\"\nSUPPORT_URL=\"https://www.debian.org/support\"\nBUG_REPORT_URL=\"https://bugs.debian.org/\"\n",
+    "id": "uid=1000(user) gid=1000(user) groups=1000(user),27(sudo),991(docker)",
+    "docker_cli": "/usr/bin/docker",
+    "docker_version": {
+      "Client": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "DefaultAPIVersion": "1.56",
+        "GitCommit": "7fc2dff",
+        "GoVersion": "go1.26.8",
+        "Os": "linux",
+        "Arch": "amd64",
+        "BuildTime": "Wed Sep 30 19:33:33 2026",
+        "Context": "default"
+      },
+      "Server": {
+        "Platform": {
+          "Name": "Docker Engine - Community"
+        },
+        "Version": "29.8.2",
+        "ApiVersion": "1.56",
+        "MinAPIVersion": "1.40",
+        "Os": "linux",
+        "Arch": "amd64",
+        "Components": [
+          {
+            "Name": "Engine",
+            "Version": "29.8.2",
+            "Details": {
+              "ApiVersion": "1.56",
+              "Arch": "amd64",
+              "BuildTime": "Wed Sep 30 19:33:33 2026",
+              "Experimental": "false",
+              "GitCommit": "8af9fe3",
+              "GoVersion": "go1.26.8",
+              "KernelVersion": "6.18.60-instabox",
+              "MinAPIVersion": "1.40",
+              "Module": "github.com/moby/moby/v2",
+              "ModuleVersion": "v2.0.0+unknown",
+              "Os": "linux"
+            }
+          },
+          {
+            "Name": "containerd",
+            "Version": "v2.3.6",
+            "Details": {
+              "GitCommit": "ee2735368117d2eb259779949d5e75cdafec9761"
+            }
+          },
+          {
+            "Name": "runc",
+            "Version": "1.5.1",
+            "Details": {
+              "GitCommit": "v1.5.1-0-g8f2685a4"
+            }
+          },
+          {
+            "Name": "docker-init",
+            "Version": "0.19.0",
+            "Details": {
+              "GitCommit": "de40ad0"
+            }
+          }
+        ],
+        "GitCommit": "8af9fe3",
+        "GoVersion": "go1.26.8",
+        "KernelVersion": "6.18.60-instabox",
+        "BuildTime": "2026-09-30T19:33:33.000000000+00:00"
+      }
+    },
+    "engine_id": "db7656a5-e664-4e16-9b49-de8ff401cfce",
+    "driver": "overlayfs",
+    "compose_version": "5.6.0",
+    "image_ref": "busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+    "image_id": "sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+    "image_architecture": "amd64",
+    "image_repo_digests": [
+      "busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"
+    ]
+  },
+  "cases": [
+    {
+      "id": "NC01",
+      "started": "2026-11-13T10:50:01.076064+00:00",
+      "evidence": {
+        "image_ref": "busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+        "image_id": "sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+        "compose": "5.6.0"
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:10.819901+00:00"
+    },
+    {
+      "id": "NC02",
+      "started": "2026-11-13T10:50:10.820121+00:00",
+      "evidence": {
+        "sha256_before_after": {
+          ".env": "00e1c5ad99d0e09bd4d5b8d64035e4aa74d7ffcfcf5019b4a10eb5cff09502d4",
+          "app.env": "9043448138e027a4fa768dd5565164581e2d4692261e82350c7fba7685e0396d",
+          "compose.yaml": "dde0034f01d80447a8c41d479c1fab8f81a2bc1e2dade55c20705ec32a1b91e5",
+          "config/data.txt": "b797cc3c96011422c6bdc0f7ff4989bff3319635d0c2cbf070ee889c5352857f",
+          "first.env": "f36351b767447996b323b4b5906163c1adc108419c26077ea7e0373ee5f008cd",
+          "second.env": "52b5535e8921196f74ce34c6687608b44f9cc0b2f5b2863d5c78d79304c00eaa",
+          "sub/override.yaml": "e0c6e0637282be6d9cc1e32d94f614503c1faa671e5779618395abd0b5840a3b"
+        },
+        "normal_model": {
+          "name": "dmnc_b_20261113a_main",
+          "networks": {
+            "default": {
+              "name": "dmnc_b_20261113a_main_default",
+              "ipam": {}
+            }
+          },
+          "services": {
+            "app": {
+              "command": [
+                "sh",
+                "-c",
+                "sleep 300"
+              ],
+              "entrypoint": null,
+              "environment": {
+                "APP_SETTING": "from-container-env",
+                "DOCKER_HOST": "container-fake-only",
+                "FIXTURE_TOKEN": "<redacted:fixture-secret>",
+                "HOST_SENTINEL": "absent",
+                "MERGE_KEY": "override",
+                "MODE": "from-map",
+                "ORDER": "second"
+              },
+              "image": "busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+              "labels": {
+                "native.fixture.merge": "override"
+              },
+              "networks": {
+                "default": null
+              },
+              "volumes": [
+                {
+                  "type": "bind",
+                  "source": "/data/docker-manager-native/run-20261113-nc1/main/config/data.txt",
+                  "target": "/fixture/data.txt",
+                  "read_only": true,
+                  "bind": {}
+                },
+                {
+                  "type": "volume",
+                  "source": "data",
+                  "target": "/state",
+                  "volume": {}
+                },
+                {
+                  "type": "bind",
+                  "source": "/data/docker-manager-native/run-20261113-nc1/main/config/data.txt",
+                  "target": "/fixture/second.txt",
+                  "read_only": true,
+                  "bind": {}
+                }
+              ]
+            },
+            "dormant": {
+              "profiles": [
+                "hidden"
+              ],
+              "command": [
+                "sh",
+                "-c",
+                "sleep 300"
+              ],
+              "entrypoint": null,
+              "image": "busybox@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+              "networks": {
+                "default": null
+              }
+            }
+          },
+          "volumes": {
+            "data": {
+              "name": "dmnc_b_20261113a_main_data"
+            }
+          }
+        },
+        "reverse_merge_key": "base",
+        "reverse_env_order": "first",
+        "empty_env_order": "default_order",
+        "selected_dotenv_order": "dot_env",
+        "implicit_host_sentinel": "absent"
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:11.700594+00:00"
+    },
+    {
+      "id": "NC03",
+      "started": "2026-11-13T10:50:11.700837+00:00",
+      "evidence": {
+        "source_unchanged": true,
+        "container_ids": [
+          "3fafe1e83c8afa0d09e2d2c2f64f3218bfcf8b809ea1814104a993ea4e2484cb",
+          "f3d66e9900068adea420e122649a3e8d203ccef3e2d3bf11da6f139c1587d518"
+        ],
+        "networks": [
+          "dmnc_b_20261113a_main_default"
+        ],
+        "volumes": [
+          "dmnc_b_20261113a_main_data"
+        ],
+        "image_id": "sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+        "app_environment_assertions": 8
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:15.950107+00:00"
+    },
+    {
+      "id": "NC04",
+      "started": "2026-11-13T10:50:15.950372+00:00",
+      "evidence": {
+        "records": [
+          {
+            "kind": "container",
+            "name": "/dmnc_b_20261113a_main-dormant-1",
+            "labels": {
+              "com.docker.compose.config-hash": "ae18dbfce5d8de1eab85911c381ee223260c3512da84ba9abf4b4c50e3140595",
+              "com.docker.compose.container-number": "1",
+              "com.docker.compose.depends_on": "",
+              "com.docker.compose.image": "sha256:66a6306db78bf2dbf3487f293aa8d6990d8e506fdffab9cc43fe422becf886e4",
+              "com.docker.compose.oneoff": "False",
+              "com.docker.compose.project": "dmnc_b_20261113a_main",
+              "com.docker.compose.project.config_files": "/data/docker-manager-native/run-20261113-nc1/main/compose.yaml,/data/docker-manager-native/run-20261113-nc1/main/sub/override.yaml",
+              "com.docker.compose.project.environment_file": "/data/docker-manager-native/run-20261113-nc1/main/first.env,/data/docker-manager-native/run-20261113-nc1/main/second.env",
+              "com.docker.compose.project.working_dir": "/data/docker-manager-native/run-20261113-nc1/main",
+              "com.docker.compose.service": "dormant",
+              "com.docker.compose.version": "5.6.0"
+            },
+            "id": "3fafe1e83c8afa0d09e2d2c2f64f3218bfcf8b809ea1814104a993ea4e2484cb",
+            "created": "2026-11-13T10:50:12.801918415Z",
+            "health_field_present": false,
+            "state": "running"
+          },
+          {
+            "kind": "container",
+            "name": "/dmnc_b_20261113a_main-app-1",
+            "labels": {
+              "com.docker.compose.config-hash": "4a520a15854b4fe034ee025b32fb3041f3f0c161a31414897baec3ff82994d0e",
+              "com.docker.compose.container-number": "1",
+              "com.docker.compose.depends_on": "",
+              "com.docker.compose.image": "sha256:66a6306db78bf2dbf3487f293aa8d6990d8e506fdffab9cc43fe422becf886e4",
+              "com.docker.compose.oneoff": "False",
+              "com.docker.compose.project": "dmnc_b_20261113a_main",
+              "com.docker.compose.project.config_files": "/data/docker-manager-native/run-20261113-nc1/main/compose.yaml,/data/docker-manager-native/run-20261113-nc1/main/sub/override.yaml",
+              "com.docker.compose.project.environment_file": "/data/docker-manager-native/run-20261113-nc1/main/first.env,/data/docker-manager-native/run-20261113-nc1/main/second.env",
+              "com.docker.compose.project.working_dir": "/data/docker-manager-native/run-20261113-nc1/main",
+              "com.docker.compose.service": "app",
+              "com.docker.compose.version": "5.6.0",
+              "native.fixture.merge": "override"
+            },
+            "id": "f3d66e9900068adea420e122649a3e8d203ccef3e2d3bf11da6f139c1587d518",
+            "created": "2026-11-13T10:50:12.801791135Z",
+            "health_field_present": false,
+            "state": "running"
+          },
+          {
+            "kind": "network",
+            "name": "dmnc_b_20261113a_main_default",
+            "labels": {
+              "com.docker.compose.config-hash": "5076bf4427c5f7242a20468b3ae01819469d8737d4d2c0b7c6cfaf3f9bf36499",
+              "com.docker.compose.network": "default",
+              "com.docker.compose.project": "dmnc_b_20261113a_main",
+              "com.docker.compose.version": "5.6.0"
+            }
+          },
+          {
+            "kind": "volume",
+            "name": "dmnc_b_20261113a_main_data",
+            "labels": {
+              "com.docker.compose.config-hash": "b41073b4a7cb99e76d7b7da9d524ddec8181370eed2ec2973da255a575731133",
+              "com.docker.compose.project": "dmnc_b_20261113a_main",
+              "com.docker.compose.version": "5.6.0",
+              "com.docker.compose.volume": "data"
+            },
+            "weak_fingerprint": "dmnc_b_20261113a_main_data|local|2026-11-13T10:50:12Z"
+          }
+        ],
+        "all_list_contains_stopped": true,
+        "stack_association": "No product ledger involved; labels do not establish stack_id."
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:17.436300+00:00"
+    },
+    {
+      "id": "NC05",
+      "started": "2026-11-13T10:50:17.436666+00:00",
+      "evidence": {
+        "actual_image_id": "sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
+        "build_marker_images": [],
+        "no_image_exit": 1,
+        "no_image_resource_ids": []
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:17.862032+00:00"
+    },
+    {
+      "id": "NC06",
+      "started": "2026-11-13T10:50:17.862339+00:00",
+      "evidence": {
+        "missing_exit": 1,
+        "managed_external_networks": [],
+        "managed_external_volumes": [],
+        "network_labels": {
+          "dmnc.test.owner": "dmnc_b_20261113a"
+        },
+        "volume_labels": {
+          "dmnc.test.owner": "dmnc_b_20261113a"
+        }
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:18.294192+00:00"
+    },
+    {
+      "id": "NC07",
+      "started": "2026-11-13T10:50:18.294513+00:00",
+      "evidence": {
+        "exit": 1,
+        "original_id_preserved": "7f49be402d04a5b5edba461b6c67a69ddd328a3c8d9bb62de63da040ea6622bb",
+        "project_container_ids": [],
+        "project_network_ids_after_error": [
+          "04c3c9feb8a273f89553c9232967eb9ee4c94b7b31e572146aae736fa8a3bfaa"
+        ]
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:18.625911+00:00"
+    },
+    {
+      "id": "NC08",
+      "started": "2026-11-13T10:50:18.626203+00:00",
+      "evidence": {
+        "old_app_id": "f3d66e9900068adea420e122649a3e8d203ccef3e2d3bf11da6f139c1587d518",
+        "new_app_id": "2b27cdc01abd8d5eca5f7de7f7577e73cdc0fe3fe5066cc0f367c36497784f01",
+        "logical_key": "app/1",
+        "orphan_id_preserved": "3fafe1e83c8afa0d09e2d2c2f64f3218bfcf8b809ea1814104a993ea4e2484cb",
+        "orphan_warning_observed": true
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:29.463301+00:00"
+    },
+    {
+      "id": "NC09",
+      "started": "2026-11-13T10:50:29.463623+00:00",
+      "evidence": {
+        "exit": 1,
+        "states": {
+          "bad": "created",
+          "good": "running"
+        },
+        "network_count": 1
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:29.816236+00:00"
+    },
+    {
+      "id": "NC10",
+      "started": "2026-11-13T10:50:29.816559+00:00",
+      "evidence": {
+        "injected_at": "slow running, Compose waiting service_healthy",
+        "exit": 130,
+        "states_after_cancel": {
+          "after": "created",
+          "slow": "running"
+        },
+        "network_count": 1,
+        "no_rollback": true
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:30.461712+00:00"
+    },
+    {
+      "id": "NC11",
+      "started": "2026-11-13T10:50:30.462030+00:00",
+      "evidence": {
+        "started": "2026-11-13T10:50:30.462036+00:00",
+        "removed": {
+          "container": [
+            "dmnc_b_20261113a_cancel-after-1",
+            "dmnc_b_20261113a_cancel-slow-1",
+            "dmnc_b_20261113a_partial-bad-1",
+            "dmnc_b_20261113a_partial-good-1",
+            "dmnc_b_20261113a_main-app-1",
+            "dmnc_b_20261113a_foreign_name",
+            "dmnc_b_20261113a_external-app-1",
+            "dmnc_b_20261113a_build-app-1",
+            "dmnc_b_20261113a_main-dormant-1"
+          ],
+          "network": [
+            "dmnc_b_20261113a_build_default",
+            "dmnc_b_20261113a_cancel_default",
+            "dmnc_b_20261113a_collision_default",
+            "dmnc_b_20261113a_external_net",
+            "dmnc_b_20261113a_main_default",
+            "dmnc_b_20261113a_partial_default"
+          ],
+          "volume": [
+            "dmnc_b_20261113a_external_vol",
+            "dmnc_b_20261113a_main_data"
+          ]
+        },
+        "remaining": {
+          "container": [],
+          "network": [],
+          "volume": []
+        },
+        "finished": "2026-11-13T10:50:32.415867+00:00"
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:50:32.415880+00:00"
+    }
+  ],
+  "cleanup": {
+    "started": "2026-11-13T10:50:30.462036+00:00",
+    "removed": {
+      "container": [
+        "dmnc_b_20261113a_cancel-after-1",
+        "dmnc_b_20261113a_cancel-slow-1",
+        "dmnc_b_20261113a_partial-bad-1",
+        "dmnc_b_20261113a_partial-good-1",
+        "dmnc_b_20261113a_main-app-1",
+        "dmnc_b_20261113a_foreign_name",
+        "dmnc_b_20261113a_external-app-1",
+        "dmnc_b_20261113a_build-app-1",
+        "dmnc_b_20261113a_main-dormant-1"
+      ],
+      "network": [
+        "dmnc_b_20261113a_build_default",
+        "dmnc_b_20261113a_cancel_default",
+        "dmnc_b_20261113a_collision_default",
+        "dmnc_b_20261113a_external_net",
+        "dmnc_b_20261113a_main_default",
+        "dmnc_b_20261113a_partial_default"
+      ],
+      "volume": [
+        "dmnc_b_20261113a_external_vol",
+        "dmnc_b_20261113a_main_data"
+      ]
+    },
+    "remaining": {
+      "container": [],
+      "network": [],
+      "volume": []
+    },
+    "finished": "2026-11-13T10:50:32.415867+00:00"
+  },
+  "finished": "2026-11-13T10:50:32.416185+00:00"
+}

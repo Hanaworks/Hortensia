@@ -1,0 +1,149 @@
+{
+  "evidence_sha256": "75ce55818f6d19636e1318b1669ae3e159b65bc647094ce5a474e583887619b2",
+  "source_input": {
+    "head": "4d46a60e38ff3092fe1fd5b5dcac55a35fb24303",
+    "files": 255,
+    "verified": true
+  },
+  "exit_codes": {
+    "go-build.exit": 0,
+    "go-mod-verify.exit": 0,
+    "go-test.exit": 0,
+    "go-vet.exit": 0,
+    "input-verification.exit": 0,
+    "overall.exit": 0
+  },
+  "packages": {
+    "pass": 18,
+    "fail": 0,
+    "skip": 2
+  },
+  "tests": {
+    "pass": 1991,
+    "fail": 0,
+    "skip": 2
+  },
+  "skipped": [
+    {
+      "package": "docker-manager/internal/agent/service",
+      "test": "TestInitRejectsWindowsSQLitePathCaseAliases"
+    },
+    {
+      "package": "docker-manager/internal/manager/service",
+      "test": "TestInitializeRejectsWindowsMaterialCaseAliasBeforePublication"
+    }
+  ],
+  "failed": [],
+  "linux_boundaries": [
+    {
+      "name": "TestInterruptedExitZeroRemainsInterrupted",
+      "results": [
+        {
+          "test": "TestInterruptedExitZeroRemainsInterrupted",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestDeadlineKillsIgnoringProcessGroup",
+      "results": [
+        {
+          "test": "TestDeadlineKillsIgnoringProcessGroup",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestSymlinkRejected",
+      "results": [
+        {
+          "test": "TestSymlinkRejected",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestInitAndOpenIdentityRejectSidecarLinks",
+      "results": [
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-wal/init",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-wal/open",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-shm/init",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-shm/open",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-journal/init",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks/-journal/open",
+          "action": "pass"
+        },
+        {
+          "test": "TestInitAndOpenIdentityRejectSidecarLinks",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestPrivateFilesRejectLinks",
+      "results": [
+        {
+          "test": "TestPrivateFilesRejectLinks",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestManagerLockUsesOperatingSystemProcessLifetime",
+      "results": [
+        {
+          "test": "TestManagerLockUsesOperatingSystemProcessLifetime",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestSnapshotRejectsLinks",
+      "results": [
+        {
+          "test": "TestSnapshotRejectsLinks/WAL-hardlink",
+          "action": "pass"
+        },
+        {
+          "test": "TestSnapshotRejectsLinks/source-symlink",
+          "action": "pass"
+        },
+        {
+          "test": "TestSnapshotRejectsLinks/directory-symlink",
+          "action": "pass"
+        },
+        {
+          "test": "TestSnapshotRejectsLinks",
+          "action": "pass"
+        }
+      ]
+    },
+    {
+      "name": "TestSchedulerPersistsBeforeReadyAndCorrelatesEvents",
+      "results": [
+        {
+          "test": "TestSchedulerPersistsBeforeReadyAndCorrelatesEvents",
+          "action": "pass"
+        }
+      ]
+    }
+  ],
+  "started": "2026-11-13T10:47:31Z",
+  "finished": "2026-11-13T10:50:47Z"
+}

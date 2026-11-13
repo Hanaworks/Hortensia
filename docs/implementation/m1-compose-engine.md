@@ -1,25 +1,31 @@
 # M1 Compose执行适配实施记录
 
+现行阅读提示（2026-11-13）：本篇保留2026-11-12的事前基线与各轮修复过程，原文的“当前Windows”“Linux尚未执行”“限制未改变”等只对应当时记录，不能作为本次状态。现行CE02／CE07／CE10结果已在下表更新，Linux全仓证据见[InstaBox记录§6](m1-instabox-debug.md#6-第一轮-linux-源码回归)及[首版记录](m1-first-version.md)。其余原过程正文保留历史时点；生产Docker／Compose接受表仍为空，真实Docker矩阵和M1产品部署未完成。
+
 2026-11-12事前基线，先于本模块实现保存。[规格](../specifications/m1-compose-engine.md)。本切片承接AR06—11/14，范围是可调用IO与真实进程监督，不包含归属发布事务或M1完整交付。
 
 ## 顺序与环境
+
+2026-11-12事前顺序与环境原文如下；其中环境未提供的状态已由2026-11-13的[Linux实测记录](m1-instabox-debug.md#6-第一轮-linux-源码回归)替代，原生Docker结论仍待核验。
 
 先保存本规格和CE验收，再锁定YAML/schema/dotenv依赖并核验API/许可证/Go兼容；先写拒绝与字节测试，再实现workspace；再静态检查及原生命令；再监督器与list/inspect观察；最后按最终代码复核规格并执行本地测试、Linux交叉构建。当前Windows/Go1.27；Linux/Docker环境尚未提供，不连接节点。测试CLI用实际辅助可执行程序，记录argv/次数，不在生产options注入成功结果。
 
 | 编号 | 输入/动作与观察 | 通过条件 | 结果 |
 | --- | --- | --- | --- |
 | CE01 | 原始多文件/嵌套/已有版本复用/后改字节/额外条目 | 原字节和顺序相同；漂移拒绝且不覆盖；manifest包外 | 本地通过，含包外empty.env及内存上下文漂移 |
-| CE02 | 穿越/重复/前缀冲突/链接/半发布 | 根外无读写；ready前拒绝；Linux句柄另验 | 穿越/前缀本地通过；Windows链接测试因权限跳过，Linux句柄/半发布故障未验证 |
+| CE02 | 穿越/重复/前缀冲突/链接/半发布 | 根外无读写；ready前拒绝；Linux句柄另验 | 穿越/前缀本地通过；11-12 Windows链接因权限跳过。11-13 Linux全仓实际通过symlink拒绝及Linux句柄正常路径；半发布故障、真实Sync失败和掉电耐久仍未验证 |
 | CE03 | alias/merge隐藏env_file、循环、重复键、深度/节点预算 | 首次CLI计数0、固定错误及位置 | 本地通过，真实辅助CLI调用计数0 |
 | CE04 | 未知读入口、控制env含export/多行、覆盖掉/未启用服务 | 全部原文件在CLI前拒绝；合法alias原字节不改 | 本地通过；dotenv不读宿主、不打印缺变量告警 |
-| CE05 | 辅助CLI记录config及up argv/env、模型bind/image/build | 两者上下文相同，无shell/up删除构建选项；不安全模型拒绝 | 本地参数/环境/模型断言通过；真实Compose归一化未验证 |
+| CE05 | 辅助CLI记录config及up argv/env、模型bind/image/build | 两者上下文相同，无shell/up删除构建选项；不安全模型拒绝 | 本地参数/环境/模型断言通过；原生CLI规范输出已见IB第7节，产品Prepare与真实Compose的模型组合仍未验证 |
 | CE06 | UTF8跨块/非法字节/stdout+stderr超限 | 字符完整且≤1MiB、持续排空、无输出日志 | 本地通过，实际辅助进程双流各4MiB排空且返回预算错误 |
-| CE07 | Linux真实子进程组TERM/10秒KILL/exit0/deadline | Wait回收全部；中断exit0仍interrupted | 未验证；待Linux |
-| CE08 | list/inspect失败/消失/超预算/健康none/orphan | 无假空complete、全项目含停止容器；无删除 | 本地list/inspect、关联错误、预算、停止/none通过；真实Docker未验证 |
-| CE09 | 首次碰撞/更新替换/external/非零部分变更 | 具体身份及逻辑证据；不接管外部/不修改active | 本地替换/碰撞/external夹具通过；非零实际部分变更与finalize跨模块验证 |
-| CE10 | 包测试、Linux交叉构建、最终规格复核 | 构建真实生产路径；区分受控夹具和真实Compose | 三包本地测试/vet与Linux测试二进制交叉构建通过；真实Linux运行未验证 |
+| CE07 | Linux真实子进程组TERM/10秒KILL/exit0/deadline | Wait回收全部；中断exit0仍interrupted | 11-13 Linux实际通过`TestInterruptedExitZeroRemainsInterrupted`及`TestDeadlineKillsIgnoringProcessGroup`，包括10秒KILL与后代心跳停止；是真实辅助进程组，不是Docker端点屏障 |
+| CE08 | list/inspect失败/消失/超预算/健康none/orphan | 无假空complete、全项目含停止容器；无删除 | 本地list/inspect、关联错误、预算、停止/none通过；原生Docker的inspect／停止／none证据已见IB第7节，产品collect与真实端点组合及故障矩阵仍未验证 |
+| CE09 | 首次碰撞/更新替换/external/非零部分变更 | 具体身份及逻辑证据；不接管外部/不修改active | 本地夹具通过；原生非零部分变更／替换／orphan／external已观察，产品Compose与账本／finalize的跨模块组合仍未验证 |
+| CE10 | 包测试、Linux交叉构建、最终规格复核 | 构建真实生产路径；区分受控夹具和真实Compose | 三包Windows测试/vet及交叉构建保留原证据；11-13冻结工作树Linux全仓18测试包、1991条通过/0失败/2跳过，vet/build/mod verify通过；真实Docker矩阵、产品部署及独立运行阅读仍未完成 |
 
 完成要求是适用本地CE项有结果/证据、故障断言覆盖字节与真实调用，未验证Linux项明确保留；不能据本表宣称模块真实部署或M1完成。交付证据汇总到`.cache/m1-compose-engine-report.md`，不含真实秘密。
+
+2026-11-13当前Linux组合为Go1.27.1／linux/amd64／CGO1、Debian13.7及Linux6.18.60-instabox；上述完整回归的两个跳过仅为两端Windows大小写专用用例，CE07两项均实际执行。输入逐字节核对和原始日志位置由[InstaBox记录§6](m1-instabox-debug.md#6-第一轮-linux-源码回归)统一维护，不把普通目录Sync成功或辅助CLI调用换称真实磁盘故障、掉电或Docker部署验收。
 
 ## 2026-11-12实现与验证补充
 

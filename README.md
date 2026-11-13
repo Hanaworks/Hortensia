@@ -60,7 +60,7 @@
 
 旧M0入口保持各自格式与证据；正式运行使用显式Agent5／Manager5和protocol1，没有隐式迁移。ACK不释放占用，正常双端finalize／finalized才释放并发布归属；观察不完整只补观察，真正未知、矛盾继续隔离。已知耐久退出但尚无结果时，恢复原结局而不重跑命令。
 
-[维护与完整备份恢复](docs/specifications/m1-maintenance-backup.md)已有事前基线，软件尚未完整实现；[SQLite一致快照](docs/specifications/m1-backup-snapshot.md)只是底层切片。未来schema6／protocol2方案与现行v5分开，不能用规划中的命令操作当前程序。Linux、真实Docker版本矩阵、两节点隔离及最终独立阅读仍未验证。用户稍后安排环境，本地独立工作继续，不连接未知节点。
+[维护与完整备份恢复](docs/specifications/m1-maintenance-backup.md)已有事前基线，软件尚未完整实现；[SQLite一致快照](docs/specifications/m1-backup-snapshot.md)只是底层切片。[完整备份组](docs/implementation/m1-backup-group.md)的通用库已提交`7362441`，正式两端service／CLI及真实材料组合继续接线。未来schema6／protocol2方案与现行v5分开，不能用规划中的命令操作当前程序。2026-11-13用户已指定InstaBox并批准调试访问，已创建两台专用Linux机，首轮Linux源码回归1991条通过、0失败、2项Windows专用跳过，见[IB验证记录](docs/implementation/m1-instabox-debug.md)。Docker原生对照、产品版本矩阵、两节点隔离及最终独立阅读分别验收，不由Linux源码回归推定通过。
 
 每模块遵守[开工与完成流程](docs/development-plan.md#61-每轮实施的开工与完成条件)及AGENTS.md：先规格／验收，再实现，最后记录证据与限制。首版范围已确认按M1完整流程；正式名称、许可证及公开发布方式仍未决定。技术选择和参考产品行为不表述成用户逐项确认。
 

@@ -1,0 +1,2 @@
+WC03 extra negative assertion correction recorded before run-03: run-02 expected 403 before all grants. HTTP API section 3 defines 404 for nonexistent/invisible objects; requireCaps returns 404/not_found when node.read is absent, including admin config actions. Assert 404/not_found in this exact case. Preserve all prior evidence and production code. Critical CA extensions from run-02 remain; no TLS flag weakening.
+

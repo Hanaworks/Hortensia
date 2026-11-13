@@ -1,0 +1,105 @@
+{
+  "namespace": "dmnc_b_20261113b",
+  "root": "/data/docker-manager-native/run-20261113-nc2",
+  "cases": [
+    {
+      "id": "NC05b",
+      "started": "2026-11-13T10:52:53.554885+00:00",
+      "evidence": {
+        "config_succeeded": true,
+        "image_field_absent": true,
+        "up_exit": 1,
+        "up_stderr": " Network dmnc_b_20261113b_noimage_default Creating \n Network dmnc_b_20261113b_noimage_default Creating \n Network dmnc_b_20261113b_noimage_default Created \n Network dmnc_b_20261113b_noimage_default Created \n Container dmnc_b_20261113b_noimage-app-1 Creating \n service:app:1 Error response from daemon: No such image: dmnc_b_20261113b_noimage-app:latest \nError response from daemon: No such image: dmnc_b_20261113b_noimage-app:latest\n",
+        "created_container_ids": [],
+        "created_network_ids": [
+          "f0eaddb4edcd2fca272f0b512df352910175d65a59d324e90292714a923eb791"
+        ],
+        "build_marker_images": []
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:52:53.719655+00:00"
+    },
+    {
+      "id": "NC06b",
+      "started": "2026-11-13T10:52:53.719796+00:00",
+      "evidence": {
+        "missing_volume_exit": 1,
+        "missing_volume_stderr": "external volume \"dmnc_b_20261113b_external_vol\" not found\n",
+        "after_create_container_ids": [
+          "13cfcc83e733198bd3969d712bb47fbaa4c770901b8d3a6d952305291981ad0f"
+        ],
+        "managed_external_networks": [],
+        "managed_external_volumes": []
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:52:54.074033+00:00"
+    },
+    {
+      "id": "NC12",
+      "started": "2026-11-13T10:52:54.074219+00:00",
+      "evidence": {
+        "original_sha256": {
+          "first.labels": "4d44663ce7c76d7afec68634e6eb58c53fa912eaee5c4491cbbec847771bf425",
+          "compose.yaml": "3c416edddd71d1de3e6e2e03193c5ce718819eed329accc82392aaf3ec92a54f",
+          "secret.txt": "cb753bdfcebb10caffb5115d6cf95e8229361df98dafae7193ad9756c0a1afa1",
+          "config.txt": "2fcf9f6fd2f860f06f27cd51991d9f9b6bf4f54144eac8bf82c1054bfaa63123",
+          "app.env": "3e3394bbfb14223a6251d8389ae3be1088c0c786f61ab8d7fb7cc8405f08f47d",
+          "second.labels": "fa60a07e26a1e7b9a1295dc29ef250ad8d17189a51791e4ba9c787918eef9a14"
+        },
+        "label_file_order": "second",
+        "inline_label_priority": "inline",
+        "alias_env_file_observed": true,
+        "secret_file_content_asserted_redacted": true,
+        "config_secret_readonly_mounts": {
+          "/fixture-config": {
+            "Type": "bind",
+            "Source": "/data/docker-manager-native/run-20261113-nc2/files/config.txt",
+            "Destination": "/fixture-config",
+            "Mode": "",
+            "RW": false,
+            "Propagation": "rprivate"
+          },
+          "/run/secrets/fixture_secret": {
+            "Type": "bind",
+            "Source": "/data/docker-manager-native/run-20261113-nc2/files/secret.txt",
+            "Destination": "/run/secrets/fixture_secret",
+            "Mode": "",
+            "RW": false,
+            "Propagation": "rprivate"
+          }
+        },
+        "container_id": "d270dcf0829596012544fb1030a2fa0d2fa0f41ad7a9d2b6021176c2a59b8c33",
+        "product_label_file_enabled": false
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:52:54.379745+00:00"
+    },
+    {
+      "id": "NC11b",
+      "started": "2026-11-13T10:52:54.379936+00:00",
+      "evidence": {
+        "removed": {
+          "container": [
+            "dmnc_b_20261113b_files-app-1",
+            "dmnc_b_20261113b_external-app-1"
+          ],
+          "network": [
+            "dmnc_b_20261113b_external_net",
+            "dmnc_b_20261113b_files_default",
+            "dmnc_b_20261113b_noimage_default"
+          ],
+          "volume": [
+            "dmnc_b_20261113b_external_vol"
+          ]
+        },
+        "remaining": {
+          "container": [],
+          "network": [],
+          "volume": []
+        }
+      },
+      "status": "PASS",
+      "finished": "2026-11-13T10:52:55.369617+00:00"
+    }
+  ]
+}

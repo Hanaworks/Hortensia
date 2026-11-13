@@ -1,0 +1,18 @@
+
+> docker-manager-web@0.1.0 build
+> npm run typecheck && vite build
+
+
+> docker-manager-web@0.1.0 typecheck
+> vue-tsc --noEmit
+
+vite v8.3.8 building client environment for production...
+transforming...
+✓ 24 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.40 kB │ gzip:  0.27 kB
+dist/assets/index-CtyXE8vs.css    5.19 kB │ gzip:  1.75 kB
+dist/assets/index-Cvbtfh19.js   110.40 kB │ gzip: 40.21 kB
+
+✓ built in 341ms

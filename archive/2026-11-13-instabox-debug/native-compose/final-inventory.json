@@ -1,0 +1,17 @@
+{
+  "collected_at": "2026-11-13T18:54:08.440593+08:00",
+  "remaining": {
+    "container": [],
+    "network": [],
+    "volume": []
+  },
+  "sha256": {
+    "run-native.py": "9358978c5ea7d96b8eb01ac3a0a7bd665e4051eceb6e623e6f9d92c8a6c2b7df",
+    "run-addendum.py": "d75f13df592da0a1ae54b49ac253158793267aba0ac2db51ae53c57d5cd743e1",
+    "run-20261113-nc1/results.json": "1412c134eca2335e8b128063b3036e9cfef1f9a3aa7b7db761e32319fe8eb819",
+    "run-20261113-nc1/commands.jsonl": "307199f372ac03b9b29b47e0cb11ce474333477599f2747a108cde055312bb90",
+    "run-20261113-nc2/results.json": "d8cc0bd48667d08ca6e892b2aec72b103674d58232d22fafcd0b82347fee2a29",
+    "run-20261113-nc2/commands.jsonl": "b435cbe4cd88fce19e92314a853865b17a94f4222d7d6b4dd0e0efa6c003f59c"
+  },
+  "all_empty": true
+}

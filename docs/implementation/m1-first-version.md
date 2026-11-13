@@ -84,7 +84,7 @@ O02／O03／O04／O07的运行验证分别由服务／身份／Compose模块承�
 
 ## 7. v5源码交接切片的本机验证
 
-2026-11-12实施后记录，源码提交`95d453f`。本节是B／C／D／E／G部分源码的交接证据，**不是V01—V08全部通过、整个M1完成或产品发布**。新init为Agent5／Manager5，protocol1；旧入口保持各自严格格式，没有隐式迁移。schema6／protocol2及完整受控维护是后续设计，尚未实现。
+2026-11-12实施后记录，源码提交`95d453f`。本节保留该提交交接时的结果和当时下一依赖，不作为后续环境／新增代码的现状；后续按第8、9节承接。本节是B／C／D／E／G部分源码的交接证据，**不是V01—V08全部通过、整个M1完成或产品发布**。新init为Agent5／Manager5，protocol1；旧入口保持各自严格格式，没有隐式迁移。schema6／protocol2及完整受控维护是后续设计，尚未实现。
 
 | 检查 | 实际结果与可复验入口 | 限制 |
 | --- | --- | --- |
@@ -115,4 +115,12 @@ O02／O03／O04／O07的运行验证分别由服务／身份／Compose模块承�
 
 精确字段、读取顺序、既有事实不能补证的范围及稳定编号见[Agent规格](../specifications/m1-agent-runtime.md)、[AI记录](m1-agent-runtime.md)、[Manager存储规格](../specifications/m1-manager-runtime-store.md)、[MI记录](m1-manager-runtime-store.md)和[共享主定义](../specifications/m1-maintenance-backup.md#73-v5完整备份的只读检查切片)。本机完整JSON为`.cache/m1-snapshot-inspection-all-tests.jsonl`；各独立报告及原反例保留于本机cache，测试源码随本轮代码保存。
 
-本节仅交接备份检查库。完整组、材料锁／清单／CLI尚未编码，其[规格](../specifications/m1-backup-group.md)和[BG基线](m1-backup-group.md)已在实现前保存，下一步接通这些入口。新KEK相等根用受控测试构造验证，不是已交付的恢复／转换工具。schema6、protocol2和维护仍是后续方案，MB08／09整体及M1未完成。
+本节仅交接备份检查库。截至检查器提交时，完整组、材料锁／清单／CLI尚未编码；该时间范围的历史状态保留，后续通用组已按事前[规格](../specifications/m1-backup-group.md)和[BG基线／现状](m1-backup-group.md)实现，正式service／CLI及真实两端组合仍未完成。新KEK相等根用受控测试构造验证，不是已交付的恢复／转换工具。schema6、protocol2和维护仍是后续方案，MB08／09整体及M1未完成。
+
+## 9. InstaBox Linux 调试
+
+2026-11-13，用户指定使用InstaBox调试并批准访问，随后允许自行创建／分配虚拟机及使用原有两台暂停机器。账号实测上限5台；本轮新建两台专用4vCPU／8GiB Linux VM，现有两台尚未启用。事前范围、稳定IB01—IB08、输入冻结／秘密边界及实际结果集中维护在[InstaBox验证记录](m1-instabox-debug.md)。
+
+首轮A已对255份受验输入逐文件验证，Linux全仓回归1991条测试／子测试通过、0失败、2项Windows平台专用测试跳过；vet／build／mod verify均通过，精确来源及限制见[IB03／04结果](m1-instabox-debug.md#6-第一轮-linux-源码回归)。B的原生Docker／Compose对照与A的Web／正式CLI另行执行、分别留证。schema5／protocol1和生产空版本接受表保持现状；Linux源码回归不能替代产品部署、恢复及受控维护的验收。
+
+后续结果：B原生CLI子集取得156条命令及实际资源证据，未执行产品Prepare／Observe或正向Apply；A的Web39项／类型／构建通过，正式CLI／HTTPS／WS真实完成登录、认领、空恢复、五文件两版保存／幂等、重启持久性及关闭。空能力部署422且零操作，不能称真实部署成功。两轮夹具失败与有效run-03分开保留，见[IB第7／8节](m1-instabox-debug.md)及[归档](../../archive/2026-11-13-instabox-debug/README.md)。两台专用机已暂停保留；两节点业务隔离、浏览器完整操作、恢复／维护和V01—V08整体仍未验证。

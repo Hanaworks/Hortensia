@@ -1,0 +1,7 @@
+{"check": "official-cli-builds", "manager_sha256": "0b1244b1e090dbcdcb484073c4bccfd2d49c6009671465a57ea33cdb134cef3c", "agent_sha256": "b2a38ab66ad55cfe26933188c3dea85d1a127c855816d98d4705510c6612e963"}
+{"check": "production-web-served", "index_status": 200, "local_asset_count": 2, "loopback_only": true}
+{"check": "explicit-tls-trust", "untrusted_ca_rejected": true, "explicit_ca_succeeded": true, "verification_disabled": false}
+{"check": "actual-login-node", "secure_httponly_cookie": true, "stable_session": true, "node_id": "515c5c61-3539-4a87-bfc1-20c100d5bacc"}
+{"check": "failure", "error_type": "AssertionError", "message": "POST /api/v1/nodes/515c5c61-3539-4a87-bfc1-20c100d5bacc/stacks HTTP 404 code=not_found expected 403"}
+{"check": "manager-1-shutdown", "exit_code": 0, "pid_exited": true}
+{"check": "final-cleanup", "owned_service_count": 0, "owned_supervisor_count": 0, "manager_lock_reacquired": true, "agent_lock_reacquired": true, "docker_daemon_touched": false}
