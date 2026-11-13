@@ -189,6 +189,10 @@ func newStore(db *sql.DB, identity Identity, key []byte) (*Store, error) {
 // constraints. SQLite's own indexes and internal objects are implementation
 // details and are excluded. This is a version check, not a general SQL parser.
 func validateSchema(ctx context.Context, db *sql.DB, schema string) error {
+	return validateSchemaQuery(ctx, db, schema)
+}
+
+func validateSchemaQuery(ctx context.Context, q querier, schema string) error {
 	expected := make(map[string]string)
 	for _, statement := range strings.Split(schema, ";") {
 		statement = normalizeSchemaSQL(statement)
@@ -197,7 +201,7 @@ func validateSchema(ctx context.Context, db *sql.DB, schema string) error {
 			expected[fields[2]] = statement
 		}
 	}
-	rows, err := db.QueryContext(ctx, `SELECT name,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'`)
+	rows, err := q.QueryContext(ctx, `SELECT name,sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*'`)
 	if err != nil {
 		return ErrStorage
 	}

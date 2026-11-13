@@ -150,6 +150,10 @@ func normalizeSchemaSQL(statement string) string {
 // Exact app-owned SQL prevents a database with removed constraints from being
 // mistaken for the supported schema. SQLite's own internal objects are ignored.
 func validateSchema(ctx context.Context, db *sql.DB, ddl string) error {
+	return validateSchemaQuery(ctx, db, ddl)
+}
+
+func validateSchemaQuery(ctx context.Context, db querier, ddl string) error {
 	expected := make(map[string]string)
 	for _, statement := range strings.Split(ddl, ";") {
 		statement = normalizeSchemaSQL(statement)

@@ -2,7 +2,7 @@
 
 自托管的多节点 Docker 管理器，面向维护多台独立节点的运维人员。节点管理与迁移体验参考 PVE，Docker 资源及 Compose 操作参考 Portainer；由用户明确决定部署位置，以 Node → Stack／Docker 资源组织管理。
 
-`docker-manager`是暂名。当前源码交接切片为`95d453f`：Manager／Web管理、正式Agent接入、持久任务通道及Compose执行程序已有实现，本机回归与独立复核已完成适用项。[Manager运行](docs/manager-first-run.md)和[Agent接入](docs/agent-first-run.md)分别说明入口。真实Docker接受表仍为空，生产部署能力尚未开放；完整备份恢复及受控维护继续实施，M1首个完整版本未交付。范围、证据和退出条件见[M1推进记录](docs/implementation/m1-first-version.md)。
+`docker-manager`是暂名。管理／接入运行交接基线为`95d453f`：Manager／Web管理、正式Agent接入、持久任务通道及Compose执行程序已有实现，本机回归与独立复核已完成适用项。后续两端备份只读检查器已有实现，证据见[M1检查器记录](docs/implementation/m1-first-version.md#8-两端备份只读检查切片)。[Manager运行](docs/manager-first-run.md)和[Agent接入](docs/agent-first-run.md)分别说明入口。真实Docker接受表仍为空，生产部署能力尚未开放；完整备份组／恢复及受控维护继续实施，M1首个完整版本未交付。
 
 ## 主要能力与边界
 

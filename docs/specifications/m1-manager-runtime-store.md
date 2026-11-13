@@ -41,3 +41,37 @@ runtime_deliveries每行生命周期与操作同长，包含round_id且AEAD绑�
 同次观察接线补充（MV03/MV05）：同session+round+operation/latest seq的query和原文保持稳定。observed页只供网络关联，不作为结果/释放依据。cursor_expired或未产生新result的观察错误，由transport调用既有RecordDeliveryFailure固定码cursor_expired/observation_failed（仅observe），持久停止该旧context的query，然后断开重连；新hello/session或新round产生新query。其他写失败仍重试原文。不给错误文本入库，不新增公开API；连接重建恢复仍完整经过当前round。
 
 2026-11-12复核修复前补充MV03/MV05：观察context的停止状态在该message/绑定内单调保持。cursor_expired／observation_failed已经持久后，同一尝试迟到的write_failed、timeout、queue_full或connection_closed只作无副作用重报，不能覆盖终止码而复活旧query。旧session／round仍按原资格拒绝；新context必须显式产生新query。
+
+## v5封闭副本检查（2026-11-13实施前基线）
+
+本切片承接[备份§7.3](m1-maintenance-backup.md#73-v5完整备份的只读检查切片)，只检查完成且关闭的私有单文件副本，不接入服务、CLI、完整组、恢复、schema6或protocol2；补充调查不增加业务需求或审批。入口为包级`InspectRuntimeSnapshot(ctx,path,expected Identity,keys Keys)(SnapshotInspection,error)`。报告含Identity、SchemaVersion=5、ProtocolVersion=1、EncryptionKeyID、EncryptionKeyUses、TableRows（29表含零行）、SealedRows（9表含零行）、SemanticFormat=`dm-manager-runtime-semantic-v1`、SemanticFingerprint。失败返回零报告，沿现有固定错误，资源不足另为ErrInspectionLimit；不输出SQL、原始错误、原文、逐行指纹或秘密。
+
+文件／只读事务／总5分钟和统一HMAC framing由共享snapshotcheck负责。Inspector不调用newStore、Create/Open、登录、认证、会话、恢复推进、投递或加密quota入口，不改变boot/session/flags/credentials/uses。只读证据上下文独立持有复制钥及Validator，传同一只读Tx给既有查询证据核心；不能获得正常Store的DB或活动boot。精确DDL复用schemaV5及querier校验，要求user_version/meta=5、单例、完整初始化、identity及两key check、integrity_check和foreign_key_check；未知表／列／索引／约束拒绝。
+
+密文枚举是固定完整注册表，普通表也必须在29表白名单中。新增表或列须同步枚举和MI测试，不能仅改DDL后自动接受。以下绑定均用保存的历史字段，不能代入当前session／round；公共AAD为crypto.go中body/dek独立域、manager、OperationID、NodeID、Digest、Kind、Seq和原key_id。
+
+| 密文表 | 正文／binding来源 | 原文验证与关联 |
+| --- | --- | --- |
+| operations | payload_cipher；operation/node/input_digest、payload、seq0 | 原InputDigest HMAC、prepare及完整Config Schema，固定stack/version/project/endpoint/policy |
+| operation_events | body_cipher；operation/node/digest、kind+seq | 每个历史started/result Schema、permit、事件位置、连续补观察原进程事实及真实max/latest投影 |
+| runtime_pending_events | body_cipher；同result+seq | 每操作至多32个，seq3+ normal_exit；缺前史或已到前史尚未晋升可恢复，不推进投影／不提供释放证据 |
+| recovery_pages | recoveryPageBinding：原round/node及ledger/session/双boot/scope/scan/limit/cursor/page | 全部历史页、原request、cursor进展、members、计数及内层RecoveryRecord |
+| recovery_cases | recoveryCaseBinding：case/node及ledger/operation/kind/round | 按实际case类型验证record、event、page或固定reason JSON；未知operation允许，矛盾正文是隔离证据 |
+| finalization | finalizationBinding：原request原文、双boot/session/round及op ledger/digest/result seq | 真实terminal result、accepted request MAC、confirmed outbox、无原claims；和absence basis互斥 |
+| user_sessions | csrf_cipher；session/user/token_hash、session-csrf、seq0 | 全部CSRF规范32字节base64url，包含过期／撤销／旧auth_rev；不更新last_seen |
+| config_versions | package_cipher；version/owning node/stack、config、seq0 | 每个版本完整文件包Schema与不可变parent链，含未使用旧版本，核对head/applied/observation引用 |
+| runtime_deliveries | deliveryBinding：原message/op/node及ledger/session/manager boot/round/kind/generation | 原envelope及payload／请求／观察seq；旧绑定、已确认／停投观察仍作为历史验证，不取件或重发 |
+
+每份密文先认证双AEAD、body fingerprint及原key_id；保留事件7MiB、其他密文8MiB及协议更小预算。表行按固定PK有界遍历，取完整行前检查SQL类型和长度（普通行解码预算32MiB）；不装载整张历史表。扫描已有4096条／32MiB范围允许逐round有界读取；事件序号及配置parent采用固定内存遍历，取消检查贯穿SQL和解密。quota必须在0..1048576且不小于当前密文行数，允许已耗尽以及回滚消耗的多余reservation；读取不再计次。
+
+逐operation验证原固定输入、accepted receipt、完整permit tuple、auth_rev不大于保留user修订、双claims、outbox、所有事件及释放。accepted/ready/authorized未started、running、unknown/interrupted、blocked、取消及恢复中均可自洽；撤权／禁用／换钥／重连不让历史失效。恢复页较旧、未知成员尚未ProcessRecovery和pending缺前史都是合法输入。不得以当前授权、binding、boot、completed门禁代替历史认证；不会自动导入或晋升事实。事件冲突事务先block+freeze，随后才可能保存quarantine/case，允许两次提交之间的副本。
+
+正常released须有原finalization与真实accepted request MAC；absence释放须有完整原all页、expected watermark0、确实缺席且无permit/events/claims和suppressed prepare+cancel。逐个检查所有finalize_requests，包括非finalization指针引用及旧round accepted记录；accepted=1重算独立confirmation MAC，accepted=0不许有MAC。旧未接受意图按自己引用的原terminal result检查，不能因后续blocked而套用当前expectedFinalization资格拒绝。expired/abandoned原all页仍是历史证据；不能要求其是当前round。
+
+普通元数据核对FK以外的kind／ID／generation／引用；旧凭据、pending或过期enrollment、撤销session、历史grant receipt都保留。v5没有保存所有原始HTTP HMAC输入（DoService可带未独存的IfMatch）、竞争事件正文、外部Docker事实或签名授权历史：这些只验证保存形状／引用并纳入语义根，不谎称能重算缺失证明。damaged_operation case不能豁免真实密文或本地数据损坏。
+
+HMAC使用共享snapshotcheck.NewFingerprint，component=manager，stableIDs依次manager_id、digest_key_id。按固定表／明确列／PK序覆盖所有普通列；密文正文以认证原始plaintext替换cipher，保留原fingerprint，排除各组wrapped_dek/key_id。keys只排除encryption_key_id/encryption_key_check/uses，Digest ID/check保留。恢复撤销或schema改变前才可比较同schema新KEK副本；不公开原文或无钥低熵hash。完成证据与MI条件在[本模块实施记录](../implementation/m1-manager-runtime-store.md)维护。
+
+2026-11-13独立自查修复前补充（MI06）：round-record类型case的原文必须逐字节来自该round已认证页面的对应成员；单有合法Schema／同node/ledger不足以证明所属。page_conflict的case.operation_id绑定**原round的scan_id**，而争议页面本身可含不同scan_id／scope／ledger，这正是保存冲突证据的用途，不能要求两份事实一致。真实ReceiveRecoveryPage的不同scan_id争议正例与认证case附错round负例均先记录RED，再修本检查器；不改变正常恢复writer。
+
+2026-11-13独立审阅修复前补充（MI04/MI10）：pending已持久→前史已提交→晋升尚未运行是合法事务窗口，前史此刻可能完整不可修复或矛盾；检查只认证pending的Schema／HMAC／绑定、seq、计数与非released存储边界，不提前要求其符合晋升资格，不把它当最新结果。普通服务之后才能处理或隔离。任何requireClaims之前先SQL计数必须0／2，再SQL匹配预期node和stack/project ID集合，异常数量或巨大未知resource_id不得先全部加载到Go内存；正常Store方法语义不改。

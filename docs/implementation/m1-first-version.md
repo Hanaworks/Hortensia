@@ -101,3 +101,18 @@ O02／O03／O04／O07的运行验证分别由服务／身份／Compose模块承�
 中途验证没有省略：第一次工作树回归通过1677项，但之后独立审阅仍发现退出校验旁路和升级错误边界，故它不是最终验收。修复后的封存副本回归有16包通过，Agent服务测试程序两次在启动前被Windows拒绝（Access is denied），未执行断言。保留的程序有当前账号完全控制且无下载标记，未取得能确认根因的系统事件；没有修改安全设置、放宽业务时限或认定具体Windows组件。确认206输入一致后，常规工作树Agent完整包通过46.841秒，随后上述全仓命令退出0。原失败和补验分开保存，不把系统拒绝记作测试通过。
 
 下一依赖仍有完整一致备份组、全量密文／身份校验、新KEK重加密与隔离恢复、操作者明确触发的维护程序，以及真实Linux原生对照／两节点／故障演练。用户稍后安排环境；当前不连接未知节点，也不通过填假版本开放执行能力。现阶段可按两份首次运行说明理解和验证管理／接入，不能将此切片作为已完成的M1安装包。
+
+## 8. 两端备份只读检查切片
+
+2026-11-13实施后记录。继95d453f运行基线后，已实现`InspectRuntimeSnapshot`两端入口和共享`internal/snapshotcheck`：在单一只读事务内检查封闭私有副本，认证全部应用表／历史密文／可保存事实的引用及状态，生成不泄露原文的整体HMAC。Agent覆盖17表／3类密文，Manager覆盖29表／9类密文。合法未知、隔离、旧会话、扫描中及尚未处理的pending窗口仍可备份，不把检查器变成新执行或解除隔离入口。
+
+| 检查 | 当前结果 | 边界 |
+| --- | --- | --- |
+| 全仓关联回归 | `go test -p 1 ./... -count=1 -json`退出0，18包、1852条测试／子测试通过、0失败、5跳过 | 本轮junction创建及拒绝检查实际通过，较前轮少1跳过；其余链接权限仍未验证，不扩为全部平台保证 |
+| 静态与构建 | go vet、go build、go mod verify通过；两端Linux amd64程序及shared／Agent／Manager检查测试二进制交叉构建通过 | 未在Linux执行；Web源码未改，不重复声称新的浏览器验收 |
+| 只读与秘密边界 | 写入被拒绝，主文件和目录项不变、无新boot/session/quota；文件变化／旁文件／取消／超量预算拒绝，完整报告只在Finish成功后返回 | 静态私有副本由上层保证，不承担活库检查或同用户恶意ABA防护 |
+| 独立复核及修复 | shared Windows尾点／空格／8.3别名遗漏WAL、Manager合法pending中间窗口误拒与claims异常集合无界读取均先复现后修复；原probe独立复验关闭。Agent额外真实writer历史窗口复验通过 | 专门Close/Sync／内核卡死／大历史期限和Linux实机仍未验证，详见AI12／MI10／SC记录 |
+
+精确字段、读取顺序、既有事实不能补证的范围及稳定编号见[Agent规格](../specifications/m1-agent-runtime.md)、[AI记录](m1-agent-runtime.md)、[Manager存储规格](../specifications/m1-manager-runtime-store.md)、[MI记录](m1-manager-runtime-store.md)和[共享主定义](../specifications/m1-maintenance-backup.md#73-v5完整备份的只读检查切片)。本机完整JSON为`.cache/m1-snapshot-inspection-all-tests.jsonl`；各独立报告及原反例保留于本机cache，测试源码随本轮代码保存。
+
+本节仅交接备份检查库。完整组、材料锁／清单／CLI尚未编码，其[规格](../specifications/m1-backup-group.md)和[BG基线](m1-backup-group.md)已在实现前保存，下一步接通这些入口。新KEK相等根用受控测试构造验证，不是已交付的恢复／转换工具。schema6、protocol2和维护仍是后续方案，MB08／09整体及M1未完成。

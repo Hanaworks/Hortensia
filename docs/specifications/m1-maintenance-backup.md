@@ -154,7 +154,7 @@ Manager必须已有且能认证匹配的完整文件链，才接受此扫描投�
 
 输入为现有受控配置与两个**新建**绝对私有目录。`data-out`保存DB、脱敏配置／版本、清单；`secrets-out`保存相同backup_id的完整identity和实际32字节密钥。Agent identity含当前／候选认领secret，属于秘密材料。Manager TLS私钥按部署密钥另行保管并在清单声明恢复需求，不把一份旧TLS私钥自动装回公开入口。密钥目录0700、文件0600；Windows执行权限检查沿现有localstate能力，不能假称POSIX模式足够。
 
-运行时身份材料在一个部署generation内不可变。新增`.materials.lock`供backup和任何身份／KEK／部署切换互斥；服务init、认领／轮换发布身份也必须接入。在线备份不取得服务独占运行锁，不调用Create/Open，也不修改active_boot、session或recovery_mode。Agent在线备份遇到认领／轮换先等待同锁；备份完成后才允许发布新identity。数据库及身份不存在天然跨文件事务，不能只读一次identity就假定与DB一致。
+稳定node／ledger／manager、摘要／账本及KEK身份和实际钥不由现行正常服务替换；Agent完整identity中的候选／active secret和凭据代次可随认领／轮换改变。新增`.materials.lock`供backup与这些发布及未来KEK／部署切换互斥；服务init、认领／轮换发布身份必须接入。在线备份不取得服务独占运行锁，不调用Create/Open，也不修改active_boot、session或recovery_mode。Agent在线备份遇到认领／轮换先等待同锁；数据库及身份不存在天然跨文件事务，不能只读一次identity就假定与DB一致。现有v5没有部署generation；其具体扁平布局／清单／锁顺序及发布失败状态按[完整组规格](m1-backup-group.md)落实，格式2代次发布仍属后续恢复设计。
 
 BackupManifest定义：`format=dm-backup-v1`、backup_id、component、manager_id或node_id/ledger_id、generation、schema/protocol/application/build版本、SQLite版本、开始／完成时间、DB及每文件大小+SHA-256、身份摘要、引用key_id集合、全部持久加密表的行数、语义验证摘要、secret清单摘要和恢复所需的外部材料。清单不包含secret正文。引用关系必须无环：先固定DB和完整identity字节及摘要；secret-manifest只引用backup_id、component／身份ID、DB摘要、identity摘要及其实际私有文件清单，不引用data-manifest；然后data-manifest引用secret-manifest完整原字节的SHA-256。SHA-256提供损坏／错组检测，不能声称可抵御同时篡改数据库和所有清单的攻击者。
 
@@ -167,6 +167,50 @@ BackupManifest定义：`format=dm-backup-v1`、backup_id、component、manager_i
 从**副本**读取身份与key_id、检查完整性、外键、精确schema及所有密文；和持锁的身份／密钥材料逐项核对，校验整个版本包原字节、冻结输入、事件链、正常或人工释放依据、claims及归属头。验证不能只抽一个配置或运行quick_check就成功。错钥、未知表／密文列、缺引用、越过额度、身份不同或部分decrypt失败都拒绝该备份组。逐表解密枚举沿§8.1，任何新增加密表必须更新此清单和MB08。
 
 文件逐个Sync，关闭副本，目录Sync，先原子发布secret-manifest，再发布引用它的data-manifest作为最终完成标志。校验顺序固定为：data-manifest中所列DB／普通文件摘要→所引用secret-manifest原字节摘要→secret-manifest的backup_id、component、身份ID及DB／identity摘要与data组相等→全部secret文件字节及数据库密文认证。secret-manifest不反向引用data-manifest摘要，避免循环。两个目录不能跨目录原子提交；上述关联全部成立才算完整组，secret-manifest独自存在仍为partial。失败不覆盖上一组，partial保留供诊断并明确不可恢复。保留策略首版不自动删除，不虚构已满足RPO/RTO；记录实际耗时及大小供O11后续决定。
+
+### 7.3 v5完整备份的只读检查切片
+
+2026-11-13会话客户端日期，实施前追加；源码依据`95d453f`、文档依据`e291a44`。本轮仅继续已定M1的一致备份，不把补充调查或参考产品做法变成新增业务需求、审批流程或发布条件。先实现两端快照检查，再接完整组、材料锁和CLI；恢复、维护及schema6／protocol2仍不在本切片实现范围。
+
+**输入是封闭副本，不能是活库。** 上层先完成Snapshot并关闭其全部连接，或按已发布清单找到私有、静止的单文件DB；检查前后都要求`-wal`／`-shm`／`-journal`不存在，并核对主文件SHA-256相同且与上层清单预期相符。不删除旁文件来制造合格输入。文件必须是本地绝对路径、无链接／重解析点、单硬链接的私有普通文件。缺少旁文件不能证明没有其他writer，“已封闭”由调用方持有、生成及清单绑定的来源保证；不承诺抵抗同用户恶意替换／ABA。
+
+因此只读Inspector使用独立通用SQLite连接、`mode=ro&immutable=1`、query_only及单连接只读事务；不调用业务Create／Open／登录／恢复入口，不生成或更新boot、session、profile、凭据、quota。在线源的Snapshot继续使用**非immutable**方式读取真实WAL；不得把副本检查的连接参数套到在线复制。WAL格式的数据库头本身不构成拒绝条件，完整提交须已在副本主文件内。
+
+两端所属包增加以下入口，具体表与状态验证由[Agent运行](m1-agent-runtime.md)及[Manager运行存储](m1-manager-runtime-store.md)维护：
+
+```go
+// internal/agent/ledger
+func InspectRuntimeSnapshot(ctx context.Context, path string,
+    expected Identity, key []byte, journal JournalKey) (SnapshotInspection, error)
+
+// internal/manager/operations
+func InspectRuntimeSnapshot(ctx context.Context, path string,
+    expected Identity, keys Keys) (SnapshotInspection, error)
+```
+
+两包各自定义SnapshotInspection，Identity沿所属主定义，其余共有字段为：SchemaVersion=5、ProtocolVersion=1、EncryptionKeyID、EncryptionKeyUses、TableRows、SealedRows、SemanticFormat、SemanticFingerprint。计数map为固定表白名单到uint64，零行显式存在；Agent覆盖17表／3密文表，Manager覆盖29表／9密文表。报告不返回原文、逐行指纹、密钥校验值或秘密。所有认证、事务及关闭成功后才返回完整报告；失败返回零值，不产生部分成功摘要。沿既有固定错误分类，另以ErrInspectionLimit区分资源预算不足；取消／期限可用errors.Is判断，不附带SQL、驱动或正文原始错误。
+
+完整检查包括精确v5 DDL、全部singleton、integrity_check、foreign_key_check、身份及两钥、quota保留量、每个历史密文及其唯一AAD、输入／事件／许可／claims／归属／释放／恢复引用。检查存储自洽性，不要求全部任务成功，也不按当前授权、当前会话或今日资源头拒绝合法历史。过期／撤销、合法未知、隔离、扫描中及已保存退出尚无result都要按原事实保留。资料未保存的竞争正文、外部Docker事实、原始HTTP HMAC输入等不能凭检查器补证；具体证据边界在各端说明，不以“完整检查”声称恢复出不存在的事实。
+
+摘要用于后续**同schema**新KEK重加密前后的保真比较，不是外部真实性签名或任意跨版本摘要。统一framing为`类型字节 || uint64大端长度 || 原始字节`；NULL、int64（8字节大端）、TEXT、BLOB、控制标记有不同类型。专用域、component、稳定身份和Digest／Ledger key ID先以原HMAC钥派生检查钥，再以独立域流式HMAC；SemanticFormat分别为`dm-agent-runtime-semantic-v1`及`dm-manager-runtime-semantic-v1`，结果为规范base64url。按固定表序、明确列序、二进制主键序编码列定义、各行及表尾计数，覆盖全部普通表、历史和隔离资料。密文组以认证后的**原始明文字节**、原body fingerprint及绑定／业务元数据代替cipher、wrapped_dek、key_id；不能重新marshal原文再摘要。单KEK的ID、key_check、uses排除于可比根之外，但均须先认证并在报告中保留ID／uses；Digest／Ledger ID及check保留。路径、检查时间不入根。跨schema转换及恢复撤销／门禁变化另行定义，不借此忽略其他元数据变化。
+
+默认总期限5分钟，在SQL／行／解密边界检查取消。按有界主键批次遍历，关闭行游标后再作嵌套读取，不把整表／全部历史装入内存。解密前先检查长度；单份正文上限16MiB、普通单行解码预算32MiB，超出返回ErrInspectionLimit，不冒称所有现行v5超限资料均损坏。保留既有协议／文件／输出的更小限制。历史归属可采用固定内存重复扫描，最坏O(P²)；超时失败，不输出部分证明，不新增规模承诺。
+
+本轮扁平身份格式1尚无部署generation。后续v5备份清单明确`source_layout="flat-v1"`、`generation=null`，以实际身份／key ID及字节摘要绑定组，不生成虚构部署代次。未来格式2的真实generation另行版本化。完整组和CLI在两个Inspector通过后继续实施，本节保存不改变MB08／MB09当前未完成状态。
+
+### 7.4 两端共享的只读资源与摘要辅助模块
+
+2026-11-13客户端日期、编码前保存。`internal/snapshotcheck`只管理副本读取资源和上述framing，不知道Agent／Manager表、密文AAD或业务状态，不输出检查通过／备份完成结论。
+
+`Open(ctx,path)(*Reader,error)`：先检查上下文、本地绝对无链接路径、私有父目录／普通单硬链接主文件及旁文件缺失，流式计算SHA-256；再用独立通用SQLite连接建立ro/immutable/query_only、单连接只读事务。连接实际IsReadOnly(main)须为true；SQLite LIMIT_LENGTH设32MiB作为整行后备，领域检查仍先按16MiB正文等更细预算检查长度。`Reader.Context()`返回至多5分钟的派生context；`Reader.Tx()`供同一个快照中的领域读取。
+
+`Reader.Finish()`在领域全部验证后关闭只读事务、Conn和DB，再核对文件身份／hash及无旁文件，成功才允许领域返回报告。`Reader.Close()`用于中途失败清理或Finish后的重复清理，不意味着领域检查成功。Reader由单一调用者顺序持有，领域代码须关闭每个rows后再嵌套读取或Finish，不把Reader交给正常服务。错误分类为ErrInput、ErrStorage、ErrChanged、ErrLimit；`StorageError(ctx,err)`将SQLite过大及取消映射为固定错误，不回显底层错误。关闭失败不返回成功。Go期限检查不能强行中止失去响应的内核／磁盘。
+
+`NewFingerprint(master,component,format,stableIDs,schema,protocol)`返回仅在内存的Fingerprint；component只允许agent／manager，master32字节，稳定ID顺序为Agent(node,ledger,ledger-key-id)、Manager(manager,digest-key-id)。Marker(string)编码控制标记；Value(any)只接受nil、int64、可用int64表示的uint64、string、[]byte，不支持浮点或隐式字符串转换；Sum()返回当前HMAC的规范base64url，Close清除自持临时钥并使摘要不可继续使用。不承诺Go运行时全部内部副本的物理抹除。
+
+精确类型tag：NULL=0、int64=1、TEXT=2、BLOB=3、Marker=4。每项均为tag、8字节大端无符号长度、原字节；NULL长度0，整数正文为8字节二补码。派生HMAC依次编码Marker(`dm-snapshot-check-key-v1`)、component、稳定ID数量及各ID；以派生钥建立根HMAC，依次编码Marker(`dm-runtime-snapshot-semantic-v1`)、format、component、schema、protocol、稳定ID数量及各ID，再接领域的表／行framing。子模块不重复实现文件／SQL生命周期或上述算法；它不替代各端自己的唯一AAD生成和认证函数。
+
+2026-11-13独立审阅后、修复前补充SC02／SC04：Windows可把`state.db.`或尾空格路径解释为`state.db`，而字符串追加的旁文件路径变成另一名字；不能据别名路径未发现WAL就使用immutable。输入路径必须与打开句柄的规范长路径相同（仅忽略本平台大小写），拒绝尾点／空格、8.3短名等别名；主文件、hash、旁文件及SQLite必须针对同一文件路径。不是通过删除WAL或忽略真实提交修复。其他平台仍按其实际文件名语义，不机械套用Windows限制。
 
 ## 8. 隔离恢复、单KEK转换和发布
 

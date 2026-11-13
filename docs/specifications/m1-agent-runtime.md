@@ -235,3 +235,27 @@ M1只读Docker能力复用固定CLI：按项目label列出全部容器（包括�
 CW04接线前细化：公开ResourceItem.stack_id可为null；未知、冲突或尚未确认的新候选不得仅凭project label回填。Compose观察使用账本认证读取的PreparationEvidence，只为具有既有归属修订且完整身份匹配可信Pre的资源关联Stack。账本仍核对真实资源ID、项目、服务和私有基线；null不取消这些验证，非null且不等本操作Stack必须拒绝。
 
 正式服务本轮仅将绑定operation、normal_exit且原观察不完整的observe用于补观察及固定页面快照。operation_id=null或不符合补观察条件的普通查询明确返回observation_unsupported/unavailable，不采集、不新增result、不改变active归属。普通容器浏览留到M2；现行HTTP结果页读取持久结果不依赖此查询。对应AS08／AR13的验收只覆盖这一实现子集，不能将普通查询拒绝算作资源查询完成。
+
+## 8. Agent v5 封闭快照检查器（2026-11-13实施前基线）
+
+本节承接[维护备份§7.3](m1-maintenance-backup.md#73-v5完整备份的只读检查切片)。仅实现完整备份所需的只读内部认证，不新增节点动作、健康检查、恢复、v6、protocol2或操作者审批。调查资料只作实现依据；实际范围及稳定AI条件在本节和[实施记录](../implementation/m1-agent-runtime.md)确定。
+
+入口为`InspectRuntimeSnapshot(ctx,path,expected Identity,key []byte,journal JournalKey)(SnapshotInspection,error)`。报告字段固定为Identity、SchemaVersion=5、ProtocolVersion=1、EncryptionKeyID、EncryptionKeyUses、TableRows（17表，零行保留）、SealedRows（execution_events/finalizations/runtime_documents）、SemanticFormat=`dm-agent-runtime-semantic-v1`及SemanticFingerprint。任何失败返回零报告，错误只含固定分类，不输出原文、SQL、驱动、路径、逐行摘要或key_check。超过资源预算为ErrInspectionLimit；取消和期限保留errors.Is。
+
+输入仅为上层生成或清单绑定的、封闭私有单文件副本；旁文件-wal/-shm/-journal一律拒绝。共享`internal/snapshotcheck.Open`负责本地路径、私有权限、单文件、mode=ro/immutable/query_only、五分钟期限及单读事务；Finish关闭连接后再核对源字节和旁文件，Close负责中途清理。在线源仍由非immutable的Snapshot复制，不能直接传活库绕过WAL。封闭来源由调用方保证；同用户恶意修改/ABA不在保证内。检查器不调用正常Create/Open/newStore、不生成boot或更新session/profile/恢复状态；包内临时只读Store只复制认证钥匙、Validator和当前持久boot，并显式传入同一tx。
+
+验证顺序：精确005_runtime.sql及user_version、完整integrity_check和foreign_key_check；五个singleton、身份/两钥key_check及quota；全部17表长度预检和固定主键顺序遍历；所有密文按包内唯一eventBinding/openEvent认证；逐operation核对文档/事件/claims；历史准备/候选/发布链；扫描捕获、变化及查询关联。单正文16MiB、普通行32MiB，保留协议7MiB事件/8MiB信封及1MiB进程输出的更小限额。遍历游标关闭后才嵌套读取；密文先检查长度再Scan，不积存全库原文。任何未被业务指针消费的密文仍须枚举认证并判定其合法所有者。
+
+input0的真实明文是JSON编码的[]byte，解码出原payload，以固定合法验证信封复用prepare/FrozenPayload/Config校验，核对execution的node/stack/version/project/endpoint/policy，并重算K_ledger对原payload的HMAC。Agent没有Manager的digest钥匙，只核对input_digest绑定一致性。preparation/process/candidate采用现有类型与确定性JSON形状验证；事件始终保留原body字节。input/preparation/process仅seq0，candidate必须对应同seq非not_started结果；非started阶段不能有process_facts/process。ready需要preparation；START_COMMITTED需要started1、原permit/时间和process_facts。not_attempted/created无process结果是合法未知窗口；exited必须有认证process0，但首result可以尚未形成。started后的可信not_started2允许没有process0/candidate。结果序号连续，latest指向最后结果；后续结果只补normal_exit的不完整观察，原退出/时间/输出不变。
+
+历史preparation不能调用比较当前profile/head的写准入validatePrepared：验证原operation/input/workspace/manifest、Pre基线与Expected，旧policy保留原profile版本。同一policy的准备tuple一致，当前policy与当前profile一致，Engine/endpoint不替换。pre.OwnershipRevision=0时managed Pre为空；>0时查同项目/Stack该已发布修订的认证Post，与原Pre比较。consistent候选按历史Pre重放逻辑资源、替换、公开容器关联及完整Post规则；unknown/drifted分支允许现有writer保存的空/部分Post，不能补造未保存的Conflicts。
+
+项目发布从全部真实finalized+consistent候选重建revision1..P，逐修订唯一且连续，当前指针必须等于最大修订，拒绝指针与revision同时回退；not_started终结不发布。status按发布链和当前未释放操作最新drifted候选派生。初版可逐项目、逐期望修订重复有界扫描，固定临时内存、最坏O(P²)，超时不返回部分证明。finalized必须可信releaseTerminal及零claims，其余恰好原project/stack两claims。合法quarantine/blocked允许备份保留，不授予运行许可；冲突正文未保存，只验证保留的结构/引用及隔离关系。
+
+扫描成员按捕获的phase/last/result/ACK、不可变execution字段和保留的原result字节重建原RecoveryRecord，再验证scanFingerprint；不能拿今日投影代替历史。核对active/completed两组、ordinal/排序/计数、事件前缀及finalized关系；旧完成扫描不要求包含后来新增任务。member的HMAC不含scan_id/ordinal，未保存的整组来源真实性不能补证。旧boot/过期/未完成observation_queries保留，非空result_seq必须指向该operation的真实补观察结果；每个后续结果有唯一query。recovery_changes引用真实事件，冻结之前或建扫描之前的合法变化不丢弃。
+
+语义根使用共享NewFingerprint，以K_ledger派生检查钥，稳定身份顺序node/ledger/ledger-keyid，schema5/protocol1。固定17表顺序、列定义、二进制主键顺序、原SQL类型/NULL/整数及表尾计数参与；密文组替换为认证后的原plain及原body_fingerprint。排除KEK ID/key_check/uses和cipher/wrapped_dek，其他元数据（含旧boot/session/ACK/冲突/扫描指纹）保留。单KEK仍必须认证、uses>=现存sealed行数且不超额度，失败reservation允许uses更大。根只用于同schema、保留同K_ledger的新KEK保真比较，不作为外部签名或跨版本恢复证明。
+
+实施后接手定位（2026-11-13）：`snapshot.go`拥有共享Reader/钥匙/报告的完整生命周期；`snapshot_rows.go`按精确DDL提取列/主键，只保留一行密文，关闭游标后认证并流式摘要；`snapshot_semantics.go`核对操作、准备、过程及结果；`snapshot_ownership.go`验证历史修订和当前头；`snapshot_scan.go`重建原扫描并核对历史query。现有正常Store只将validateSchema提取为收querier的同算法私有函数，正常writer及启动行为没有改动。新增密文列/表必须更新完整枚举和本规格；变更私有文档形状、JSON编码或扫描投影顺序须同时核对shape检查、旧捕获HMAC和语义格式，不可只修改writer。
+
+当前证据边界：ledger.CommitPrepared只保证ManifestFingerprint为合法digest，真实workspace清单由Compose适配器产生；检查器认证原准备文档及此值的规范形状，不额外读取工作区或强制从payload重算另一份manifest来拒绝现行合法Store调用。数据库不能重算外部服务配置形成的旧profile指纹、Manager的input_digest或未保存的竞争正文/Conflicts；这些值和原文仍完整受认证及聚合摘要保护。超大历史最坏O(P²)的性能、Linux运行及关闭错误专门故障注入未由Windows普通通过替代。

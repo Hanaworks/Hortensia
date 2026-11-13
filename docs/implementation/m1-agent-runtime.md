@@ -137,3 +137,46 @@
 | AR04：ReviewCancelDoesNotHoldTransactionWhileWaitingForStart、ReviewCancelRacesStartWithoutDuplicateExecution | 等待已进入Start时回调仍可读取Store；8组真实并发开始／取消各自只有未启动或一次启动＋interrupted两类结果，无第二次启动，保留双claims；提交成功标记短暂未到达时允许保守ErrEvidence并在原调用完成后重试 |
 
 本节是作者本地证据，不替代原review的独立复验。历史认证读成本随同一项目已发布操作数／事件数增长；当前选择完整历史核对，未做规模性能验收。没有扩普通query、Fixture或自动接管，也没有连接真实Docker／Linux节点。最终命令输出、限制和交接见`.cache/agent-runtime-ledger-fix-report.md`。
+## 7. Agent只读快照检查器实施基线（2026-11-13，编码前追加）
+
+范围与算法见[运行规格§8](../specifications/m1-agent-runtime.md#8-agent-v5-封闭快照检查器2026-11-13实施前基线)及MB§7.3。先保存本表，再编写RED测试和实现；本轮只使用本机真实SQLite，不连接节点、不执行Docker，不声明完整备份组或恢复完成。
+
+| 编号 | 条件、刺激与可观察结果 | 初始状态 |
+| --- | --- | --- |
+| AI01 | 空/有历史v5副本正确身份两钥通过；错身份/钥、旧版本、变更DDL/多表/trigger拒绝，失败报告为零 | 待实施 |
+| AI02 | 成功/失败/取消前后主文件hash、boot/session/profile/uses不变，无旁文件；输入仅封闭私有单文件 | 待实施 |
+| AI03 | 三密文表全部kind、历史ACK/finalized/旧候选及尾行逐一认证；坏cipher/wrap/key_id/fingerprint和孤立文档拒绝，计数含零行 | 待实施 |
+| AI04 | 原payload/本地HMAC/metadata、私有JSON和准备绑定损坏拒绝，原payload字节和文件顺序不改 | 待实施 |
+| AI05 | preparing/ready、started未登记spawn、created未知、durable exit无首结果、not_started2、unknown/interrupted空Post及合法隔离均通过且不执行 | 待实施 |
+| AI06 | phase/process owner/spawn/pid/cancel/started/事件缺口/过程与历史结果不一致拒绝；首退出无result仍通过 | 待实施 |
+| AI07 | 多发布修订和profile更新保留历史；缺修订/分叉/旧合法指针回退/伪active或drifted拒绝 | 待实施 |
+| AI08 | ACK仍held；finalized为可信terminal且零claims；非法未知释放/缺claim拒绝，合法quarantine不被解除 | 待实施 |
+| AI09 | 原扫描捕获在ACK/追加结果/finalize/换boot后仍认证；改成员字段/指纹/组计数拒绝；旧completed容许后来任务 | 待实施 |
+| AI10 | 历史/过期查询和变化集全部保留；孤儿/错误event/query关联及无query后续结果拒绝 | 待实施 |
+| AI11 | 受控同schema全行新KEK重封装计数/语义根相同；业务元数据或原文改变则根变化；quota满仍可读，低于sealed数拒绝 | 待实施 |
+| AI12 | 16MiB正文/32MiB行超限为ErrInspectionLimit，取消/期限及SQL故障不泄secret/SQL/路径、不给部分根 | 待实施 |
+
+实施顺序：共享reader可用前先验证本包可编译stub的行为RED（不将缺helper编译失败记RED）；随后schema/身份/枚举及fingerprint、逐操作、归属、扫描/查询、定向回归。Windows本机适用项由实际输出记录；Linux、真实节点、掉电和完整恢复继续未验证。报告保存`.cache/m1-agent-snapshot-inspection-report.md`，逐项报告通过/失败/未验证，不能由命令成功代替上述条件。
+
+### 7.1 作者本机结果（2026-11-13，实施后追加）
+
+源码为本轮未提交工作区；工具为Go1.27.0 windows/amd64、modernc.org/sqlite v1.61.1/SQLite3.54.1。先保存§8及AI表，再以可编译stub观察到空库/错身份两钥/取消行为RED；后续控制行和profile矛盾用例又真实暴露三个缺失验证并修复。一次新增测试缺少import导致的编译失败不计RED；历史扫描空subtest生成含`#`的临时路径曾被正确拒绝，改用合法测试名后验证历史算法，不放宽路径规则。
+
+最终`go test -p 1 ./internal/agent/ledger -count=1 -json`通过：157个顶层、289个子例，0失败/0跳过，29.620s；新增检查器13个顶层、61个子例。`go vet ./internal/agent/ledger`退出0。完整原始记录保存`.cache/m1-agent-snapshot-inspection-tests.jsonl`，详细交接和限制保存`.cache/m1-agent-snapshot-inspection-report.md`。没有运行全仓Go测试、Git、真实节点或Docker。
+
+| AI | 当前结果与具体证据 | 限制 |
+| --- | --- | --- |
+| AI01 | 通过本机适用项：EmptyAndNoMutation/EmptyUnboundProfile、WrongKeysAndCanceled、RejectsLegacyAndSidecar、额外表/trigger拒绝；精确DDL沿既有共用验证器 | v4作为旧格式代表，不宣称支持旧格式转换 |
+| AI02 | 通过：重复检查主文件字节摘要不变、无旁文件，旧boot重开后仍不更新事实；封闭/别名/hash由共享Reader承接 | 不承诺同用户ABA；Linux权限仍待环境 |
+| AI03 | 通过：三密文表每kind及两条发布历史的首/尾损坏拒绝；旧seq2坏密文、孤立文档、wrap/fingerprint/quota损坏拒绝 | 无新增密文表被自动忽略 |
+| AI04 | 通过既有存储契约：原input metadata/HMAC、私有未知键/孤立prep、prepare完整协议校验；原文参与根 | 不把未保存或writer未保证的外部manifest关系补成新要求 |
+| AI05 | 通过：LegalRuntimeHistory的13种窗口和空未绑定profile；含durable exit无result、not_started2、unknown/interrupted空Post、rev0失败终结及finalized后隔离 | 本机监督事实夹具，不是Docker证据 |
+| AI06 | 通过：owner/spawn/pid/cancel/started删除/local指纹损坏及原事件链检查，原有账本包过程恢复回归全部通过 | 历史PID只作为数据，未附着或操作进程 |
+| AI07 | 通过：两修订发布后profile升级仍认证旧prep，指针+revision回退和错误revision拒绝；正常归属回归未变 | 无大规模P²性能承诺 |
+| AI08 | 通过：已finalized恢复claims拒绝、未finalized缺claim拒绝、合法quarantine不被解除；正常释放谓词继续共用 | 不新增人工释放能力 |
+| AI09 | 通过：旧扫描在ACK/补观察/finalize/换boot后认证；成员指纹/ordinal/组/count/phase/ACK损坏分别拒绝 | 历史整组来源MAC原模型未保存，不能补证 |
+| AI10 | 通过：过期NULL查询、已完成查询及冻结变化保留；错query seq、缺query拒绝，FK及事件全量认证 | 不运行旧query，不用当前期限否定历史 |
+| AI11 | 通过：所有三类密文用测试专用新KEK/DEK封装，计数和根相等；created_at变化根不同；新uses满额可读，低于sealed数拒绝 | 测试夹具不等于恢复/rekey产品实现 |
+| AI12 | 部分通过：正文16MiB+1、普通TEXT32MiB+1为ErrInspectionLimit；已取消/到期保留错误分类，错误不含注入秘密；共享Reader真实关闭/hash检查 | 未专门注入Agent层Close失败、内核卡死或大历史期限；不伪报这些故障通过 |
+
+接手复核已按最终代码检查入口→单只读事务→全部表/密文→业务引用→Finish→报告流程；五个控制/身份singleton、历史claims/归属/扫描及quota均在同一快照。独立静态审查指出的同policy无prep遮蔽、32MiB SQL错误映射、同位冲突指纹、Finish内部ctx取消误分类及未冻结空session/receipt均已修正。当前为源码交接及Windows适用验证，AI12所列专门故障与Linux待验证，不宣布完整备份组、MB08/09、M1或发布完成。
