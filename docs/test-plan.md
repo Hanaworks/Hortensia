@@ -81,7 +81,7 @@ T13 按支持清单分别检验每项参数及组合。`--entrypoint` 可能影�
 
 M1 首个完整流程至少完成 T01—T05 相关子集及 T07／T08／T17 的关键边界，不只验证健康网络下一次部署。当前 M0 通信原型子集另按第 9 节及其切片验收表判定。扩展切片按新增要求执行对应测试，已有通过项在关联实现变化时复测。完整产品结论必须说明实际覆盖及未执行范围，不由表格齐全推出。
 
-**历史范围（2026-11-04留存的文档基线）**：当时“本轮仅开展 Markdown 文档结构、来源原意和跨篇承接检查”，实际范围记录于[文档规划](documentation-plan.md#本轮检查记录)。这不是后续软件实施或2026-11-13验证的范围说明；现行结果见[第15节](#15-m1现行验证入口2026-11-13)。测试组织继续采用req42需求和增量验收，以及[arc42运行视图](https://docs.arc42.org/section-6/)和[质量场景](https://docs.arc42.org/section-10/)，没有另立脱离设计的验收骨架。
+**历史范围（2026-11-04留存的文档基线）**：当时“本轮仅开展 Markdown 文档结构、来源原意和跨篇承接检查”，实际范围记录于[文档规划](../archive/2026-11-14-documentation/history/documentation-progress.md#本轮检查记录)。这不是后续软件实施或2026-11-13验证的范围说明；现行结果见[第15节](#15-m1现行验证入口2026-11-13)。测试组织继续采用req42需求和增量验收，以及[arc42运行视图](https://docs.arc42.org/section-6/)和[质量场景](https://docs.arc42.org/section-10/)，没有另立脱离设计的验收骨架。
 
 ## 7. M0／M1 验证规格
 
@@ -145,23 +145,23 @@ V01—V18的本机前置断言及模块子集已有后续证据，不能继续�
 
 **历史记录范围**：第9—14节保留2026-11-07各M0切片当时的证据、命令及未实现边界；其中“当前”“本轮”“下一步”仅指各段所列版本和当时环境。后续完成的双端释放、正式服务、任务通道及备份检查器，按[第15节](#15-m1现行验证入口2026-11-13)追踪；旧数字不作为当前全仓总数，旧命令不被改写成后续版本已经复验的证明。
 
-2026-11-06 补建[本轮验收标准 AC01—AC11](implementation/m0-agent-channel.md#本轮验收标准)，当时为“已有局部验证、切片验收未完成”。2026-11-07 按开工前的补齐计划新增45个顶层验收测试，代码／测试基线`94056e0`全量四包通过，537条测试及子测试通过记录、失败0、跳过0，完成当前切片验收。逐项断言、静态审阅例外、环境与交付限制在实施记录维护；不把事后补建的初始标准称为首次编码前已完备。
+2026-11-06 补建[本轮验收标准 AC01—AC11](../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md#本轮验收标准)，当时为“已有局部验证、切片验收未完成”。2026-11-07 按开工前的补齐计划新增45个顶层验收测试，代码／测试基线`94056e0`全量四包通过，537条测试及子测试通过记录、失败0、跳过0，完成当前切片验收。逐项断言、静态审阅例外、环境与交付限制在实施记录维护；不把事后补建的初始标准称为首次编码前已完备。
 
 当前代码行为与测试的逐项对应见 [M0 实际实现规格第 6 节](specifications/m0-channel-probe.md#6-规格到验证的对应)。支持范围按其中矩阵判断，不从20类Schema正例推定已完成20类业务交互。
 
-实现和可复验命令见 [M0 实施记录](implementation/m0-agent-channel.md)。目前 `go test ./...` 覆盖共享 Schema 与解码输入、真实 TLS 握手、身份与 session 替换、非法／分片超限消息、独立探活计时，以及内存许可门禁的超时／重复／失效竞争。CLI 测试启动两个独立 OS 子进程，经回环 TLS 通信；探活期限采用可控时钟测试，不把短握手测试当作真实等待 45 秒的网络实验。
+实现和可复验命令见 [M0 实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)。目前 `go test ./...` 覆盖共享 Schema 与解码输入、真实 TLS 握手、身份与 session 替换、非法／分片超限消息、独立探活计时，以及内存许可门禁的超时／重复／失效竞争。CLI 测试启动两个独立 OS 子进程，经回环 TLS 通信；探活期限采用可控时钟测试，不把短握手测试当作真实等待 45 秒的网络实验。
 
 上述94056e0证据覆盖V03／V04／V05／V07／V10的部分前置边界，不将整组用例标为完成；当时V04的迟到、重复和失效仅由独立Gate回调实验验证，V03／V05没有真实授权事务或崩溃实验，也没有SQLite接入。当前工具链关闭CGO，race检查不能运行，不能报告竞态检测通过。
 
 ## 10. Agent 开始账本切片
 
-2026-11-07先保存[开始账本规格及L01—L10](specifications/m0-agent-ledger.md)与[实施计划和结果](implementation/m0-agent-ledger.md)，再编码。验证采用真实SQLite文件、实际写锁及事务中止、无副作用Start回调和三个边界的强制终止辅助进程。方法、逐项结果和交付版本以实施记录为准；复验命令为 `go test ./internal/agent/ledger -count=1 -timeout=90s`。
+2026-11-07先保存[开始账本规格及L01—L10](specifications/m0-agent-ledger.md)与[实施计划和结果](../archive/2026-11-14-documentation/m0-implementation/m0-agent-ledger.md)，再编码。验证采用真实SQLite文件、实际写锁及事务中止、无副作用Start回调和三个边界的强制终止辅助进程。方法、逐项结果和交付版本以实施记录为准；复验命令为 `go test ./internal/agent/ledger -count=1 -timeout=90s`。
 
 本切片只覆盖Agent本地开始边界。没有Manager授权事务、真实工作区准备、执行事件／结果重报、网络任务、完整恢复扫描、双端释放或Docker副作用；进程终止不等于掉电，Windows验证不等于Linux部署验证。V03／V04／V05的相关前置断言有所推进，整组及整个M0仍需后续环境与模块证据。
 
 ## 11. Agent 事件与首结果日志切片
 
-2026-11-07编码前以5c0c1f7保存[事件日志规格及J01—J10](specifications/m0-agent-journal.md)和[实施计划](implementation/m0-agent-journal.md)，源码／测试版本8ff708b。J01—J10通过：v1/v2入口与结构拒绝、独立密钥封装与额度、started原子提交、四类首结果、同位重试／冲突、确认、原文读取及单操作恢复投影均有对应断言。真实SQLite语句与Commit故障验证无部分事件；四组子进程分别在started后、实际result事务中、result后和ack后强杀，核对原文、序号、结果指针、确认、计数和占用。
+2026-11-07编码前以5c0c1f7保存[事件日志规格及J01—J10](specifications/m0-agent-journal.md)和[实施计划](../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)，源码／测试版本8ff708b。J01—J10通过：v1/v2入口与结构拒绝、独立密钥封装与额度、started原子提交、四类首结果、同位重试／冲突、确认、原文读取及单操作恢复投影均有对应断言。真实SQLite语句与Commit故障验证无部分事件；四组子进程分别在started后、实际result事务中、result后和ack后强杀，核对原文、序号、结果指针、确认、计数和占用。
 
 最终全量5个测试包通过，750条测试及子测试通过记录，其中ledger213条，失败0、测试跳过0；该计数包含父组与辅助入口，并非750个独立场景。Go静态检查、构建、依赖校验、契约与文档检查通过，具体环境和审阅修正在实施记录维护。复验命令：`go test ./... -count=1 -timeout=120s`；仅事件模块可用 `go test ./internal/agent/ledger -run TestJournal -count=1 -timeout=90s`。
 
@@ -169,7 +169,7 @@ V01—V18的本机前置断言及模块子集已有后续证据，不能继续�
 
 ## 12. Manager 本地持久协调切片
 
-2026-11-07在前述Agent切片之后，按[Manager规格](specifications/m0-manager-operations.md)与[实施记录](implementation/m0-manager-operations.md)推进M01—M10。原第11节的未验证列表保留其当时边界；本轮新增受控输入受理、双占用、真实持久用户／Grant与许可排序、事件原文幂等／乱序、结果投影和finalize意图的本地验证，完整结果以本轮逐项表为准。
+2026-11-07在前述Agent切片之后，按[Manager规格](specifications/m0-manager-operations.md)与[实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md)推进M01—M10。原第11节的未验证列表保留其当时边界；本轮新增受控输入受理、双占用、真实持久用户／Grant与许可排序、事件原文幂等／乱序、结果投影和finalize意图的本地验证，完整结果以本轮逐项表为准。
 
 观测直接检查原输入字节、permit/auth_rev、事件与操作revision、claims、意图、密钥包装次数和故障后重开结果。实际SQL语句及延迟外键Commit失败检查无部分事实；两个进程强杀位置分别在result事务内和提交后确认发出前。首次result后不删除claims，unknown／interrupted保持核对。
 
@@ -177,7 +177,7 @@ V01—V18的本机前置断言及模块子集已有后续证据，不能继续�
 
 ## 13. Agent 本地恢复扫描切片
 
-2026-11-07在Manager本地协调之后完成Agent v3恢复扫描，按[扫描规格](specifications/m0-agent-scan.md)及[实施与验收记录](implementation/m0-agent-scan.md)核对S01—S12。第10—12节继续保留各切片当时的边界；本轮新增全账本固定身份／原文快照、数量与信封字节分页、连续冻结、当前会话变化确认、单调期限、scope替换及持久completed重放的本地验证。
+2026-11-07在Manager本地协调之后完成Agent v3恢复扫描，按[扫描规格](specifications/m0-agent-scan.md)及[实施与验收记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)核对S01—S12。第10—12节继续保留各切片当时的边界；本轮新增全账本固定身份／原文快照、数量与信封字节分页、连续冻结、当前会话变化确认、单调期限、scope替换及持久completed重放的本地验证。
 
 观察对象包括实际返回原文、排序与总数、持久成员和变化索引、当前确认session、冻结状态、开始事实与claims。真实SQL语句／Commit失败及完成事务内、提交后回执送出前的进程终止用于核对原子边界；具体测试、运行环境、结果及限制只在扫描验收页维护。本轮使用Windows本机临时数据库和辅助进程，无需用户提供Docker节点或跨机联调环境。
 
@@ -185,7 +185,7 @@ Agent末页只证明本地枚举到尾，reconcile_completed只证明本轮Agent
 
 ## 14. Manager 扫描接收与业务恢复切片
 
-2026-11-07按事前基线`72bc30a`的[恢复规格](specifications/m0-manager-recovery.md)和[实施及R01—R12验收记录](implementation/m0-manager-recovery.md)实现Manager v2扫描收件箱、业务核对和完成屏障。第9—13节保留各轮当时的验收数字及未实现边界；本轮逐项结果、审阅修正、运行环境和限制只在新验收页维护，不将模块验收扩展为完整产品验收。
+2026-11-07按事前基线`72bc30a`的[恢复规格](specifications/m0-manager-recovery.md)和[实施及R01—R12验收记录](../archive/2026-11-14-documentation/m0-implementation/m0-manager-recovery.md)实现Manager v2扫描收件箱、业务核对和完成屏障。第9—13节保留各轮当时的验收数字及未实现边界；本轮逐项结果、审阅修正、运行环境和限制只在新验收页维护，不将模块验收扩展为完整产品验收。
 
 本轮验证以真实Manager v2／Agent v3本地库交换reconcile、页面、事件和completed，分别观察页面原文／成员／请求关联、expected历史依据、操作／许可／claims、absence依据、case与quarantined、当前轮及冻结状态。关键场景包括空扫描握手、pending转all、旧快照与较新事件合并、Agent同boot跨session／Manager重开继续旧快照、终态待finalize、旧boot／session完成回执，以及complete准备后新增隔离条件。较旧页面不得回退Manager事实或仅因水位差制造case；Process后迟到的not_started也不能覆盖已保存页中的开始事实。未知或暂不支持的历史必须持久隔离，不能用伪造Operation或直接清frozen满足断言。
 
@@ -206,4 +206,4 @@ Agent末页只证明本地枚举到尾，reconcile_completed只证明本轮Agent
 | B机原生NC01—NC12子集 | [IB原生记录](implementation/m1-instabox-debug.md)：156条完整命令与六份证据hash已核验，覆盖原生文件／环境／资源及失败副作用子集 | 未调用产品Prepare／Observe或正向Apply，不开放生产精确接受表；无效NC05子夹具不计证据，具体作废范围和补验在IB记录保留 |
 | 隔离恢复、重加密及受控维护 | [MB事前基线](implementation/m1-maintenance-backup.md)和[首版V01—V08](implementation/m1-first-version.md#3-首版v01v08退出条件)继续约束后续实施与退出 | 软件尚未实现；schema6／protocol2属于后续方案，现行v5不具备规划中的命令或恢复能力 |
 
-精确`374016e`全回归1117条测试／子测试通过，是2026-11-12[双端释放F01—F10](implementation/m0-dual-release.md)的历史基线；该记录继续保留，已由上述后续完整回归替代其“当前全仓结果”的用途。所有计数均含测试父组／子测试，不能换称等量独立业务场景。
+精确`374016e`全回归1117条测试／子测试通过，是2026-11-12[双端释放F01—F10](../archive/2026-11-14-documentation/m0-implementation/m0-dual-release.md)的历史基线；该记录继续保留，已由上述后续完整回归替代其“当前全仓结果”的用途。所有计数均含测试父组／子测试，不能换称等量独立业务场景。

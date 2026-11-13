@@ -1,6 +1,8 @@
+> 现行用途（2026-11-14归档整理）：本篇保留仍有代码入口的旧格式API及被M1明确引用的基础规则，不是当前阶段的实施计划。正式schema5／protocol1的完整运行与差异见[Agent v5](m1-agent-runtime.md)、[Manager v5](m1-manager-runtime-store.md)和[正式通道](m1-agentwire.md)。本篇已结束的实施／验收历史从[归档目录](../../archive/2026-11-14-documentation/README.md)查阅，不能把旧格式参数或当时状态套用于正式服务。
+
 # M0 双端终结释放规格
 
-2026-11-12编码前基线，代码起点656e355；实现及本地F01—F10验收已完成，源码6f92eb3，最终回归374016e，证据见[验收记录](../implementation/m0-dual-release.md)。本模块承接[恢复矩阵及双端释放](execution-recovery.md#53-双端释放握手)、[Agent协议第6—7节](agent-protocol.md)、[共享Schema](../../contracts/agent-v1.schema.json)、[Manager恢复](m0-manager-recovery.md)及[Agent扫描](m0-agent-scan.md)。它是推进M1首个完整版本的基础，不单独称为首个版本。
+2026-11-12编码前基线，代码起点656e355；实现及本地F01—F10验收已完成，源码6f92eb3，最终回归374016e，证据见[验收记录](../../archive/2026-11-14-documentation/m0-implementation/m0-dual-release.md)。本模块承接[恢复矩阵及双端释放](execution-recovery.md#53-双端释放握手)、[Agent协议第6—7节](agent-protocol.md)、[共享Schema](../../contracts/agent-v1.schema.json)、[Manager恢复](m0-manager-recovery.md)及[Agent扫描](m0-agent-scan.md)。它是推进M1首个完整版本的基础，不单独称为首个版本。
 
 ## 1. 目的与选择
 
@@ -66,7 +68,7 @@ Agent提交后回执丢失：Manager仍pending并持有claims；重投finalize�
 
 ## 6. 验证与维护
 
-验收F01—F10见[实施记录](../implementation/m0-dual-release.md)。排障顺序：当前绑定→原结果／终态判据→finalize intent及请求→Agent回执／claims→Manager回执／claims→扫描历史→最终completed。修改释放判据须同时核对两端实现与共享主定义；修改扫描过滤须验证所有事件确认与被省略证据认证；修改事件重报须覆盖释放前后两种顺序。真实执行归属、补观察、旧库升级、备份回退及人工解除隔离仍由后续模块负责。
+验收F01—F10见[实施记录](../../archive/2026-11-14-documentation/m0-implementation/m0-dual-release.md)。排障顺序：当前绑定→原结果／终态判据→finalize intent及请求→Agent回执／claims→Manager回执／claims→扫描历史→最终completed。修改释放判据须同时核对两端实现与共享主定义；修改扫描过滤须验证所有事件确认与被省略证据认证；修改事件重报须覆盖释放前后两种顺序。真实执行归属、补观察、旧库升级、备份回退及人工解除隔离仍由后续模块负责。
 
 ## 7. 实施中的接手补充
 

@@ -1,0 +1,596 @@
+{
+  "date": "2026-11-14",
+  "baseline": "d0fa613",
+  "originals": [
+    {
+      "path": "README.md",
+      "bytes": 11822,
+      "sha256": "1e5b77641ff6813e0aa5dc18cebf5829ce842a8d7429953b410e56ea8e33a465"
+    },
+    {
+      "path": "docs/agent-first-run.md",
+      "bytes": 5725,
+      "sha256": "db89e99fb9b95bbb5730eca1e6b19d3872a982f7cdbb8713ed4a356d01063988"
+    },
+    {
+      "path": "docs/api-design.md",
+      "bytes": 15234,
+      "sha256": "7795428d05fad2aa8870ec2d37d6bcaa4dcf789d457251d2b3255c0a99b0b63a"
+    },
+    {
+      "path": "docs/architecture.md",
+      "bytes": 16313,
+      "sha256": "7525bcad7dc7a8777290eef8bde635f5dd1d20284957f512da5d451158939048"
+    },
+    {
+      "path": "docs/ChatGPT-Docker管理程序推荐-20261030-0119.md",
+      "bytes": 78279,
+      "sha256": "4dd43561ce400199db5edd962a1bf331fd765da15f892e2ce43ce0f4d8147bfd"
+    },
+    {
+      "path": "docs/components/agent.md",
+      "bytes": 32915,
+      "sha256": "7bbdbe0657a0c52179eb51c0ef3f3ebe1cdfb7bb458d313e316de935fa14914c"
+    },
+    {
+      "path": "docs/components/manager.md",
+      "bytes": 27418,
+      "sha256": "4502f8774b4eb0b20bc0077ed8899ef10886b4ca61bb8042ecee3cc51e7192ac"
+    },
+    {
+      "path": "docs/components/web.md",
+      "bytes": 22266,
+      "sha256": "76fb28405ce39d4a5db9cbef07dd7b144cf681b5904075487866ac4a4ff8811d"
+    },
+    {
+      "path": "docs/conversation-notes.md",
+      "bytes": 6337,
+      "sha256": "69e083bfc9c28c2578b1bb7d9bb98ab651655834991a6ff451befff06e43f335"
+    },
+    {
+      "path": "docs/data-design.md",
+      "bytes": 40466,
+      "sha256": "29d897bbe3d31368c45f82b82c446becc706ffd81a0c19d97d5b69be5f387c1b"
+    },
+    {
+      "path": "docs/decisions.md",
+      "bytes": 12648,
+      "sha256": "57b4aa97aabce763749f196fc2d1810ae62dad54bca8a1fa47aed05d6087c055"
+    },
+    {
+      "path": "docs/development-plan.md",
+      "bytes": 28303,
+      "sha256": "e177efb3f0596f0e1805f74497b0c38a18d31b74c0ecbec37424bb1ca4511409"
+    },
+    {
+      "path": "docs/documentation-plan.md",
+      "bytes": 43897,
+      "sha256": "167370680235275ad42db7ae9d73f9e659cc543e65f5396047debab733e76d77"
+    },
+    {
+      "path": "docs/functional-design.md",
+      "bytes": 14635,
+      "sha256": "ca5d049e3d4f2f9230f16d72ae2d8b808fd47c27bc5eb2f27f0bff30be581c4c"
+    },
+    {
+      "path": "docs/implementation/m0-acceptance-completion.md",
+      "bytes": 7483,
+      "sha256": "779f399cba263b077c16696b2f4d41e01e382c907d4c75c828f58f4feb8276a8"
+    },
+    {
+      "path": "docs/implementation/m0-agent-channel.md",
+      "bytes": 24762,
+      "sha256": "225dc87174e82f3ca09224ca4273f2d145d6c274138a3ae647b2287c2cb2c5ff"
+    },
+    {
+      "path": "docs/implementation/m0-agent-journal.md",
+      "bytes": 13256,
+      "sha256": "0f9ae263229f7dc91261dbf9b96bac0b69e1aaab4d92c65f8fc6f3f6f44000e2"
+    },
+    {
+      "path": "docs/implementation/m0-agent-ledger.md",
+      "bytes": 12505,
+      "sha256": "1edf95c16b34845c5688eb576b6122574ae81f6c927b81a280361a9344eb5bd4"
+    },
+    {
+      "path": "docs/implementation/m0-agent-scan.md",
+      "bytes": 15673,
+      "sha256": "6fa7b0ea3ec1bff7a528cdf715d22914b73229ac08c5728181a996a8819bf081"
+    },
+    {
+      "path": "docs/implementation/m0-dual-release.md",
+      "bytes": 9302,
+      "sha256": "9588a61ca22d19a9fe7b0b57b4a568ca3835fce032e9621472dcb87edee3d840"
+    },
+    {
+      "path": "docs/implementation/m0-manager-operations.md",
+      "bytes": 13961,
+      "sha256": "3562022fe2174ae59dd10bf8f1e51954f2f7e21c383527e2eccbe61ec91cf8da"
+    },
+    {
+      "path": "docs/implementation/m0-manager-recovery.md",
+      "bytes": 21744,
+      "sha256": "1e96b6c6ab2e27c1f851d8b7c039568a3231adcb9f3c733cf3a550d20d772516"
+    },
+    {
+      "path": "docs/implementation/m0-protocol-base64.md",
+      "bytes": 6587,
+      "sha256": "654233f30f0d91040a161de23ba1e1d5d24a23df1be7fe73b01a6c86aa3a93e9"
+    },
+    {
+      "path": "docs/implementation/m1-agent-runtime.md",
+      "bytes": 30028,
+      "sha256": "ed18ad6e270befaa879a6ea8a6c5d2c20c7f36acfcca564fe1443268d64f71f4"
+    },
+    {
+      "path": "docs/implementation/m1-agent-service.md",
+      "bytes": 11899,
+      "sha256": "c1415f292aba589857c1ac785aa8fbba027ec6ba5c5ecc579389cbec3eb87991"
+    },
+    {
+      "path": "docs/implementation/m1-agentwire.md",
+      "bytes": 2407,
+      "sha256": "54859742afa37a18318eeab50b6d9659113b165846de41815a6787436d1839a5"
+    },
+    {
+      "path": "docs/implementation/m1-backup-group.md",
+      "bytes": 16635,
+      "sha256": "343845a628b9ea227c910fe3ee901e6d794d5def7f93735e810986662fb9777f"
+    },
+    {
+      "path": "docs/implementation/m1-backup-snapshot.md",
+      "bytes": 8805,
+      "sha256": "dd0427d6360a2148b5a9706d6299a59a0dfe67ea23e179c2a3d1c46063ea29ff"
+    },
+    {
+      "path": "docs/implementation/m1-compose-engine.md",
+      "bytes": 12339,
+      "sha256": "d585aefc0e22c8a2918332f177b300edf56b3e7e99ddb14655d7aa877f377be6"
+    },
+    {
+      "path": "docs/implementation/m1-first-version.md",
+      "bytes": 25362,
+      "sha256": "b0c7655f7e547cac3ef09c7c48af7b27bb08bda517469456f61233b7fc1f2c49"
+    },
+    {
+      "path": "docs/implementation/m1-http-adapter.md",
+      "bytes": 6688,
+      "sha256": "90d273c2c8978ca42b949db92150a790ff6151a77b7acc0e664b134601dbee95"
+    },
+    {
+      "path": "docs/implementation/m1-instabox-debug.md",
+      "bytes": 15530,
+      "sha256": "78314a20c68d8b6abf57fa75f078ddcfbf0f130a00798106dd902ae87776333a"
+    },
+    {
+      "path": "docs/implementation/m1-maintenance-backup.md",
+      "bytes": 19888,
+      "sha256": "273c16f6bc5cd81119d39147e6dbe2f0b7d5e79fdc77c788eab59c47d32601a2"
+    },
+    {
+      "path": "docs/implementation/m1-manager-agenttransport.md",
+      "bytes": 5909,
+      "sha256": "e8f4edd8c62aa6219caf5b2e7d697d09434330531c92340375aba206bbc4223c"
+    },
+    {
+      "path": "docs/implementation/m1-manager-runtime-store.md",
+      "bytes": 13094,
+      "sha256": "7c2ff24b747e0d90f1834c938e24d1dbee38d9ad5b84c464661506dc3c54594d"
+    },
+    {
+      "path": "docs/implementation/m1-manager-runtime.md",
+      "bytes": 9151,
+      "sha256": "9b770b82f7776578a76929fd0a38e2f29d23ab6355fdd841e170bab12b54b631"
+    },
+    {
+      "path": "docs/implementation/m1-manager-service.md",
+      "bytes": 25207,
+      "sha256": "2b396f92e6b1f4b004b2121ee0fa471edd130a0ce41a98568c7f829f95f42421"
+    },
+    {
+      "path": "docs/implementation/m1-protocol-input.md",
+      "bytes": 5369,
+      "sha256": "ec82dce06b03a6ffb68dac3cc12af4e201680227bb5910fe43a3783baa3ef3ce"
+    },
+    {
+      "path": "docs/implementation/m1-web.md",
+      "bytes": 11477,
+      "sha256": "63b8e046ecbb24f94f6cdd8a722cc62880ce47260caea2dba4b1b077457643b1"
+    },
+    {
+      "path": "docs/implementation-lessons.md",
+      "bytes": 21802,
+      "sha256": "1f4544c19d59e3ff365a60866a53eead090ae89296becfa8a8a8ee067bdfe30a"
+    },
+    {
+      "path": "docs/manager-first-run.md",
+      "bytes": 5559,
+      "sha256": "7c674bcc887f88505241da75491f9ccaca17fbe3869dda00021a27ecd9c53f3e"
+    },
+    {
+      "path": "docs/operations.md",
+      "bytes": 24042,
+      "sha256": "c636a3a785e81ecfcb578799ced387e39a129fb4f047bd095651c89121973961"
+    },
+    {
+      "path": "docs/requirements.md",
+      "bytes": 16952,
+      "sha256": "afbaa922c7318699776428b85c9755f9fd35f5e77406eb229723078c8b4f7fa0"
+    },
+    {
+      "path": "docs/research/portainer-agent-reference.md",
+      "bytes": 8554,
+      "sha256": "ae894f3e8d794fef5f9c1100dc9c67b53d765e145c6b557bbc5919a4a5fdb086"
+    },
+    {
+      "path": "docs/specifications/agent-protocol.md",
+      "bytes": 28779,
+      "sha256": "0f0de9c540311f90bd12064007f03fee5feb57388016429cad36ba7030ab595a"
+    },
+    {
+      "path": "docs/specifications/execution-recovery.md",
+      "bytes": 28319,
+      "sha256": "40ec5b8badd54af873a44a908547b4f349b5a6453a46f8c1150d525a80e11f44"
+    },
+    {
+      "path": "docs/specifications/http-api.md",
+      "bytes": 24501,
+      "sha256": "89e6b434358adc1351732a740c91056006425f02d69d48a2b2c5d309e9ddc377"
+    },
+    {
+      "path": "docs/specifications/m0-agent-journal.md",
+      "bytes": 33360,
+      "sha256": "971fed4768820fc608d272512be30816c30c8bebbfdc0ec076b26a88d0f98f90"
+    },
+    {
+      "path": "docs/specifications/m0-agent-ledger.md",
+      "bytes": 30163,
+      "sha256": "b804a67f88bdd6d38ce501cba18a6476adf6f807a3f5d5848ee7802c723c8beb"
+    },
+    {
+      "path": "docs/specifications/m0-agent-scan.md",
+      "bytes": 17098,
+      "sha256": "e933cb3aaa61d3c705f023fdc668c3385106726f9d85a6d69445a4e3f7e87d28"
+    },
+    {
+      "path": "docs/specifications/m0-channel-probe.md",
+      "bytes": 46370,
+      "sha256": "f5228e9757003bd5965d343d5a70753c8cf1eee47dabb8a1462022b307c98e5e"
+    },
+    {
+      "path": "docs/specifications/m0-dual-release.md",
+      "bytes": 14367,
+      "sha256": "d6a2e4c59d24bfe7976569c5fa2a35ce03efb08fdd8960202e1831128fa956ed"
+    },
+    {
+      "path": "docs/specifications/m0-manager-operations.md",
+      "bytes": 18739,
+      "sha256": "13a2ea21d36ff38f2891f449f1a59d51c3397f9f98c656a4b9605ec7dfd0a629"
+    },
+    {
+      "path": "docs/specifications/m0-manager-recovery.md",
+      "bytes": 23528,
+      "sha256": "9599a38227b51215629e71ca868fccb8243a23052f9773f95e04d68df8617367"
+    },
+    {
+      "path": "docs/specifications/m1-agent-runtime.md",
+      "bytes": 50267,
+      "sha256": "97069e57cdfea15558035ca4c0bc96f31760343570ba2990bf9e035470059bc8"
+    },
+    {
+      "path": "docs/specifications/m1-agent-service.md",
+      "bytes": 15656,
+      "sha256": "a67cac9f1bd5611460e05545652122d1563788fb7442ef77fc858de6a76aafe9"
+    },
+    {
+      "path": "docs/specifications/m1-agentwire.md",
+      "bytes": 4160,
+      "sha256": "b480394a879ae30158ed06d52237c204cadb4ff36b362ee7b04c3b78e58675b1"
+    },
+    {
+      "path": "docs/specifications/m1-backup-group.md",
+      "bytes": 31546,
+      "sha256": "83deb276a7951b79bc715b108ee7a30c150f5b038e13409ea23bd6eb456c2702"
+    },
+    {
+      "path": "docs/specifications/m1-backup-snapshot.md",
+      "bytes": 6290,
+      "sha256": "7f59beecbffbf0bb3e0604ccb472181628d160b63050b19382e7a74944787d4b"
+    },
+    {
+      "path": "docs/specifications/m1-compose-engine.md",
+      "bytes": 16934,
+      "sha256": "de9c84beec8293c4d89db980973814d9e644993b5d3875b36bc160d5a9b73053"
+    },
+    {
+      "path": "docs/specifications/m1-http-adapter.md",
+      "bytes": 10548,
+      "sha256": "65c782ab22e774e564a28f3f65c7f47f26f3c88e8029a085d2fc4c6cd2392b8f"
+    },
+    {
+      "path": "docs/specifications/m1-maintenance-backup.md",
+      "bytes": 51256,
+      "sha256": "519d9402c9b65fb7d3964234c0b8a5aed4d387b2a7f0513617166d4370735ecd"
+    },
+    {
+      "path": "docs/specifications/m1-manager-agenttransport.md",
+      "bytes": 8505,
+      "sha256": "8645e2d7253834dffa6b8aa5b33dbcfe66ba45ec8e8986e5e0726962f3a06c6b"
+    },
+    {
+      "path": "docs/specifications/m1-manager-runtime-store.md",
+      "bytes": 15181,
+      "sha256": "1266d04b662077ede16dd98fe1e626e356efe0270f9aedc14d4221f727d7a54f"
+    },
+    {
+      "path": "docs/specifications/m1-manager-runtime.md",
+      "bytes": 11141,
+      "sha256": "4a903621209004eac16a209f4cde00cf8274bd933dc76129c1d11bd1aff2be4e"
+    },
+    {
+      "path": "docs/specifications/m1-manager-service.md",
+      "bytes": 42057,
+      "sha256": "7b1192b56a312b55e5c7ac4ca774f7d201fb2d5c15593abbe1a72e5d958eb59a"
+    },
+    {
+      "path": "docs/specifications/m1-protocol-input.md",
+      "bytes": 7974,
+      "sha256": "0532b8286834d97ca4c9243aeef01e8f5cc51d3f1b0ade3f406b357c1adc62dd"
+    },
+    {
+      "path": "docs/specifications/m1-web.md",
+      "bytes": 9707,
+      "sha256": "dd128bc548ba78d59a9c64ddb8c844790a88e4d726a03cf03a289202635429e1"
+    },
+    {
+      "path": "docs/test-plan.md",
+      "bytes": 33819,
+      "sha256": "4ac9e5700c52496d7ac0df65b8145e0fc3d1c49d67fbe0ac025f7db905da62a1"
+    }
+  ],
+  "relocated": [
+    {
+      "from": "docs/implementation/m0-acceptance-completion.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-acceptance-completion.md",
+      "replacement": "docs/implementation/m1-first-version.md",
+      "source_sha256": "779f399cba263b077c16696b2f4d41e01e382c907d4c75c828f58f4feb8276a8",
+      "archived_sha256": "e647bdea4033359fb593cabc37305d62fb4bc5601ba3462af537707afce9187e",
+      "compatibility_anchors": [
+        "m0-原型验收补齐计划",
+        "共同约束与审阅重点",
+        "task-1通道的期限身份与消息边界ac03ac07",
+        "task-2命令行与材料ac02",
+        "task-3解码输入预算ac07",
+        "task-4整体验收与交付记录ac01ac08ac11",
+        "计划自查",
+        "执行记录"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-agent-channel.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md",
+      "replacement": "docs/implementation/m1-first-version.md",
+      "source_sha256": "225dc87174e82f3ca09224ca4273f2d145d6c274138a3ae647b2287c2cb2c5ff",
+      "archived_sha256": "bb33709ae4b306f7a47d84786403596636191a3d8124e1e88a8d7c512ed73921",
+      "compatibility_anchors": [
+        "m0-agent-通道原型实施与验收",
+        "本轮实施约定",
+        "本轮验收标准",
+        "完成条件与当前结论",
+        "2026-11-07-逐项验收结果",
+        "global-constraints",
+        "review-focus",
+        "task-1-复用契约的-go-校验器",
+        "task-2-tls-通道和许可门禁",
+        "执行记录",
+        "复验与手工运行",
+        "当前证据与限制"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-agent-journal.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md",
+      "replacement": "docs/specifications/m1-agent-runtime.md",
+      "source_sha256": "0f9ae263229f7dc91261dbf9b96bac0b69e1aaab4d92c65f8fc6f3f6f44000e2",
+      "archived_sha256": "06390a2bbed055b085c0b4330be52db9e6e7fe99c163148a8946cac0b89d527a",
+      "compatibility_anchors": [
+        "m0-agent-事件日志实施计划与记录",
+        "共同约束与审阅重点",
+        "task-1v2入口结构与事件加密j01j03",
+        "task-2事件结果与gate接入j04j07",
+        "task-3一致恢复读取及进程终止j08j09",
+        "task-4整体验收与交付j10",
+        "验收与实施记录",
+        "j01j10逐项结果",
+        "维护交接说明补充"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-agent-ledger.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-agent-ledger.md",
+      "replacement": "docs/specifications/m1-agent-runtime.md",
+      "source_sha256": "1edf95c16b34845c5688eb576b6122574ae81f6c927b81a280361a9344eb5bd4",
+      "archived_sha256": "a04aa2cbc01c654dd16b70cdfe8a7a5046afa1d9e23290bb90206e2e85c12cbe",
+      "compatibility_anchors": [
+        "m0-agent-开始账本实施计划与记录",
+        "共同约束与审阅重点",
+        "task-1存储身份固定输入与占用l01l04",
+        "task-2gate-与持久开始边界l05l07l09",
+        "task-3进程终止与重开l08",
+        "task-4整体验收文档与交付l10",
+        "验收记录",
+        "实施裁定与进度"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-agent-scan.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md",
+      "replacement": "docs/specifications/m1-agent-runtime.md",
+      "source_sha256": "6fa7b0ea3ec1bff7a528cdf715d22914b73229ac08c5728181a996a8819bf081",
+      "archived_sha256": "b7c26f3a0e1e2a8914cf98f350214a3a65bd6701234e8973ef5b2e4b4025b99b",
+      "compatibility_anchors": [
+        "m0-agent-恢复扫描实施与验收",
+        "共同接口与分工",
+        "实施顺序与验收",
+        "暂缺与环境",
+        "实施与审阅记录",
+        "s01s12最终结果",
+        "运行环境检查与复验"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-dual-release.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-dual-release.md",
+      "replacement": "docs/specifications/m1-manager-runtime-store.md",
+      "source_sha256": "9588a61ca22d19a9fe7b0b57b4a568ca3835fce032e9621472dcb87edee3d840",
+      "archived_sha256": "c81a8664ad1976640aae69a64fcbbfd9df853c838b79f40ea7874716acadcccf",
+      "compatibility_anchors": [
+        "m0-双端释放实施及验收",
+        "顺序与分工",
+        "运行与完成条件",
+        "2026-11-12最终验收与接手"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-manager-operations.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md",
+      "replacement": "docs/specifications/m1-manager-runtime-store.md",
+      "source_sha256": "3562022fe2174ae59dd10bf8f1e51954f2f7e21c383527e2eccbe61ec91cf8da",
+      "archived_sha256": "b6d392a0c0516a72be77825af588bed6118e7e5ae8925ffcf53c3b04fb73e3cb",
+      "compatibility_anchors": [
+        "m0-manager-本地持久协调实施与验收",
+        "实施顺序",
+        "内部协作接口",
+        "m01m10验收基线",
+        "明确暂缺与下一依赖",
+        "实施与审阅记录",
+        "m01m10最终结果",
+        "运行环境检查与复验"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-manager-recovery.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-manager-recovery.md",
+      "replacement": "docs/specifications/m1-manager-runtime-store.md",
+      "source_sha256": "1e96b6c6ab2e27c1f851d8b7c039568a3231adcb9f3c733cf3a550d20d772516",
+      "archived_sha256": "195012646ab782668717274dec241b0528a650be2bab4181761bf388f21a01c8",
+      "compatibility_anchors": [
+        "m0-manager-扫描接收与业务恢复实施及验收",
+        "文件与共同接口",
+        "实施顺序",
+        "r01r12验收基线",
+        "审阅重点与暂缺",
+        "实施与审阅记录",
+        "r01r12最终结果",
+        "运行环境检查与复验",
+        "完成边界与下一依赖"
+      ]
+    },
+    {
+      "from": "docs/implementation/m0-protocol-base64.md",
+      "to": "archive/2026-11-14-documentation/m0-implementation/m0-protocol-base64.md",
+      "replacement": "docs/implementation/m1-protocol-input.md",
+      "source_sha256": "654233f30f0d91040a161de23ba1e1d5d24a23df1be7fe73b01a6c86aa3a93e9",
+      "archived_sha256": "34a20f09d22b13c227317a8701fde1a683186dc06b9939925dd1a163fc13b0db",
+      "compatibility_anchors": [
+        "m0-base64大正文匹配修复",
+        "故障证据与范围",
+        "实施顺序与稳定验收",
+        "实现中的语义更正更正代码前保存",
+        "定向实施结果2026-11-12"
+      ]
+    }
+  ],
+  "extracted": [
+    {
+      "from": "docs/data-design.md",
+      "to": "archive/2026-11-14-documentation/superseded-design/data-physical-proposal.md",
+      "replacement": "docs/data-design.md",
+      "source_section_sha256": "83ad41f7bc74aa9cc5bc80006fb6aac1362c84ba811ef08040081594fc592763",
+      "archived_sha256": "b473b24a0de893e5f34308f8d78d206c5bd18119eca9fe19d7386356b1278b2c"
+    },
+    {
+      "from": "docs/operations.md",
+      "to": "archive/2026-11-14-documentation/superseded-design/backup-generation-proposal.md",
+      "replacement": "docs/specifications/m1-backup-group.md",
+      "source_section_sha256": "ab97e986062b1cf29990cab04325740219c1cf1f661e4da44ae5c7c8b3b7c740",
+      "archived_sha256": "6519bc5f4a942f38632d310308fd1f2a59f0dab123b1187207ffe21de2c11ea8"
+    },
+    {
+      "from": "docs/documentation-plan.md",
+      "to": "archive/2026-11-14-documentation/history/documentation-progress.md",
+      "replacement": "docs/documentation-plan.md",
+      "source_section_sha256": "61f8d5ef4affddd578c452e9fea98fb500423e15e33343eb54561df7fe11cde3",
+      "archived_sha256": "ab5794e86e50183d37b9d62ddd3dd4ce5ff50f90bc9d8086f9a5ea815b2c6389"
+    },
+    {
+      "from": "docs/development-plan.md",
+      "to": "archive/2026-11-14-documentation/history/development-progress.md",
+      "replacement": "docs/implementation/m1-first-version.md",
+      "source_section_sha256": "2fc5f7d41fbc96521625bc61ccfbde862699215b2cbe9beff54894ff52ddf86e",
+      "archived_sha256": "e0470783066a1cd6ccabceded97992de7df87b1c582dde27071e56853a6671f4"
+    },
+    {
+      "from": "docs/development-plan.md",
+      "to": "archive/2026-11-14-documentation/history/early-validation-summary.md",
+      "replacement": "docs/implementation/m1-first-version.md",
+      "source_section_sha256": "d62a55f06ff63f1928978f315b7b26f24e7e021bb52aa03af49dac9c5e23066d",
+      "archived_sha256": "a59eb086461be3acded84f82eca55eedb5e4b0abac8de8e3145454642ce6fc6f"
+    }
+  ],
+  "retained": [
+    {
+      "path": "docs/specifications/m0-agent-journal.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-agent-ledger.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-agent-scan.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-channel-probe.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-dual-release.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-manager-operations.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    },
+    {
+      "path": "docs/specifications/m0-manager-recovery.md",
+      "reason": "旧格式API仍保留，且现行v5明确引用其中基础规则；不是已废弃的验收记录"
+    }
+  ],
+  "originalArchive": {
+    "path": "original-documents.tar.gz",
+    "sha256": "bdc14676f467f768d9c3aceb2a9cee09229468a0ea0f690bd9dbb6be08ea696f"
+  },
+  "validation": {
+    "originalFilesVerified": 69,
+    "relocatedBodiesVerified": 9,
+    "extractedBodiesVerified": 5,
+    "rawInputFilesUnchanged": 2,
+    "compatibilityAnchors": 70
+  },
+  "partialDocumentCompatibility": [
+    {
+      "file": "docs/documentation-plan.md",
+      "anchors": 32
+    },
+    {
+      "file": "docs/data-design.md",
+      "anchors": 2
+    },
+    {
+      "file": "docs/development-plan.md",
+      "anchors": 1
+    }
+  ]
+}

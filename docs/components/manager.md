@@ -146,7 +146,7 @@ Manager 的三个入口分别是浏览器业务请求、Agent 当前会话消息
 | `started`／`result` 的信封与 body | 节点会话核对当前连接及关联，操作协调核对操作、摘要、事件位置与状态前提，再保存证据并判定结局 | `operation_events` 保留来源和序号，`operations.revision` 是 Manager 快照修订；二者不直接比较。只有提交成功才 ack，重复不再次产生状态副作用 |
 | 操作、最新结果和已保存观察 | 查询服务按当前权限投影 HTTP `Operation`／`OperationResult`／`Stack` | 摘要使用[HTTP 返回对象白名单](../specifications/http-api.md#4-准确返回对象)，不直传 Agent body 或数据库行；原始输出走独立授权入口，内部摘要和事件序号不透出 |
 
-上述记录的列、密钥域及约束以[数据设计第 7—9 节](../data-design.md#7-m1-存储布局与物理类型提案)为主定义。请求摘要回答“是否同一次提交”，执行摘要回答“是否同一份冻结输入”；Agent 本地指纹由 Agent 自己计算，Manager 既不生成也不代替它验证本地文件。把这几种摘要合并会破坏重试或两端输入核对。
+上述记录的列、密钥域及约束以[数据设计第 7—9 节](../data-design.md#7-现行存储与字段主定义)为主定义。请求摘要回答“是否同一次提交”，执行摘要回答“是否同一份冻结输入”；Agent 本地指纹由 Agent 自己计算，Manager 既不生成也不代替它验证本地文件。把这几种摘要合并会破坏重试或两端输入核对。
 
 ### 8.2 从保存到结果的贯通示例
 
@@ -170,11 +170,11 @@ O 的 prepare 经节点会话发送，ready 只进入准备完成；request_star
 | 命令有结果但目标仍占用 | 原 result、ownership_status、release_status、finalize/finalized 关联 | ack 只保存证据；查[双端释放](../specifications/execution-recovery.md#53-双端释放握手)，不能手工删占用当作修复 |
 | 修改返回结构或权限 | HTTP 投影与当前授权，Agent 证据原文保持独立 | 不把新增协议字段自动暴露给 Web；同时检查权限裁剪、敏感输出和 T14 |
 
-现有原型包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)，具体函数与诊断由[M0维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。2026-11-07进一步新增[Manager本地持久协调模块](../specifications/m0-manager-operations.md)：独立v1库保存固定输入、双占用、持久Grant／许可、started／首result及finalize意图，源码从[operations](../../internal/manager/operations/types.go)进入，证据见[实施与验收](../implementation/m0-manager-operations.md)。本轮v2扫描接收与业务恢复沿用该库的事务和加密机制，内部流程见下节。第7.1节其余业务目录仍为建议；认证、配置仓储、HTTP、网络投递及双端释放仍待接入，不能把Fixture身份和本地库称为完整Manager进程。
+现有原型包括[命令入口](../../cmd/channelprobe/main.go)、[通道](../../internal/channel/channel.go)和[协议校验](../../internal/protocol/validator.go)，具体函数与诊断由[M0维护说明](../specifications/m0-channel-probe.md#8-接手维护时的数据与协作关系)承接。2026-11-07进一步新增[Manager本地持久协调模块](../specifications/m0-manager-operations.md)：独立v1库保存固定输入、双占用、持久Grant／许可、started／首result及finalize意图，源码从[operations](../../internal/manager/operations/types.go)进入，证据见[实施与验收](../../archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md)。本轮v2扫描接收与业务恢复沿用该库的事务和加密机制，内部流程见下节。第7.1节其余业务目录仍为建议；认证、配置仓储、HTTP、网络投递及双端释放仍待接入，不能把Fixture身份和本地库称为完整Manager进程。
 
 ### 8.4 本轮本地扫描接收与业务恢复
 
-本轮实现及R01—R12证据由[独立恢复规格](../specifications/m0-manager-recovery.md)和[实施与验收](../implementation/m0-manager-recovery.md)维护。恢复使用显式新Manager v2库，保留v1入口且不做旧库升级；输入是可信绑定、Agent boot及完整协议报文，尚未接入HTTP或网络任务处理器。
+本轮实现及R01—R12证据由[独立恢复规格](../specifications/m0-manager-recovery.md)和[实施与验收](../../archive/2026-11-14-documentation/m0-implementation/m0-manager-recovery.md)维护。恢复使用显式新Manager v2库，保留v1入口且不做旧库升级；输入是可信绑定、Agent boot及完整协议报文，尚未接入HTTP或网络任务处理器。
 
 调用方先绑定当前节点／ledger／session和Agent boot，再启动扫描。存储层在冻结事务保存本地轮次、请求及当时已有操作／事件水位；这些expected记录用于证明无记录释放的操作在该轮开始时已经存在且没有事件。收件箱核查请求关联、分页与数量，将原body加密保存；业务层在页面完整后重读证据，对照既有操作、许可、事件和占用，幂等导入首结果或建立隔离case。
 

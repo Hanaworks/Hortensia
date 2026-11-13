@@ -25,30 +25,23 @@
 
 ## 开始阅读
 
-| 阅读任务 | 入口与主要内容 |
+| 阅读任务 | 现行入口与职责 |
 | --- | --- |
-| 看这套文档如何安排 | [项目文档规划](docs/documentation-plan.md)：各篇职责、主骨架、参考、展开深度及检查记录 |
-| 回看从文档到交付的教训 | [项目文档编写到实施交付的全过程复盘](docs/implementation-lessons.md)：资料阅读、规划与深度、阶段判断、实施验收及后续执行要求 |
-| 审阅产品目标与范围 | [需求规格](docs/requirements.md)：R01—R17、Q01—Q11、术语、使用场景和边界 |
-| 核对日常操作方式 | [功能与交互设计](docs/functional-design.md)：编辑部署、跨节点、权限和转换流程 |
-| 理解整体及模块 | [架构设计](docs/architecture.md) → [Manager](docs/components/manager.md)、[Agent](docs/components/agent.md)、[Web](docs/components/web.md) |
-| 查精确定义 | [数据设计](docs/data-design.md)、[接口规格](docs/api-design.md)：逻辑实体、操作、状态和失败边界 |
-| 对接首条流程 | [HTTP 规格](docs/specifications/http-api.md)、[Agent 协议](docs/specifications/agent-protocol.md)、[协议 Schema](contracts/agent-v1.schema.json)：消息和返回对象、字段约束、关联及错误 |
-| 核对已实现的具体行为 | [M0 实际实现规格](docs/specifications/m0-channel-probe.md)：实际报文、支持矩阵、参数、状态、错误及代码／测试对应 |
-| 判断本轮做什么、怎样算完成 | [M0 实施与验收](docs/implementation/m0-agent-channel.md#本轮验收标准)：AC01—AC11 的通过条件、逐项结果与交接范围；当前通信及独立门禁切片已验收，整个M0仍未完成 |
-| 跟进持久开始账本 | [账本实施规格](docs/specifications/m0-agent-ledger.md)与[实施计划／验收记录](docs/implementation/m0-agent-ledger.md)：编码前定义范围、存储、接口、故障行为与L01—L10 |
-| 跟进事件与结果持久化 | [事件日志规格](docs/specifications/m0-agent-journal.md)与[实施计划／验收记录](docs/implementation/m0-agent-journal.md)：started、首结果、加密、确认和恢复读取，J01—J10已验收 |
-| 跟进Manager持久协调 | [Manager实施规格](docs/specifications/m0-manager-operations.md)与[实施计划／验收记录](docs/implementation/m0-manager-operations.md)：固定输入、双占用、事务许可、回报幂等和乱序、结果／释放意图；M01—M10已验收，未接网络任务 |
-| 跟进Agent完整账本扫描 | [扫描实施规格](docs/specifications/m0-agent-scan.md)与[实施计划／验收记录](docs/implementation/m0-agent-scan.md)：本地v3扫描切片已完成，覆盖持久冻结、固定成员／原文快照、分页、当前连接确认和完成回执；Agent扫描完成与Manager业务恢复分开 |
-| 跟进Manager扫描接收与业务恢复 | [恢复实施规格](docs/specifications/m0-manager-recovery.md)与[实施计划／验收记录](docs/implementation/m0-manager-recovery.md)：显式新v2库、加密页面与case、无记录释放的历史依据、旧快照与新事件合并和当前完成回执屏障；R01—R12结果与限制在验收页维护 |
-| 跟进双端终结释放 | [双端释放规格](docs/specifications/m0-dual-release.md)与[F01—F10验收](docs/implementation/m0-dual-release.md)：Agent v4／Manager v3真实持久回执、原子释放、迟到事件、当前轮认证及跨端进程恢复；执行结果仍为受控夹具 |
-| 接手账本与事件模块维护 | [开始账本内部说明](docs/specifications/m0-agent-ledger.md)、[事件日志内部结构与流转](docs/specifications/m0-agent-journal.md#7-内部结构与职责)：职责、调用流程、字段来源和生命周期、异常定位及修改约束 |
-| 按独立模块接手阅读 | [模块阅读与补全范围](docs/documentation-plan.md#131-模块阅读与补全范围)：通信各内部单元、账本／事件及Manager／Agent／Web的说明入口；共同定义、本地定义和转换处理分别落实 |
-| 查看实际原型与源码参考 | [M0 实施记录](docs/implementation/m0-agent-channel.md)：运行方式、测试和限制；[Portainer 源码对照](docs/research/portainer-agent-reference.md)：固定版本、调用链与采用理由 |
-| 实现关键执行机制 | [执行与恢复](docs/specifications/execution-recovery.md)：预检、资源归属、投递、结果确认和恢复边界 |
-| 安排实现与验证 | [开发实施计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)：切片依赖、工程接入和可观察断言 |
-| 准备安装和维护 | [部署与运行准备](docs/operations.md)：网络与权限、备份恢复、升级与故障，尚非可执行安装教程 |
-| 查决定与剩余问题 | [决策与待办](docs/decisions.md)：用户确认、设计提案、阻塞范围及解决时点 |
+| 判断现在做到哪里 | [M1推进与验收](docs/implementation/m1-first-version.md)：工作包状态、V01—V08、已验证子集和剩余依赖 |
+| 看产品目标和操作行为 | [需求](docs/requirements.md)、[功能与交互](docs/functional-design.md)：稳定范围、场景、质量与后续能力 |
+| 理解整体和组件 | [架构](docs/architecture.md) → [Manager](docs/components/manager.md)、[Agent](docs/components/agent.md)、[Web](docs/components/web.md) |
+| 启动和接入 | [Manager首次运行](docs/manager-first-run.md)、[Agent接入](docs/agent-first-run.md)；实际入口和限制分别说明 |
+| 接手模块内部实现 | [模块阅读图](docs/documentation-plan.md#7-模块阅读与维护入口)：正式通道、服务、账本、存储、执行、Web和备份各自的规格 |
+| 查通信和请求字段 | [HTTP规格](docs/specifications/http-api.md)、[Agent协议](docs/specifications/agent-protocol.md)、[共享Schema](contracts/agent-v1.schema.json) |
+| 查数据与持久化 | [数据设计](docs/data-design.md)、[Manager v5 Store](docs/specifications/m1-manager-runtime-store.md)、[Agent v5](docs/specifications/m1-agent-runtime.md)：逻辑定义、实际字段／事务和DDL入口 |
+| 查执行与恢复规则 | [执行恢复](docs/specifications/execution-recovery.md)、[工作区／Compose／监督](docs/specifications/m1-compose-engine.md)：开始、副作用、观察、结果与释放 |
+| 查备份实现及缺口 | [完整备份组规格](docs/specifications/m1-backup-group.md)、[BG验收](docs/implementation/m1-backup-group.md)、[维护恢复设计](docs/specifications/m1-maintenance-backup.md) |
+| 核对真实调试证据 | [InstaBox记录](docs/implementation/m1-instabox-debug.md)：Linux、Web、原生CLI与正式接入的不同证明范围 |
+| 继续实施与验证 | [开发计划](docs/development-plan.md)、[测试计划](docs/test-plan.md)、[运行准备](docs/operations.md) |
+| 查文档组织与教训 | [文档规划](docs/documentation-plan.md)、[全过程复盘](docs/implementation-lessons.md) |
+| 查确认及未决项 | [决策与待办](docs/decisions.md)：用户确认、技术选择及剩余取舍 |
+
+已结束的M0验收与被替代方案统一从[2026-11-14归档目录](archive/2026-11-14-documentation/README.md)查阅，不作为当前实施清单；仍被v5明确引用的底层／旧格式规格见模块阅读图。
 
 文档以 req42／arc42 为统一骨架，模块、数据、接口、测试和运行继续承接需求与设计。2026-11-04 的继续落实覆盖首条流程的 HTTP 返回对象、20 类 Agent 消息、共享字段约束、执行结局和归属、双端释放及恢复核对；上一轮内容中的相关规则同步更新。现行稿用于按同一约定开展实现与原型，不代表产品或故障恢复已经验证；迁移策略和后续能力按阶段展开。文档／契约检查与软件测试分别报告。
 

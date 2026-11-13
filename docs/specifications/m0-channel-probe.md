@@ -1,10 +1,12 @@
+> 现行用途（2026-11-14归档整理）：本篇保留仍有代码入口的旧格式API及被M1明确引用的基础规则，不是当前阶段的实施计划。正式schema5／protocol1的完整运行与差异见[Agent v5](m1-agent-runtime.md)、[Manager v5](m1-manager-runtime-store.md)和[正式通道](m1-agentwire.md)。本篇已结束的实施／验收历史从[归档目录](../../archive/2026-11-14-documentation/README.md)查阅，不能把旧格式参数或当时状态套用于正式服务。
+
 # M0 通信原型实际实现规格
 
 更新日期：2026-11-07。运行行为基线：`98d9c13`；验收代码／测试基线：`94056e0`，运行代码未变。本文描述当前程序的输入、输出、交互、状态和异常处理；后续实现改变这些行为时同步更新本文。
 
 文档形成时点：完整 v1 通信规格与消息 Schema 先于本轮代码存在；本篇由 `dc0529c` 根据已完成的原型回填。编码前的 M0 实施计划只定义实验目标、主要约束和验证任务，未完整列出最终参数、消息支持及 Gate 接口。本文提供当前实现的核对依据；实施期间形成的技术选择及其来源在第 7 节登记，不将回填内容追记为编码前已经确定或用户逐项批准。
 
-[Agent v1 通信规格](agent-protocol.md)定义拟实现的完整任务协议，[Schema](../../contracts/agent-v1.schema.json)定义消息结构，本文明确原型实际落实到哪里。[实施记录](../implementation/m0-agent-channel.md)承载构建、运行、测试执行和修复记录；源码参考依据另见 [Portainer 对照](../research/portainer-agent-reference.md)。
+[Agent v1 通信规格](agent-protocol.md)定义拟实现的完整任务协议，[Schema](../../contracts/agent-v1.schema.json)定义消息结构，本文明确原型实际落实到哪里。[实施记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)承载构建、运行、测试执行和修复记录；源码参考依据另见 [Portainer 对照](../research/portainer-agent-reference.md)。
 
 ## 1. 实现组成与边界
 
@@ -210,7 +212,7 @@ Authorize 在断线检查后依次检查 session→operation→nonce→digest→
 
 ## 6. 规格到验证的对应
 
-本节提供测试入口。[实施与验收中的 AC01—AC11](../implementation/m0-agent-channel.md#本轮验收标准)定义本切片的接受条件、原缺口和完成判据；2026-11-07 已完成该切片逐项验收，结果与验证方法在该文维护。以下文件级索引不能代替逐条判定。
+本节提供测试入口。[实施与验收中的 AC01—AC11](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md#本轮验收标准)定义本切片的接受条件、原缺口和完成判据；2026-11-07 已完成该切片逐项验收，结果与验证方法在该文维护。以下文件级索引不能代替逐条判定。
 
 | 规格行为 | 已有测试入口 | 证据边界 |
 | --- | --- | --- |
@@ -241,7 +243,7 @@ Authorize 在断线检查后依次检查 session→operation→nonce→digest→
 | 最多4个未完成Ping | 限制依赖库Ping等待产生的在途goroutine；发送周期与无Pong期限独立后，需要单独的资源预算 | 实施时选定的有界工作值，未做容量调优；耗尽按budget故障关闭，不冒充silence超时 |
 | 包含hello的1024项消息指纹表 | 对同连接消息ID复用检查设置内存增长上限；满后的实际行为见第3.4节 | 实施时选定的有界工作值；不是吞吐指标，也不是持久业务去重方案 |
 | 数字token≤128字节、指数绝对值≤128、精确安全整数 | 审阅和回归复现了极端指数输入触发Schema依赖异常；先设解析预算，再精确检查整数，避免异常或浮点舍入 | 实施中发现问题后增加的限制，已同步目标通信规格；预算值可随受支持输入实验修订 |
-| ECMAScript引擎、正则100ms预算、固定依赖版本 | 已有Schema使用Go标准正则不支持的前瞻；其余模式继续限制匹配时长。2026-11-12修复前限定：仅固定Base64表达式改用等价线性匹配，避免合法大正文因CPU竞争超时被拒绝 | 初始库与预算选择保留；Base64例外依据见[修复验收](../implementation/m0-protocol-base64.md)，不是提高超时或扩大消息预算 |
+| ECMAScript引擎、正则100ms预算、固定依赖版本 | 已有Schema使用Go标准正则不支持的前瞻；其余模式继续限制匹配时长。2026-11-12修复前限定：仅固定Base64表达式改用等价线性匹配，避免合法大正文因CPU竞争超时被拒绝 | 初始库与预算选择保留；Base64例外依据见[修复验收](../../archive/2026-11-14-documentation/m0-implementation/m0-protocol-base64.md)，不是提高超时或扩大消息预算 |
 | 连接建立、应用握手、执行结果分别表达；重连不清空执行证据 | [Portainer源码对照](../research/portainer-agent-reference.md)提供具体调用链与故障情景，与本项目既有恢复要求共同约束实现 | 参考影响分层与验证场景；本项目字段、许可、时间参数仍按自己的规格，不宣称由Portainer直接提供 |
 
 今后实施时新增会改变可观察行为的参数、状态、错误或支持范围，应在同轮更新本篇的对应规则、来源和验证入口；需要产品裁定且现有需求与参考不能决定的取舍，按 D13 向用户确认。实施记录继续记录执行经过和测试结果，不能单独替代这些行为定义。
@@ -289,7 +291,7 @@ Manager退出由CLI协调两个资源层：先`handler.Close`关闭WebSocket连�
 
 同日实现中差分核对后的修复前更正：最初把末尾单LF描述为可匹配，混淆了.NET默认模式与本库实际ECMAScript模式；旧引擎差分及regexp2 v1.11.5的EndZ分支均证明本模式只匹配绝对字符串结尾，已在修改匹配器前纠正上述基线。以实际旧模式匹配集合为兼容依据，不因Base64最终还会被解码拒绝而扩大Schema接受范围。
 
-这项调整不引入新持久字段、线程、取消或恢复流程；边界仍是单次内存校验，调用完成前不产生业务副作用。模式变更时先核对Schema表达式与专用入口是否仍相同，使用[语义差分测试](../../internal/protocol/base64_pattern_test.go)对照原ECMAScript匹配集合，再核对容量与规范解码测试。匹配器不得因负载改判合法语法；CPU竞争下实际耗时没有硬延迟承诺。此前正则超时仍属于拒绝，新增例外只针对有线性实现和消息长度边界的固定Base64语法。[修复验收](../implementation/m0-protocol-base64.md)保留故障证据、事前条件和修复后结果。
+这项调整不引入新持久字段、线程、取消或恢复流程；边界仍是单次内存校验，调用完成前不产生业务副作用。模式变更时先核对Schema表达式与专用入口是否仍相同，使用[语义差分测试](../../internal/protocol/base64_pattern_test.go)对照原ECMAScript匹配集合，再核对容量与规范解码测试。匹配器不得因负载改判合法语法；CPU竞争下实际耗时没有硬延迟承诺。此前正则超时仍属于拒绝，新增例外只针对有线性实现和消息长度边界的固定Base64语法。[修复验收](../../archive/2026-11-14-documentation/m0-implementation/m0-protocol-base64.md)保留故障证据、事前条件和修复后结果。
 `NewMessage`是另一条出站辅助路径：生成随机message_id、编码body和信封，空session／reply字符串编码为null；它不调用Validate。`NewID`随机源失败返回`message_id_failed`；`NewMessage`的JSON编码失败返回`message_encode_failed`。调用方仍负责出站消息校验及方向／会话约束，不能因为能构造JSON就认为消息可发。
 
 可追踪例子：将prepare外层version_id改为另一合法UUID，保持payload里的version_id不变。它可通过根Schema和Base64检查，但在第4步返回`payload_invalid`，不返回“部分已接受”的Envelope，也不产生磁盘文件；对应[解析补验](../../internal/protocol/acceptance_test.go)的`TestAcceptancePrepareTargetsMatchEnvelope`。数字等价化仅用于检查；若后续模块需要按原始payload/body字节建立持久指纹，不能从`doc`重编码代替原字节。

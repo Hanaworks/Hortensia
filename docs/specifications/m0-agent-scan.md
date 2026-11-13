@@ -1,6 +1,8 @@
+> 现行用途（2026-11-14归档整理）：本篇保留仍有代码入口的旧格式API及被M1明确引用的基础规则，不是当前阶段的实施计划。正式schema5／protocol1的完整运行与差异见[Agent v5](m1-agent-runtime.md)、[Manager v5](m1-manager-runtime-store.md)和[正式通道](m1-agentwire.md)。本篇已结束的实施／验收历史从[归档目录](../../archive/2026-11-14-documentation/README.md)查阅，不能把旧格式参数或当时状态套用于正式服务。
+
 # M0 Agent 恢复扫描实施规格
 
-日期2026-11-07，起点2de48fd。本篇与[实施计划](../implementation/m0-agent-scan.md)在编码前以9f6c34c保存，源码／测试版本a34a769。状态：S01—S12通过，Agent本地扫描切片可供源码交接，整个M0尚未完成。实施中修订及实施后接手说明保留各自时点；技术细节为本轮实现选择，不表述为用户逐项确认。
+日期2026-11-07，起点2de48fd。本篇与[实施计划](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)在编码前以9f6c34c保存，源码／测试版本a34a769。状态：S01—S12通过，Agent本地扫描切片可供源码交接，整个M0尚未完成。实施中修订及实施后接手说明保留各自时点；技术细节为本轮实现选择，不表述为用户逐项确认。
 
 ## 1. 目的与完成边界
 
@@ -88,7 +90,7 @@ Complete对当前活动扫描检查：缓存完整且未到期、scan／ledger�
 
 排障先查ledger与版本、active_boot/current_session/frozen，再查活动scan／成员数量／dirty、变化事件的ack_session，最后查completed。不能按墙钟日期推测缓存仍有效，也不能因一条complete=true就删除占用。改分页查原文字节和完整信封预算；改事件／冲突查同事务变化登记；改会话查新连接重ACK；改关闭／Gate查反向等待；改v3结构先定升级及兼容验收。
 
-稳定验收S01—S12见[实施记录](../implementation/m0-agent-scan.md)。交付前核对最终源码、运行证据及维护说明，保留本次事前基线和实施修订时间。真实Docker、Manager业务恢复、线上联调、升级、备份回退和掉电耐久均不能由本切片代替。
+稳定验收S01—S12见[实施记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)。交付前核对最终源码、运行证据及维护说明，保留本次事前基线和实施修订时间。真实Docker、Manager业务恢复、线上联调、升级、备份回退和掉电耐久均不能由本切片代替。
 
 ## 7. 代码接手与完整实例
 

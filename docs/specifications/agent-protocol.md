@@ -1,6 +1,6 @@
 # Manager—Agent 通信规格 v1
 
-更新日期：2026-11-04。状态：M1 实现与对接的工作规格；部分结构、连接与许可规则已由 [M0 原型](../implementation/m0-agent-channel.md)验证，完整任务通道、持久化及 Docker 故障尚未验证。本篇承接 [Agent 构件](../architecture.md#5-构件视图与逐层展开)、[部署运行交互](../architecture.md#6-运行视图)和 R01、R04、R05、R07、R11—R14、Q02、Q04、Q05、Q07—Q10。沿用 P07—P10 的工作选择，不把新增字段、参数写成用户逐项确认的需求。
+更新日期：2026-11-04。状态：M1 实现与对接的工作规格；部分结构、连接与许可规则已由 [M0 原型](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)验证，完整任务通道、持久化及 Docker 故障尚未验证。本篇承接 [Agent 构件](../architecture.md#5-构件视图与逐层展开)、[部署运行交互](../architecture.md#6-运行视图)和 R01、R04、R05、R07、R11—R14、Q02、Q04、Q05、Q07—Q10。沿用 P07—P10 的工作选择，不把新增字段、参数写成用户逐项确认的需求。
 
 实现边界（2026-11-05 补记）：下文是完整任务通道的目标定义，20 类消息有 Schema 不等于全部已有处理器。当前原型的逐消息支持矩阵、实际 hello/welcome、冻结诊断、命令行参数及内存 Gate 状态，以 [M0 实际实现规格](m0-channel-probe.md)对应基线代码核对。
 

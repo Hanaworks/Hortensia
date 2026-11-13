@@ -50,4 +50,4 @@ Agent 代理 transport 注入签名再调用 RoundTrip；反向代理错误映�
 
 后续故障实验应在“远端已经产生副作用但响应丢失”“执行结束而结果落库失败”“Manager 从旧状态重启”处注入故障，验证不会误判 not_started 或释放占用。这些场景并未在本轮网络握手实验中执行。
 
-本轮实现、命令与验证证据见 [M0 实施记录](../implementation/m0-agent-channel.md)。
+本轮实现、命令与验证证据见 [M0 实施记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)。

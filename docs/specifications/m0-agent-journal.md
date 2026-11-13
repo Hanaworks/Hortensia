@@ -1,6 +1,8 @@
+> 现行用途（2026-11-14归档整理）：本篇保留仍有代码入口的旧格式API及被M1明确引用的基础规则，不是当前阶段的实施计划。正式schema5／protocol1的完整运行与差异见[Agent v5](m1-agent-runtime.md)、[Manager v5](m1-manager-runtime-store.md)和[正式通道](m1-agentwire.md)。本篇已结束的实施／验收历史从[归档目录](../../archive/2026-11-14-documentation/README.md)查阅，不能把旧格式参数或当时状态套用于正式服务。
+
 # M0 Agent 事件、首份结果与恢复读取实施规格
 
-日期：2026-11-07。起点：`fac4fa6`。本规格在编码前保存；实施顺序、验收结果和交付版本见[执行计划](../implementation/m0-agent-journal.md)。
+日期：2026-11-07。起点：`fac4fa6`。本规格在编码前保存；实施顺序、验收结果和交付版本见[执行计划](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)。
 
 读者为接入本模块的开发者及接手维护者。第1—6节给出范围、约束、接口和验收；第7—10节说明内部实现、流转、字段与维护入口，按源码版本`8ff708b`在2026-11-07交付后补充，不追记为初次编码前已具备的说明。第11节为本轮补充的完整使用实例，标明创建、事件流转、确认、关闭与重开的衔接。
 
@@ -202,7 +204,7 @@ RecoveryRecord中operation_id、input_digest、stack_id、version_id和project_n
 | ErrStorage | 打开／SQL／Commit／关闭路径、调用context和连接等待 | 错误为固定分类，单凭它不能断言磁盘损坏；结合发生步骤和已有事实定位，不自动重启执行 |
 | 查询互相等待或关闭挂起 | Store.mu、单数据库连接、Gate.Start回调 | 持Store锁不得等待DB/Gate；预留不能嵌入业务Tx；Start须短小且不能重入Gate或Close |
 
-改变事件字段或编码时，同步核对Schema校验、AAD、原文字节保留、结果幂等和恢复投影；改变状态／事务时核对not_started与开始竞争、失败后无Start及占用不释放；改变锁顺序时核对事务解密与NewGate／Close；改变DDL时同时设计版本和迁移，不能只改当前库表。关键验证入口分别为journal_crypto_test、events_test、results_test、recovery_test、journal_fault_test和journal_restart_test，完整路径与实际证据见[J01—J10验收记录](../implementation/m0-agent-journal.md)。本次维护说明按代码核对，不新增软件验收结论。
+改变事件字段或编码时，同步核对Schema校验、AAD、原文字节保留、结果幂等和恢复投影；改变状态／事务时核对not_started与开始竞争、失败后无Start及占用不释放；改变锁顺序时核对事务解密与NewGate／Close；改变DDL时同时设计版本和迁移，不能只改当前库表。关键验证入口分别为journal_crypto_test、events_test、results_test、recovery_test、journal_fault_test和journal_restart_test，完整路径与实际证据见[J01—J10验收记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)。本次维护说明按代码核对，不新增软件验收结论。
 
 ## 11. 完整使用实例：首结果从写入到重开
 

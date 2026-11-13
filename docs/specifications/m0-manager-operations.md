@@ -1,12 +1,14 @@
+> 现行用途（2026-11-14归档整理）：本篇保留仍有代码入口的旧格式API及被M1明确引用的基础规则，不是当前阶段的实施计划。正式schema5／protocol1的完整运行与差异见[Agent v5](m1-agent-runtime.md)、[Manager v5](m1-manager-runtime-store.md)和[正式通道](m1-agentwire.md)。本篇已结束的实施／验收历史从[归档目录](../../archive/2026-11-14-documentation/README.md)查阅，不能把旧格式参数或当时状态套用于正式服务。
+
 # M0 Manager 本地持久协调模块规格
 
-日期：2026-11-07。起点1d043a7。本篇与[实施计划](../implementation/m0-manager-operations.md)在本模块编码前以3bf8629保存；源码／测试版本c02e1fd。状态：M01—M10已验收，本地库可交接，网络任务仍冻结。本轮技术选择由实施者依据既有设计落实，不表示用户逐项确认。
+日期：2026-11-07。起点1d043a7。本篇与[实施计划](../../archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md)在本模块编码前以3bf8629保存；源码／测试版本c02e1fd。状态：M01—M10已验收，本地库可交接，网络任务仍冻结。本轮技术选择由实施者依据既有设计落实，不表示用户逐项确认。
 
 ## 1. 目的、边界与依赖
 
 模块`internal/manager/operations`是独立SQLite协调库：把固定任务输入转换成操作、资源占用和发送意图，依据持久用户／Grant及当前会话决定开始许可，把Agent的started／首result转换成可重读证据和操作状态。它不执行Docker，不提供HTTP或网络任务处理器。
 
-共享主定义引用[数据设计](../data-design.md#7-m1-存储布局与物理类型提案)、[HTTP规格](http-api.md)、[Agent协议](agent-protocol.md)、[执行与恢复](execution-recovery.md)及[Schema](../../contracts/agent-v1.schema.json)。输入使用FrozenPayload／prepare；事件使用started／ExecutionResult；不在本篇另造线上字段。
+共享主定义引用[数据设计](../data-design.md#7-现行存储与字段主定义)、[HTTP规格](http-api.md)、[Agent协议](agent-protocol.md)、[执行与恢复](execution-recovery.md)及[Schema](../../contracts/agent-v1.schema.json)。输入使用FrozenPayload／prepare；事件使用started／ExecutionResult；不在本篇另造线上字段。
 
 本轮入口带Fixture的部分代表可信测试调用者提供身份、节点登记、已冻结配置和ready事实；它们不是认证、节点认领、配置仓储、真实预检或扫描完成接口。用户enabled/auth_rev和逐项Grant真实落库，许可事务自行复核，不能由调用者提供allowed布尔值替代。尚无密码登录、HTTP幂等键／回执、配置版本外键、投递工作线程、完整恢复扫描、finalized释放和部署程序。
 
@@ -101,7 +103,7 @@ Keys包含不同ID且字节不同的DigestKey和EncryptionKey，各32字节；�
 
 ## 6. 验证与维护
 
-稳定验收M01—M10见[实施记录](../implementation/m0-manager-operations.md)。修改字段先查Schema／数据主定义，再查本篇本地约束和SQL；修改许可查撤权排序、重复许可、会话替换；修改事件查乱序、冲突、原字节、提交失败及保留占用；修改加密查额度与绑定破坏。操作状态不等于释放状态，不能在UI或下一模块把pending解释成可重用资源。
+稳定验收M01—M10见[实施记录](../../archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md)。修改字段先查Schema／数据主定义，再查本篇本地约束和SQL；修改许可查撤权排序、重复许可、会话替换；修改事件查乱序、冲突、原字节、提交失败及保留占用；修改加密查额度与绑定破坏。操作状态不等于释放状态，不能在UI或下一模块把pending解释成可重用资源。
 
 故障定位顺序：确认Manager身份／库版本／密钥配对 → active_boot与节点session/frozen → 操作固定目标与两项claims → 原许可及auth_rev → 事件原文／序号／result指针 → finalize状态。ErrInput为不合法结构，ErrIdentity为身份不符，ErrPermission为持久权限不足，ErrFrozen为恢复／会话屏障，ErrConflict为固定输入或证据冲突，ErrClaimed为占用竞争，ErrEvidence为持久证据不一致，ErrKeyExhausted为包装额度用尽，ErrStorage为数据库／关闭失败；错误不包含正文。
 

@@ -4,7 +4,7 @@
 
 ## 1. 已有基础与开工条件
 
-已有资产为原始讨论、11月决定及归档、需求与设计文档，以及M1技术组合和v1通信／执行工作规格。2026-11-04已建立Git仓库，初始提交`c5ea0fc`保存上一轮全部资料；M0的协议、通信、持久账本、事件日志、协调、扫描与双端释放均有实现及各自证据，入口见[通信实施记录](implementation/m0-agent-channel.md)、[账本实施记录](implementation/m0-agent-ledger.md)、[事件日志实施记录](implementation/m0-agent-journal.md)、[Manager协调实施记录](implementation/m0-manager-operations.md)、[Agent扫描实施记录](implementation/m0-agent-scan.md)、[Manager恢复实施记录](implementation/m0-manager-recovery.md)和[双端释放记录](implementation/m0-dual-release.md)。正式服务与Web的源码启动说明见[Manager运行](manager-first-run.md)和[Agent接入](agent-first-run.md)；这些源码交接及本机验证尚不构成完整产品交付。
+已有资产为原始讨论、11月决定及归档、需求与设计文档，以及M1技术组合和v1通信／执行工作规格。2026-11-04已建立Git仓库，初始提交`c5ea0fc`保存上一轮全部资料；M0的协议、通信、持久账本、事件日志、协调、扫描与双端释放均有实现及各自证据，入口见[通信实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)、[账本实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-ledger.md)、[事件日志实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)、[Manager协调实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-manager-operations.md)、[Agent扫描实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)、[Manager恢复实施记录](../archive/2026-11-14-documentation/m0-implementation/m0-manager-recovery.md)和[双端释放记录](../archive/2026-11-14-documentation/m0-implementation/m0-dual-release.md)。正式服务与Web的源码启动说明见[Manager运行](manager-first-run.md)和[Agent接入](agent-first-run.md)；这些源码交接及本机验证尚不构成完整产品交付。
 
 继续依据产品行为和P01—P10验证O02、O03、O04、O07。存储自动搬运按用户要求继续暂缓；O05阻塞完整迁移，不阻塞节点、编辑、部署和Copy／Apply。用户已于2026-11-12明确按M1首个完整流程推进，范围见第4节及[首版记录](implementation/m1-first-version.md#1-目标依据与范围)；该确认不把M2—M5全部目标纳入首版。
 
@@ -35,9 +35,7 @@ M3 的资源能力和转换器可按依赖分别推进，不必等全部资源�
 | 配置与文件 | 多文件、环境、附属配置和 Docker 端点路径是否与原生一致 | 支持组合与拒绝组合，记录 Compose 版本，不先承诺全平台 |
 | 持久化 | 配置内容、版本指针、操作和发送意图能否一致提交；如何恢复密钥和内容 | 存储方案及最小恢复演练；发现新对象时回填数据设计 |
 
-**2026-11-07技术验证摘要（历史原文）**：以下一段的“本轮新增”“仍待执行”只对应Manager v2恢复切片完成时，不作为当前待办；后续双端释放、正式身份及任务通道的现行结果见[首版记录](implementation/m1-first-version.md#2-起点与实施依赖)。完整备份恢复和真实Docker故障组合仍未完成。
-
-其中已开展Go契约校验、真实回环TLS双进程握手、独立许可门禁，以及SQLite开始账本／加密事件／首结果、确认、单操作恢复读取、事务失败和进程终止重开实验。Manager本地持久操作／许可／事件接收的范围与M01—M10证据见[独立规格](specifications/m0-manager-operations.md)及[实施记录](implementation/m0-manager-operations.md)。Agent本地全账本扫描、连续冻结、当前会话变化确认及持久完成回执的准确边界和S01—S12证据见[扫描规格](specifications/m0-agent-scan.md)及[验收记录](implementation/m0-agent-scan.md)。本轮新增Manager v2扫描页持久接收、业务核对、无记录取消释放及当前回执解冻，范围和R01—R12证据见[恢复规格](specifications/m0-manager-recovery.md)及[验收记录](implementation/m0-manager-recovery.md)。完整数据库与密钥恢复、认领／轮换、线上任务重报、真实finalize／finalized双端释放和Docker故障实验仍待执行。P07—P09的完整组合尚未验证；整体夹具和故障点见[测试计划第7节](test-plan.md#7-m0m1-验证规格)，各持久模块子集入口见其第10—14节。原型结果改变模块和协议安排时，先复核文档规划与正文，再继续依赖它的实现。
+历史进度／验证原文已迁入[归档](../archive/2026-11-14-documentation/history/early-validation-summary.md)，不再作为当前待办。当前状态及依赖见[M1推进](implementation/m1-first-version.md)。
 
 ## 4. M1 工程落实与任务依赖
 
@@ -109,23 +107,7 @@ O05 需要逐阶段明确：来源何时退出、目标何时启动、业务访�
 
 2026-11-13现行进展：运行及只读检查器前轮Windows完整回归为18包、1852条测试／子测试通过、0失败、5跳过，见[只读检查切片](implementation/m1-first-version.md#8-两端备份只读检查切片)。通用备份组已提交`7362441`，其145条通用矩阵、修复后12条专项及独立关闭过程分别保留在[BG记录](implementation/m1-backup-group.md)，不混称同次执行。A机完整Go回归为18测试包、1991条通过、0失败、2跳过，vet／build／mod verify均通过；受验255份输入在提交前逐字节核对，与`7362441`一致。A机正式CLI／HTTP子集也已通过初始化、TLS登录／授权、Agent认领及真实WebSocket空恢复、多文件版本保存／幂等、unsupported拒绝、停机重开及锁释放；这不是浏览器点击或Docker部署。B机NC01—NC12原生对照子集的156条命令及六份证据hash已核验，未调用产品Prepare／Observe或正向Apply，生产接受表保持空。具体环境、原始步骤及边界见[InstaBox记录](implementation/m1-instabox-debug.md)。下一软件依赖仍为两端备份service／CLI和真实领域集成、隔离恢复／重加密及受控维护；完整安装、真实部署、双节点隔离与独立阅读仍待验证。
 
-### 2026-11-07各切片进度（历史原文）
-
-**保留范围与替代入口**：从下段至“整体架构”段之前，保存2026-11-07依次完成各切片时的原始进度及依赖。“当前”“下一模块”“下一依赖”“用户当前无需提供部署环境”只指对应历史切片；这些状态表述已由本节现行进展及[首版记录](implementation/m1-first-version.md)替代。保留原证据和未验证边界，不据后续实现回写为当时已完成。
-
-当前完成初稿留存、M1 设计深化及 M0 的首个通信／许可门禁实验；2026-11-06 补建[切片验收标准](implementation/m0-agent-channel.md#本轮验收标准)，2026-11-07 按预先保存的补齐计划完成AC01—AC11逐项验证与审阅，代码／测试基线为`94056e0`。当前切片可供技术交接；M0 尚未整体完成，M1—M5 尚未实现。已有 Portainer 固定版本[源码对照](research/portainer-agent-reference.md)，其结论与本项目实测分别记录。每个增量完成时记录版本、已实现功能、适用环境、测试证据和剩余限制，更新 README 与实际使用入口。
-
-2026-11-07继续完成[Agent开始账本切片](implementation/m0-agent-ledger.md)：开工前保存实施规格与L01—L10，源码／测试版本d572f84实现SQLite固定输入／占用、Gate持久提交、重复拒绝及三个进程终止边界；L01—L10通过，整个M0仍未完成。当时确定先落实事件／结果与恢复记录，再接入受控任务通道；不跳过Manager授权、真实准备及结果核对依赖。
-
-同日完成[Agent事件日志切片](implementation/m0-agent-journal.md)：编码前以5c0c1f7保存规格和J01—J10，源码／测试版本8ff708b；加密started与首result、同位冲突隔离、确认和单操作恢复读取通过验收，包含实际结果事务内强杀后的重开验证。显式新v2库不升级v1；结果仍由受控夹具提供，确认不释放占用。下一模块先落实Manager持久操作／事件接收及会话／核对约束，再接入受控任务交互；网络通道继续冻结。
-
-随后完成[Manager本地持久协调切片](implementation/m0-manager-operations.md)：基线3bf8629、源码／测试c02e1fd，M01—M10通过；独立Manager v1库保存加密输入、双占用、事务许可及首事件／结果，包含真实SQL失败与进程终止重开。身份／配置／ready仍由Fixture提供，节点重连或Open后只补事实，不任意解冻；终态保留pending和claims。下一依赖改为完整核对扫描／会话恢复、受控任务通道及双端释放，真实Compose验证前再明确联调环境需求。
-
-2026-11-07随后完成Agent本地恢复扫描切片，按[扫描规格](specifications/m0-agent-scan.md)及[实施记录](implementation/m0-agent-scan.md)交接：显式新v3库持久保存冻结、扫描成员／变化集合和最近完成回执，当前boot的有界原文快照负责分页与期限。Agent完成只结束本轮扫描屏障，不删除claims、不恢复旧Gate，也不证明Manager业务核对结束。下一步先实现Manager扫描页持久接收、变化合并与业务恢复判定，再接受控网络任务及双端释放。本轮只使用本机临时数据库和辅助进程，无需用户提供真实部署环境；旧库升级、备份回退和掉电耐久均未实现或验证。
-
-同日继续实现[Manager扫描接收与业务恢复](specifications/m0-manager-recovery.md)，事前规格与验收基线为`72bc30a`，本轮实现及R01—R12证据见[验收记录](implementation/m0-manager-recovery.md)。显式新v2库保存加密页面、请求链、无记录释放的本地历史依据和隔离证据，并兼容Agent同boot旧快照与较新Manager事件合并；只有完整all缺席且从未授权／观察的任务可以取消释放，普通终态仍保留pending及claims。页面收齐、业务就绪和当前completed提交分别核对，quarantined不因换轮或重开消失，未知及暂不支持的历史持续隔离。
-
-当前下一依赖为双端finalize／finalized释放及受控任务通道接线，并继续落实认领／轮换、真实准备和Compose执行。Manager v1／v2及Agent v1／v2／v3入口各自保留，无旧库升级或备份回退恢复入口。用户当前无需提供部署环境；进入真实Docker、Compose或跨机验证前再说明所需组合及联调范围。本地库组合与进程重开实验不代表完整M0、网络恢复或掉电耐久已经完成。
+历史进度／验证原文已迁入[归档](../archive/2026-11-14-documentation/history/development-progress.md)，不再作为当前待办。当前状态及依赖见[M1推进](implementation/m1-first-version.md)。
 
 ### 现行计划维护规则
 
@@ -169,3 +151,7 @@ O05 需要逐阶段明确：来源何时退出、目标何时启动、业务访�
 共同定义、本地定义、转换处理三者分别落实；引用Schema解决共有字段的精确结构，模块仍须解释自己如何消费和产生它。已有说明优先引用及修正，不为每个子模块复制全局字典。已实现模块以最终代码复核；设计中的Manager、Agent、Web保持设计状态，并链接已验证子集。当前必要定义先于实现保存，其余细节随该模块推进；不以将来可以补充为由漏掉本轮核心行为。
 
 路线承接 req42 的范围与风险，工程安排承接 arc42 构件和质量；任务—依赖—工程接入—断言的写法参考 [Helichrysum 切片计划](../../Helichrysum/docs/slice-2-plan.md)，不采用其项目任务、技术决定和完成状态。
+
+<a id="2026-11-07各切片进度历史原文"></a>
+
+历史标题定位：原写作／阶段／物理方案正文已[归档](../archive/2026-11-14-documentation/history/development-progress.md)；以上旧定位仅承接历史书签，不恢复旧规则。

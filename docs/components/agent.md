@@ -1,6 +1,6 @@
 # Agent 模块设计
 
-更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本、事件／首结果及[本地恢复扫描](../specifications/m0-agent-scan.md)的受控切片已完成；2026-11-12又完成[v4双端释放](../specifications/m0-dual-release.md)本地验收，尚无真实执行的完整Agent；扫描完成边界与证据见[验收记录](../implementation/m0-agent-scan.md)。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
+更新日期：2026-11-07。状态：整体仍为M1内部设计与v1执行工作规格，通信、开始账本、事件／首结果及[本地恢复扫描](../specifications/m0-agent-scan.md)的受控切片已完成；2026-11-12又完成[v4双端释放](../specifications/m0-dual-release.md)本地验收，尚无真实执行的完整Agent；扫描完成边界与证据见[验收记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)。本文展开[整体架构](../architecture.md)中的节点侧构件，供节点执行与协议实现者使用，承接R02、R04—R10、R12、R13、R15及Q03、Q04、Q06—Q10。Agent主动接入已确认；具体报文由[Agent协议](../specifications/agent-protocol.md)维护，必要执行与恢复细节由[执行规格](../specifications/execution-recovery.md)承接，各原型范围见相应实施记录。
 
 ## 1. 内部组成
 
@@ -140,7 +140,7 @@ M0 至少输出：同一输入的原生对照、路径拒绝清单、10 秒许�
 
 ## 10. 结果与释放接入
 
-2026-11-07的[事件日志切片](../implementation/m0-agent-journal.md)已落实started与开始事实原子提交、首份受控result加密保存、确认及单操作RecoveryRecord读取。其v2新库不隐式升级v1，调用方仍须提供真实执行／归属证据和网络关联；下面补观察及finalize目标机制尚未实现，不能因能读取结果而释放占用。
+2026-11-07的[事件日志切片](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)已落实started与开始事实原子提交、首份受控result加密保存、确认及单操作RecoveryRecord读取。其v2新库不隐式升级v1，调用方仍须提供真实执行／归属证据和网络关联；下面补观察及finalize目标机制尚未实现，不能因能读取结果而释放占用。
 
 结果的 outcome 区分 not_started、normal_exit、interrupted、unknown；ownership_status 区分 not_checked、consistent、drifted、unknown。正常退出只有在观察 complete 且归属 consistent 时才可自动终结；不能只用 exit_code 判定是否可释放。正常退出但观察失败、尚无明确漂移时，接收绑定原 operation_id 的只读补观察，保留原进程事实，以新 event_seq 发布新观察及重新核对的 ownership_status，不执行第二次 Compose。观察完整但归属 drifted／unknown 仍保持核对。
 
@@ -179,7 +179,7 @@ Agent 对外接收受认证的结构化任务，内部把它分成固定输入�
 | `RecoveryRecord` | 单一数据库快照中的开始、事件、确认、占用一致，按证据派生协议阶段；作为全账本扫描的内部投影基础 | 业务恢复判定；一次读取不能证明身份枚举完整或释放占用 |
 | v3 `Reconcile`／`CompleteReconcile` | 持久冻结、固定成员与有界原文分页、当前会话变化确认、期限与scope替换、持久completed重放；完成不释放claims | 将可信会话接到真实通道并适配错误；Manager持久接收全部页、合并变化、核对旧许可／占用／缺失历史及必要释放，再保存completed并开放新受理 |
 
-`executions.phase` 当前只保存ready或START_COMMITTED；有result、blocked或旧boot未知时，恢复接口按[事件模块阶段映射](../specifications/m0-agent-journal.md#83-数据状态与对外阶段的区别)派生协议phase。Manager的操作state还需要独立判定，不能把某个本地phase字符串复制成用户看到的成功。v1开始账本、v2日志、v3扫描分别使用自己的打开入口和DDL；v3是显式新实验库，没有v1／v2升级工具，开新库不能绕过原节点未知任务。扫描的完整行为和S01—S12证据集中在[扫描规格](../specifications/m0-agent-scan.md)及[验收记录](../implementation/m0-agent-scan.md)，不以本表替代模块定义。
+`executions.phase` 当前只保存ready或START_COMMITTED；有result、blocked或旧boot未知时，恢复接口按[事件模块阶段映射](../specifications/m0-agent-journal.md#83-数据状态与对外阶段的区别)派生协议phase。Manager的操作state还需要独立判定，不能把某个本地phase字符串复制成用户看到的成功。v1开始账本、v2日志、v3扫描分别使用自己的打开入口和DDL；v3是显式新实验库，没有v1／v2升级工具，开新库不能绕过原节点未知任务。扫描的完整行为和S01—S12证据集中在[扫描规格](../specifications/m0-agent-scan.md)及[验收记录](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)，不以本表替代模块定义。
 
 ### 11.3 生命周期与故障定位
 
@@ -191,7 +191,7 @@ Agent 对外接收受认证的结构化任务，内部把它分成固定输入�
 | 许可看似有效却没有Start | 原操作boot、占用、prepared_session、Gate期限／取消、开始提交；[gate.go](../../internal/agent/ledger/gate.go)和[startgate](../../internal/startgate/gate.go) | 已提交但未调用Start也保留证据；不能再建Gate，检查L05—L09、J04 |
 | 结果保存失败或冲突 | 原事件位置／body、blocked、密钥额度、事务；[results.go](../../internal/agent/ledger/results.go)、[journal_crypto.go](../../internal/agent/ledger/journal_crypto.go) | 原结果不覆盖、额度预留不退款、占用不释放；检查J02—J06 |
 | 重开后未知或确认后仍待发送 | 当前boot、最新结果、ack_session、claims；[events.go](../../internal/agent/ledger/events.go)、[recovery.go](../../internal/agent/ledger/recovery.go) | 旧连接确认不代替新连接核对；无结果不伪造退出码；检查J07—J09 |
-| 扫描无法续页、不能完成或重连后仍冻结 | 先按[扫描规格的异常与维护说明](../specifications/m0-agent-scan.md#6-异常维护与验证)检查版本／boot／session、active／dirty、变化确认及completed，再查原文缓存与期限 | 过期和重开不解冻；历史completed不结束新扫描；变化确认与完成同事务约束不拆开，验证以[S01—S12](../implementation/m0-agent-scan.md)为准 |
+| 扫描无法续页、不能完成或重连后仍冻结 | 先按[扫描规格的异常与维护说明](../specifications/m0-agent-scan.md#6-异常维护与验证)检查版本／boot／session、active／dirty、变化确认及completed，再查原文缓存与期限 | 过期和重开不解冻；历史completed不结束新扫描；变化确认与完成同事务约束不拆开，验证以[S01—S12](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)为准 |
 | 修改支持的Compose输入或清理工作区 | 第9.2—9.3节、[预检算法](../specifications/execution-recovery.md#2-配置预检与原生执行)、运行挂载引用 | 先改支持矩阵和验收，再开放能力；需真实原生对照T04／T13／T17，现有账本测试不能证明 |
 
-排障以固定错误码、node／ledger／operation、阶段和事件位置定位，不把密钥、解密body或配置全文放入普通日志。包内完整字段、锁顺序、事务失败与修改规则分别见[开始账本内部说明](../specifications/m0-agent-ledger.md#7-内部实现与维护说明)、[事件日志内部说明](../specifications/m0-agent-journal.md#7-内部结构与职责)和[扫描规格](../specifications/m0-agent-scan.md)；本页保留组件间协作，不复制各表字典。验收证据以[L01—L10](../implementation/m0-agent-ledger.md)、[J01—J10](../implementation/m0-agent-journal.md)和[S01—S12](../implementation/m0-agent-scan.md)为准。2026-11-07本次入口同步反映新增本地扫描切片；验证使用本机临时数据库与辅助进程，无需真实部署环境，未新增真实Compose、Manager完整业务恢复、旧库升级或掉电耐久结论。
+排障以固定错误码、node／ledger／operation、阶段和事件位置定位，不把密钥、解密body或配置全文放入普通日志。包内完整字段、锁顺序、事务失败与修改规则分别见[开始账本内部说明](../specifications/m0-agent-ledger.md#7-内部实现与维护说明)、[事件日志内部说明](../specifications/m0-agent-journal.md#7-内部结构与职责)和[扫描规格](../specifications/m0-agent-scan.md)；本页保留组件间协作，不复制各表字典。验收证据以[L01—L10](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-ledger.md)、[J01—J10](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-journal.md)和[S01—S12](../../archive/2026-11-14-documentation/m0-implementation/m0-agent-scan.md)为准。2026-11-07本次入口同步反映新增本地扫描切片；验证使用本机临时数据库与辅助进程，无需真实部署环境，未新增真实Compose、Manager完整业务恢复、旧库升级或掉电耐久结论。

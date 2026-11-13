@@ -18,7 +18,7 @@
 | 原型实施 | 完整 v1 规格和 Schema 先于代码存在；本轮原型的最终行为及统一完成判据不够完整 | 有上层规格不代表当前实施准备已充分；事后补录应保留形成时点 |
 | 补齐验收 | 先保存补齐计划，再完善测试、审阅和逐项结果，当前通信与独立门禁切片验收完成 | 当前切片、整个 M0 和可部署产品分别判断完成，不扩大结论 |
 
-早期经过可核对[归档复盘](../archive/2026-11-03-session-deliverables/conversation/decisions-and-follow-up.md)、[最初方案](../archive/2026-11-03-session-deliverables/history/documentation-implementation-plan-v0.1.md)和[会话原文](../archive/2026-11-03-session-deliverables/conversation/conversation.md)。后续深化及原型状态分别记录在[文档规划](documentation-plan.md)和[实施与验收](implementation/m0-agent-channel.md)。
+早期经过可核对[归档复盘](../archive/2026-11-03-session-deliverables/conversation/decisions-and-follow-up.md)、[最初方案](../archive/2026-11-03-session-deliverables/history/documentation-implementation-plan-v0.1.md)和[会话原文](../archive/2026-11-03-session-deliverables/conversation/conversation.md)。后续深化及原型状态分别记录在[文档规划](documentation-plan.md)和[实施与验收](../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)。
 
 ## 2. 全过程中的具体教训
 
@@ -151,7 +151,7 @@
 
 现行文档已补充 Manager、Agent、Web 的局部设计，统一通信和数据约定，记录来源与技术选择，并完善原稿归档、现行入口和 Git 历史。工程部分补建了实际规格、AC01—AC11 及逐项证据，当前通信与独立 Gate 原型切片已验收。
 
-相关提交保留了形成顺序：`b8bf085` 为目标通信与执行规格，`98d9c13` 为原型实现；`dc0529c`、`682da69` 补录实际规格与来源；`3f0dcc1` 补建实施验收基线；`94056e0`、`70a0d3f` 完成补验及交付记录。这轮补验没有改变运行代码，新增测试数量不能算成修复缺陷数量。详细结论见[实施与验收](implementation/m0-agent-channel.md)。
+相关提交保留了形成顺序：`b8bf085` 为目标通信与执行规格，`98d9c13` 为原型实现；`dc0529c`、`682da69` 补录实际规格与来源；`3f0dcc1` 补建实施验收基线；`94056e0`、`70a0d3f` 完成补验及交付记录。这轮补验没有改变运行代码，新增测试数量不能算成修复缺陷数量。详细结论见[实施与验收](../archive/2026-11-14-documentation/m0-implementation/m0-agent-channel.md)。
 
 之后开始账本与事件日志按事先保存的规格继续实施，现有子集分别由L01—L10和J01—J10记录验收；源码版本与范围见对应实施记录。`5b726aa`补充内部结构、流转、字段与维护说明。本次再按“小型程序”尺度检查全部已有模块文档，把共同定义、本地定义和转换处理串联，并补齐生命周期与使用实例；尚未实现的Manager／Agent完整业务和Web仍保留设计状态。本次文档完善不增加软件验收结论。
 
