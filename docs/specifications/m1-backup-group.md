@@ -1,6 +1,6 @@
 # M1 v5完整备份组与离线校验
 
-2026-11-13会话客户端日期，编码前基线。依据源码95d453f、文档e291a44及[维护／备份主定义](m1-maintenance-backup.md)。本文采用对当前源码调查后明确选择的实现方式，不将调查报告或参考资料自动视为用户需求。稳定BG验收见[实施记录](../implementation/m1-backup-group.md)。本轮尚未实现。
+2026-11-13会话客户端日期，编码前基线。依据源码95d453f、文档e291a44及[维护／备份主定义](m1-maintenance-backup.md)。本文采用对当前源码调查后明确选择的实现方式，不将调查报告或参考资料自动视为用户需求。稳定BG验收见[实施记录](../implementation/m1-backup-group.md)。同日事后补充：通用CreateGroup/VerifyGroup已实施并完成本机适用验证，实际入口及证据见下文；两端服务、CLI与真实领域组合由负责人单独集成，不能把通用回调测试当成完整组端到端交付。
 
 ## 1. 目的与边界
 
@@ -248,6 +248,8 @@ CreateGroup 建立总5分钟有界context，覆盖材料锁等待、Snapshot、�
 
 错误类型沿Snapshot既有ErrInput/ErrDestination/ErrPartial并增加 `ErrMaterialsBusy,ErrMaterialsChanged,ErrVerification,ErrPublicationUncertain,ErrCleanup`。Context错误可errors.Is查询；领域错schema/identity/key/cipher/semantic使用受控细分code，不把明文或SQL行塞进error。调用方必须同时看GroupResult.State和error，CLI对uncertain/cleanup都非零退出但分别报告状态。
 
+2026-11-13独立复核后、P2修复前明确BG09/12：最终data清单发布前，Inspector因取消/期限返回固定领域错误时，即使该错误本身未包装context错误，Create也必须优先保留实际ctx.Err，供errors.Is查询，和Verify同一错误分支一致。部分组仍保留、最终清单不得出现；这不改变最终data rename成功之后完成提交收尾的规则，也不改回调API或领域错误定义。
+
 5分钟是本轮操作上限和保守容量边界，不是完成SLO。超限大组保持partial；如实际容量要求更大，再先修改上限/验收基线。没有自动保留删除、上传、加密压缩包或RPO/RTO保证。
 
 ## 7. 接口细化及维护规则
@@ -262,4 +264,20 @@ BuildInfo字段为application_version、可空build_revision、可空build_dirty
 
 已存在路径比较须使用实际文件身份及本平台规范路径；非现存目标使用已认证私有父目录和预定叶名。两输出不得相同或互相嵌套，包括Windows大小写和目录别名；不能通过重命名覆盖、清理partial或删除锁文件规避。受控文件操作测试适配器只在包内验证I/O故障，不作为生产配置或用户放行选项。
 
+2026-11-13编码中、修复前补充BG04/07/08：源材料前后核对同时保存打开文件的身份及摘要，同路径同字节但文件实体被替换也应返回materials_changed；不能只比较再次读取的字节。通用报告结构还须保证每个SealedRows表都存在于TableRows，其密文行数不超过该表总行数；精确领域表集合与AAD仍由领域Inspector认证，不在通用层另建一份业务表定义。
+
 修改密文表／身份字段时同时更新领域Inspector及清单／计数映射；修改材料发布或启动必须保持运行锁→材料锁→SQLite顺序；修改清单格式／摘要framing须显式版本化，不能让普通重构静默破坏旧备份验证。备份成功不能证明当前远端凭据未撤销、现在的用户授权或应用卷可恢复；这些是后续隔离恢复必须另行处理的事实。
+
+## 8. 通用层实际入口与维护定位（实施后补充）
+
+`internal/backup/group_types.go`保存公共契约和受控错误；`group.go:CreateGroup/createGroup`按§6组织本次context、真实材料锁及输出生命周期，私有groupOperations只作为同包受控I/O故障测试边界，每次调用独立，不是生产配置或用户绕过接口。锁在全部发布和关闭路径释放，source材料只捕获本组件三份固定文件。
+
+`group_manifest.go`负责固定清单DTO、配置/外部元数据白名单、字段存在/null/重复检查及报告归一化。元数据数字保留json.Number后按声明uint64/int64解码；不能直接用共享protocol.StrictJSON的JavaScript安全整数上限限制完整计数。该模块验证通用报告结构，两端精确17/29表及密文AAD仍只由领域Inspector认证。
+
+`group_files.go`负责私有普通单链接文件读取、流式hash/身份、固定目录树、源/目标保留路径及锁等待；平台group_files_linux/windows.go负责句柄/硬链接/规范长路径和不替换rename。原有Snapshot及其平台helper保持原样；在线源没有切换到immutable。`group_verify.go:VerifyGroup`只从显式清单固定目录树捕获材料，保持副本前后hash/身份不变，完整比较两组计数和语义报告。
+
+Create在没有创建任何输出根时，GroupResult.State为空；返回的backup_id/计划清单路径只标识本次尝试，不证明文件存在。partial不返回领域成功报告；最终data清单出现后uncertain/complete携带完整报告，结合error区分持久化和清理状态。Verify失败返回零报告，成功只证明当前组字节和领域自洽性，不能追认过去的目录耐久或对端授权事实。
+
+排障从受控错误分类→材料锁→源材料和输出命名空间→Snapshot→副本Inspector→源实体重读→secret清单→最终data发布/Sync→锁清理依次定位；失败资料保留，不能删除锁、覆写partial、替换钥或补空DB绕过。维护验证入口为`internal/backup/group*_test.go`及既有BS测试；真实领域、服务锁和CLI证据仍要由对应集成验收承接。
+
+同日P2修复后补充：Create中Inspector返回非nil错误时，先检查本次ctx.Err，再处理普通领域拒绝；现在与Verify一致。正式`TestCreateGroupInspectorErrorPreservesCancellation/Deadline`覆盖“纯读取后取消/超时，再返回不包装context的固定领域错误”，断言可查询的Context分类、ErrPartial、partial状态及无最终清单；成功报告后取消及其他发布状态的已有断言保留。
